@@ -6,6 +6,9 @@ import { z } from "zod";
 const rootEnv = resolve(process.cwd(), "../../.env");
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
+/** An unset or empty variable means "not configured" (docker compose passes empty strings for unset values). */
+const optionalSecret = z.preprocess((v) => (v === "" ? undefined : v), z.string().min(10).optional());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   API_PORT: z.coerce.number().int().default(4000),
@@ -17,6 +20,13 @@ const envSchema = z.object({
   JWT_EXPIRES_IN_SECONDS: z.coerce.number().int().min(60).default(600),
   /** Pause between provisioning steps so the live log can be watched (0 = as fast as possible). */
   PROVISIONING_STEP_DELAY_MS: z.coerce.number().int().min(0).max(5000).default(0),
+  /** "Bolo & Build" AI provider. `auto` prefers Gemini when its key is set, then Anthropic, else the built-in fallback. Keys stay on the server. */
+  AI_PROVIDER: z.enum(["auto", "gemini", "anthropic", "none"]).default("auto"),
+  GEMINI_API_KEY: optionalSecret,
+  GEMINI_MODEL: z.string().min(1).default("gemini-2.5-flash"),
+  ANTHROPIC_API_KEY: optionalSecret,
+  ANTHROPIC_MODEL: z.string().min(1).default("claude-haiku-5-5"),
+  AI_TIMEOUT_MS: z.coerce.number().int().min(500).max(30000).default(8000),
   /** Refresh token lifetime (sliding: each rotation issues a fresh window). */
   REFRESH_EXPIRES_IN_SECONDS: z.coerce.number().int().min(300).default(7 * 24 * 3600),
 });

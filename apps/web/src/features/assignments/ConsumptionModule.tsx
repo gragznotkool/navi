@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Assignment } from "@opshub/contracts";
 import { ErrorState, LoadingState } from "../../components/feedback";
+import { PendingOps } from "../../components/PendingOps";
 import { DataTable } from "../../components/tables/DataTable";
 import { Button, PageHeader } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
 import { http, toRequestError } from "../../lib/api";
+import { enqueue, isNetworkFailure, SYNCED_EVENT, syncNow } from "../../lib/offline/engine";
 import { formatDateTime, shortId } from "../../lib/format";
 import { useSiteRuntime } from "../../runtime/context";
 import type { ModuleProps } from "../../runtime/registry";
@@ -17,6 +19,11 @@ export function ConsumptionModule({ page }: ModuleProps) {
   const [qty, setQty] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const canRecord = permissions.has("consumption:record");
+  useEffect(() => {
+    const on = () => assignments.reload();
+    window.addEventListener(SYNCED_EVENT, on);
+    return () => window.removeEventListener(SYNCED_EVENT, on);
+  }, [assignments.reload]);
 
   const record = async (a: Assignment) => {
     const quantity = Number(qty[a.id]);
@@ -28,6 +35,15 @@ export function ConsumptionModule({ page }: ModuleProps) {
       setQty((q) => ({ ...q, [a.id]: "" }));
       assignments.reload();
     } catch (e) {
+      if (isNetworkFailure(e)) {
+        const saved = await enqueue(siteId, "consumption.record", { assignmentId: a.id, quantity }, `Consumption of ${quantity} on assignment #${shortId(a.id)}`);
+        if (saved) {
+          notify.info("Saved on this device. It will be sent when you are back online.");
+          setQty((q) => ({ ...q, [a.id]: "" }));
+          void syncNow();
+          return;
+        }
+      }
       notify.error(toRequestError(e).message);
     } finally {
       setBusy(null);
@@ -37,6 +53,7 @@ export function ConsumptionModule({ page }: ModuleProps) {
   return (
     <>
       <PageHeader title={page.title} subtitle="Record how much of each assignment has been used. The server rejects over-consumption." />
+      <PendingOps siteId={siteId} types={["consumption.record"]} />
       {assignments.loading && !assignments.data && <LoadingState />}
       {assignments.error ? <ErrorState error={assignments.error} onRetry={assignments.reload} /> : null}
       {assignments.data && (

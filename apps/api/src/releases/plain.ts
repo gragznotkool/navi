@@ -56,6 +56,8 @@ export function describeChanges(from: SiteConfiguration | null, to: SiteConfigur
               ? `Pending ${who} requests no longer have a deadline.`
               : `The deadline for pending ${who} requests changes from ${plural(Number(a), "second")} to ${plural(Number(b), "second")}.`,
         );
+      } else if (k === "publicIntake") {
+        out.push(b === true ? "Anyone with the site's public link can now submit requests without signing in (they still need approval)." : "The site no longer accepts requests from people who are not signed in.");
       } else {
         out.push(`Setting “${k}” on “${moduleName(n.moduleType)}” changes from ${a === undefined ? "not set" : String(a)} to ${b === undefined ? "not set" : String(b)}.`);
       }

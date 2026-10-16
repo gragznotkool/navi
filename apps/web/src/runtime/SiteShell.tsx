@@ -1,8 +1,9 @@
 import { Boxes, ClipboardCheck, ClipboardList, FileSpreadsheet, GitBranch, History, Rewind, LayoutDashboard, LogOut, PackageCheck, RotateCcw, Users, Wrench, BarChart3, ChevronRight, type LucideIcon } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import type { ModuleType } from "@opshub/contracts";
 import { OfflineBanner } from "../components/feedback";
+import { usePalette } from "../stores/palette";
 import { useSession } from "../stores/session";
 import { useSiteRuntime } from "./context";
 
@@ -141,6 +142,15 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
     </Link>
   );
   const all = [...main, ...platform];
+
+  // Offer this site's pages in the Ctrl+K palette while the shell is mounted.
+  const setSiteCommands = usePalette((s) => s.setSiteCommands);
+  const navKey = all.map((e) => `${e.to}|${e.label}`).join(",");
+  useEffect(() => {
+    setSiteCommands(all.map((e) => ({ id: `go:${e.to}`, label: `${config.name}: ${e.label}`, group: "Go to" as const, to: e.to })));
+    return () => setSiteCommands([]);
+    // `all` is derived from navKey, which is the stable change signal.
+  }, [navKey, config.name, setSiteCommands]);
 
   if (config.shell === "sidebar") {
     return (

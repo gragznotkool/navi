@@ -12,6 +12,7 @@ import { configApi, releasesApi, sitesApi } from "../../services";
 import { notify } from "../../stores/toast";
 import { addEdge, addModule, canConnect, moveNode, removeEdge, removeModule, setNodeConfig } from "./configOps";
 import { ImpactDialog } from "../releases/ImpactDialog";
+import { BoloBuildPanel } from "./BoloBuildPanel";
 import { FieldsPanel } from "./FieldsPanel";
 import { usePreviewStore } from "./previewStore";
 
@@ -210,15 +211,27 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
               <div className="flex flex-col gap-3">
                 <p className="text-sm text-muted">{selectedDef.description}</p>
                 {selectedDef.configFields.length === 0 && <p className="text-xs text-muted">This module has no configurable settings.</p>}
-                {selectedDef.configFields.map((f) => (
-                  <TextField
-                    key={f.key}
-                    label={f.label}
-                    type={f.type === "number" ? "number" : "text"}
-                    value={String(selectedNode.config[f.key] ?? "")}
-                    onChange={(e) => edit(setNodeConfig(config, selectedNode.id, f.key, e.target.value === "" ? undefined : f.type === "number" ? Number(e.target.value) : e.target.value))}
-                  />
-                ))}
+                {selectedDef.configFields.map((f) =>
+                  f.type === "boolean" ? (
+                    <label key={f.key} className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={selectedNode.config[f.key] === true}
+                        onChange={(e) => edit(setNodeConfig(config, selectedNode.id, f.key, e.target.checked ? true : undefined))}
+                      />
+                      <span>{f.label}</span>
+                    </label>
+                  ) : (
+                    <TextField
+                      key={f.key}
+                      label={f.label}
+                      type={f.type === "number" ? "number" : "text"}
+                      value={String(selectedNode.config[f.key] ?? "")}
+                      onChange={(e) => edit(setNodeConfig(config, selectedNode.id, f.key, e.target.value === "" ? undefined : f.type === "number" ? Number(e.target.value) : e.target.value))}
+                    />
+                  ),
+                )}
                 <Button
                   variant="danger"
                   disabled={selectedDef.platformModule}
@@ -234,6 +247,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
               </div>
             )}
           </Panel>
+          <BoloBuildPanel siteId={siteId} config={config} onApply={edit} />
           <FieldsPanel config={config} onChange={edit} />
           <Panel title="Release note">
             <TextField label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />

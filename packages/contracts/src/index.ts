@@ -9,3 +9,7 @@ export * from "./workflows/index.js";
 export * from "./analytics/index.js";
 export * from "./api/index.js";
 export * from "./provisioning/index.js";
+export * from "./ai/index.js";
+export * from "./excel/index.js";
+export * from "./public/index.js";
+export * from "./sync/index.js";

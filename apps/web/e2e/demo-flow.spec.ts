@@ -61,7 +61,7 @@ test("core demo: sites, switching, builder, publish, runtime change, rollback", 
 
   // Roll back: Returns disappears again, history is preserved.
   await nav2.getByRole("link", { name: "Releases" }).click();
-  await page.getByRole("button", { name: "Roll back to version 1" }).click();
+  await page.getByRole("button", { name: "Roll back to version 1", exact: true }).click();
   const rollbackDialog = page.getByRole("dialog");
   await expect(rollbackDialog.getByText(/module is removed/)).toBeVisible();
   await rollbackDialog.getByRole("checkbox").check();
@@ -127,7 +127,7 @@ test("hiding a field: plain-English impact, confirmation, data kept, restored by
 
   // Roll back to the version that still showed the field: the saved prices are back.
   await page.goto("/s/central-stores/admin/releases");
-  await page.getByRole("button", { name: "Roll back to version 1" }).click();
+  await page.getByRole("button", { name: "Roll back to version 1", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Roll back" }).click();
   await page.goto("/s/central-stores/inventory");
   await expect(page.getByRole("columnheader", { name: "Unit price" })).toBeVisible();

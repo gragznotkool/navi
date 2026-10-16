@@ -136,12 +136,15 @@ export async function listAssignments(db: Database, a: Actor): Promise<Assignmen
 
 // ---------------------------------------------------------------- writes
 
-export async function createRequest(
-  db: Database,
-  a: Actor,
-  input: { lines: { itemId: string; quantity: number; extras?: Record<string, unknown> | undefined }[]; note?: string | undefined },
-): Promise<RequestRecord> {
-  return db.withTenant(scope(a), async (tx) => {
+export type CreateRequestInput = { lines: { itemId: string; quantity: number; extras?: Record<string, unknown> | undefined }[]; note?: string | undefined };
+
+export async function createRequest(db: Database, a: Actor, input: CreateRequestInput): Promise<RequestRecord> {
+  return db.withTenant(scope(a), (tx) => createRequestIn(tx, a, input));
+}
+
+/** The body of `createRequest`, usable inside a caller's transaction (offline sync applies it under an idempotency key). */
+export async function createRequestIn(tx: Tx, a: Actor, input: CreateRequestInput): Promise<RequestRecord> {
+  {
     const itemIds = input.lines.map((l) => l.itemId);
     const found = await tx.select({ id: s.inventoryItems.id }).from(s.inventoryItems).where(and(eq(s.inventoryItems.siteId, a.siteId), inArray(s.inventoryItems.id, itemIds)));
     if (found.length !== new Set(itemIds).size) throw notFound("Item not found");
@@ -159,7 +162,7 @@ export async function createRequest(
       .returning();
     await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "request.submitted", entityType: "request", entityId: row!.id, configVersion: active.version, requestId: a.requestId });
     return toRequest(row!, (await linesFor(tx, a.siteId, [row!.id])).get(row!.id) ?? lines.map((l) => ({ ...l, sku: "", name: "" })), cfg);
-  });
+  }
 }
 
 /** Sets (or clears, with null) configured field values on an item. Hidden fields' stored values are untouched. */
@@ -204,7 +207,7 @@ export async function decideRequest(db: Database, a: Actor, requestId: string, d
 }
 
 /** Runs `fn` at most once per (site, key). A replay returns the stored response; a changed payload is rejected. */
-async function idempotent<T>(tx: Tx, a: Actor, key: string, operation: string, payload: unknown, fn: () => Promise<T>): Promise<{ value: T; replayed: boolean }> {
+export async function idempotent<T>(tx: Tx, a: Actor, key: string, operation: string, payload: unknown, fn: () => Promise<T>): Promise<{ value: T; replayed: boolean }> {
   const requestHash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
   const inserted = await tx.insert(s.idempotencyKeys).values({ siteId: a.siteId, key, operation, requestHash }).onConflictDoNothing().returning();
   if (inserted.length === 0) {
@@ -268,7 +271,11 @@ export async function assignMaterial(db: Database, a: Actor, requestId: string, 
 }
 
 export async function recordConsumption(db: Database, a: Actor, assignmentId: string, quantity: number): Promise<ConsumptionRecord> {
-  return db.withTenant(scope(a), async (tx) => {
+  return db.withTenant(scope(a), (tx) => recordConsumptionIn(tx, a, assignmentId, quantity));
+}
+
+export async function recordConsumptionIn(tx: Tx, a: Actor, assignmentId: string, quantity: number): Promise<ConsumptionRecord> {
+  {
     await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${assignmentId}))`);
     const [assignment] = await tx.select().from(s.assignments).where(and(eq(s.assignments.siteId, a.siteId), eq(s.assignments.id, assignmentId)));
     if (!assignment) throw notFound("Assignment not found");
@@ -282,7 +289,7 @@ export async function recordConsumption(db: Database, a: Actor, assignmentId: st
     }
     await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "consumption.recorded", entityType: "consumption", entityId: row!.id, metadata: { assignmentId, quantity }, configVersion: (await getActiveRelease(tx, a.siteId))?.version, requestId: a.requestId });
     return toConsumption(row!);
-  });
+  }
 }
 
 export async function reconcileStock(db: Database, a: Actor) {

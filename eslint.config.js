@@ -13,4 +13,9 @@ export default tseslint.config(
       "no-implied-eval": "error",
     },
   },
+  {
+    // Node scripts (guards, tooling) run outside the app and use Node globals.
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: { process: "readonly", console: "readonly" } },
+  },
 );

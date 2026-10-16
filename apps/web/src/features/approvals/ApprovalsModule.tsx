@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { RequestRecord } from "@opshub/contracts";
 import { ErrorState, LoadingState } from "../../components/feedback";
+import { SlaRing } from "../../components/SlaRing";
 import { DataTable } from "../../components/tables/DataTable";
 import { Button, PageHeader, StatusBadge } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
 import { toRequestError } from "../../lib/api";
+import { approvalSlaSeconds } from "../../lib/sla";
 import { formatDateTime, shortId, totalQuantity } from "../../lib/format";
 import { useSiteRuntime } from "../../runtime/context";
 import type { ModuleProps } from "../../runtime/registry";
@@ -12,8 +14,10 @@ import { opsApi } from "../../services";
 import { notify } from "../../stores/toast";
 
 export function ApprovalsModule({ page }: ModuleProps) {
-  const { siteId, permissions } = useSiteRuntime();
+  const { siteId, permissions, config } = useSiteRuntime();
   const requests = useAsync(() => opsApi.requests(siteId), [siteId]);
+  const receivedAt = useMemo(() => Date.now(), [requests.data]);
+  const sla = approvalSlaSeconds(config);
   const [busy, setBusy] = useState<string | null>(null);
   const canDecide = permissions.has("approval:decide");
 
@@ -50,6 +54,7 @@ export function ApprovalsModule({ page }: ModuleProps) {
             { key: "qty", header: "Qty", align: "right", render: (r) => totalQuantity(r) },
             { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
             { key: "created", header: "Submitted", render: (r) => formatDateTime(r.createdAt) },
+            ...(sla === null ? [] : [{ key: "sla", header: "Deadline", render: (r: RequestRecord) => <SlaRing status={r.status} ageSeconds={r.ageSeconds} receivedAt={receivedAt} slaSeconds={sla} /> }]),
             {
               key: "actions",
               header: "Decision",

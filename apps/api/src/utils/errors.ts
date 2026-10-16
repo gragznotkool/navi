@@ -30,6 +30,12 @@ export function toApiError(err: unknown, requestId: string | undefined): { statu
       body: { code: err.code, message: err.message, ...(requestId ? { requestId } : {}), ...(err.details ? { details: err.details } : {}) },
     };
   }
+  // Body-parser problems (malformed JSON, body too large) carry their own 4xx status; they are the client's fault, not a crash.
+  const http = (err as { status?: unknown; type?: unknown } | null)?.status;
+  if (typeof http === "number" && http >= 400 && http < 500) {
+    const tooLarge = http === 413;
+    return { status: http, body: { code: tooLarge ? "payload_too_large" : "bad_request", message: tooLarge ? "The request body is too large." : "The request body could not be read.", ...(requestId ? { requestId } : {}) } };
+  }
   return {
     status: 500,
     body: { code: "internal_error", message: "An unexpected error occurred", ...(requestId ? { requestId } : {}) },

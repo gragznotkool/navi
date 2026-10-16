@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { SiteConfiguration } from "@opshub/contracts";
 import { compileConfiguration, hasCycle } from "../../src/compiler/compile.js";
-import { checkExpression } from "../../src/compiler/expression.js";
+import { checkExpression, MAX_EXPRESSION_LENGTH } from "../../src/compiler/expression.js";
 import { getModuleDefinition, isCompatible, moduleDefinitions } from "../../src/modules/registry.js";
 
 const load = (slug: string): SiteConfiguration =>
@@ -184,5 +184,92 @@ describe("expression checker", () => {
   });
   it("reports parse errors", () => {
     expect(checkExpression("a +", inputs).issues[0]?.code).toBe("expression.parse");
+  });
+
+  // Names that exist on every JavaScript object must never be treated as inputs or functions.
+  it.each(["constructor", "__proto__", "toString", "hasOwnProperty", "valueOf", "prototype"])("does not resolve the inherited name %s", (name) => {
+    expect(checkExpression(`${name} + 1`, inputs).issues.map((i) => i.code)).toContain("expression.unknown-input");
+    expect(checkExpression(`${name}(a)`, inputs).issues.map((i) => i.code)).toContain("expression.function");
+  });
+
+  it.each([
+    "a.constructor",
+    "a['constructor']",
+    "a[0]",
+    "this",
+    "this.constructor",
+    "a.__proto__.x",
+    "[1, 2]",
+    "(a, b)",
+    "a ?? b",
+    "a ** 2",
+    "a => a",
+    "new Function('x')",
+    "`${a}`",
+    "`x`",
+    "a; process.exit()",
+    "a\nb",
+    "function(){}",
+    "import('x')",
+    "typeof a",
+    "void 0",
+    "a++",
+    "a = 1",
+  ])("rejects hostile or unsupported syntax: %s", (expr) => {
+    const out = checkExpression(expr, inputs);
+    expect(out.resultType).toBeUndefined();
+    expect(out.issues.length).toBeGreaterThan(0);
+  });
+
+  it("rejects an expression that is too long, without parsing it", () => {
+    const out = checkExpression(`a${" + a".repeat(MAX_EXPRESSION_LENGTH)}`, inputs);
+    expect(out.issues.map((i) => i.code)).toEqual(["expression.too-long"]);
+  });
+
+  it("rejects deep nesting instead of overflowing the stack", () => {
+    const nested = `${"-(".repeat(60)}a${")".repeat(60)}`;
+    expect(nested.length).toBeLessThan(MAX_EXPRESSION_LENGTH);
+    expect(checkExpression(nested, inputs).issues.map((i) => i.code)).toContain("expression.too-deep");
+    const longChain = `${"max(a, ".repeat(40)}a${")".repeat(40)}`;
+    expect(() => checkExpression(longChain, inputs)).not.toThrow();
+  });
+
+  it("never executes anything: a side-effecting payload is only ever reported", () => {
+    const g = globalThis as Record<string, unknown>;
+    g.__opshub_pwned = false;
+    checkExpression("(globalThis.__opshub_pwned = true)", inputs);
+    checkExpression("max(globalThis.__opshub_pwned = true, 1)", inputs);
+    expect(g.__opshub_pwned).toBe(false);
+    delete g.__opshub_pwned;
+  });
+});
+
+describe("graph validation against prototype-style identifiers", () => {
+  const withNode = (id: string) => {
+    const cfg = clone(load("distribution"));
+    cfg.modules.nodes.push({ id, moduleType: "analytics-dashboard", position: { x: 0, y: 0 }, config: {} });
+    return cfg;
+  };
+  it.each(["__proto__", "constructor", "toString"])("a node named %s is handled as plain data and cannot corrupt the compile", (id) => {
+    const out = compileConfiguration(withNode(id));
+    expect(() => out.result.errors).not.toThrow();
+    expect(Object.prototype).not.toHaveProperty("polluted");
+    // Referencing such a name that does not exist is reported, never resolved through the prototype chain.
+    const cfg = clone(load("distribution"));
+    cfg.modules.edges.push({ id: "p", sourceNodeId: id, sourcePortId: "a", targetNodeId: "approval", targetPortId: "request-in" });
+    expect(codes(cfg)).toContain("graph.missing-node");
+  });
+
+  it("rejects an unsafe __proto__ key smuggled into node config without polluting Object.prototype", () => {
+    const cfg = JSON.parse(JSON.stringify(load("distribution")));
+    cfg.modules.nodes[0].config = JSON.parse('{"__proto__": {"polluted": true}, "slaSeconds": 5}');
+    compileConfiguration(cfg);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it("rejects a cyclic edge graph and an oversized slaSeconds on the approval node", () => {
+    const cfg = clone(load("distribution"));
+    cfg.modules.nodes.find((n) => n.moduleType === "approval")!.config = { slaSeconds: 99999999999 };
+    expect(codes(cfg)).toContain("sla.invalid");
   });
 });

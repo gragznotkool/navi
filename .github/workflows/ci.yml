@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, types, unit tests, guards, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # The workspaces import @opshub/contracts from its built output.
+      - run: npm run build -w @opshub/contracts
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:unit
+      - run: npm run config:validate
+        env:
+          # Validation never connects to a database; these only satisfy the shared environment schema.
+          DATABASE_URL: postgres://opshub_app:change-me-app@localhost:5432/opshub
+          JWT_SECRET: ci-only-secret-ci-only-secret-ci-only-secret
+      - run: npm run build
+      # Repository rules: no site-slug branching in generic runtime code, no eval, no committed secrets.
+      - run: npm run test:guards
+      - run: npm run guard
+
+  integration:
+    name: Integration tests (real PostgreSQL 16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: opshub_admin
+          POSTGRES_PASSWORD: ci-admin-password
+          POSTGRES_DB: opshub_test
+          # UTF8 so Hindi and Marathi text is stored correctly.
+          POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U opshub_admin -d opshub_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      TEST_DATABASE_ADMIN_URL: postgres://opshub_admin:ci-admin-password@localhost:5432/opshub_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build -w @opshub/contracts
+      - run: npm run test:integration

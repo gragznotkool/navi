@@ -99,7 +99,7 @@ export const moduleDefinitions: readonly ModuleDefinition[] = [
       { id: "request-out", label: "Requests", direction: "output", dataType: "request" },
     ],
     dependencies: ["dashboard-shell"],
-    configFields: [],
+    configFields: [{ key: "publicIntake", label: "Accept public requests without sign-in", type: "boolean", required: false }],
     permissions: ["request:view", "request:create"],
     defaults: {},
     platformModule: false,

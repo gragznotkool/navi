@@ -1,6 +1,7 @@
 import { AlertCircle, CheckCircle2, Inbox, Info, Loader2, WifiOff, X } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { ApiRequestError } from "../../lib/api";
+import { useOffline } from "../../stores/offline";
 import { useToasts } from "../../stores/toast";
 import { Button } from "../ui";
 
@@ -82,13 +83,23 @@ export function useOnline(): boolean {
   return online;
 }
 
+/** Connection and sync status: offline (with what is waiting), syncing, or changes the server refused. */
 export function OfflineBanner() {
   const online = useOnline();
-  if (online) return null;
+  const { pending, rejected, syncing, staleSince } = useOffline();
+  if (online && !syncing && rejected === 0 && pending === 0) return null;
+  const waiting = pending > 0 ? ` ${pending} change${pending === 1 ? " is" : "s are"} saved on this device and will be sent when you reconnect.` : "";
   return (
-    <div role="status" className="flex items-center gap-2 bg-amber-100 px-4 py-1.5 text-xs text-amber-900">
-      <WifiOff className="h-3.5 w-3.5" aria-hidden />
-      You are offline. Live data is unavailable and changes cannot be submitted until you reconnect.
+    <div role="status" className={`flex flex-wrap items-center gap-2 px-4 py-1.5 text-xs ${online ? "bg-sky-100 text-sky-900" : "bg-amber-100 text-amber-900"}`}>
+      {online ? <Loader2 className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} aria-hidden /> : <WifiOff className="h-3.5 w-3.5" aria-hidden />}
+      {!online && (
+        <span>
+          You are offline.{staleSince ? ` Showing data saved on this device (${new Date(staleSince).toLocaleString()}).` : ""} You can still raise requests and record consumption.{waiting}
+        </span>
+      )}
+      {online && syncing && <span>Syncing {pending} saved change{pending === 1 ? "" : "s"}…</span>}
+      {online && !syncing && pending > 0 && <span>{pending} saved change{pending === 1 ? "" : "s"} waiting to be sent.</span>}
+      {rejected > 0 && <span className="font-medium">{rejected} saved change{rejected === 1 ? " was" : "s were"} not accepted. Open Requests or Consumption to review.</span>}
     </div>
   );
 }

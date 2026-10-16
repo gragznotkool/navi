@@ -1,8 +1,11 @@
 import { useEffect, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { startOfflineSync } from "../lib/offline/engine";
 import { LoadingState, Toaster } from "../components/feedback";
+import { CommandPalette } from "../features/palette/CommandPalette";
 import { LoginPage } from "../features/auth/LoginPage";
 import { HubPage } from "../features/hub/HubPage";
+import { PublicRequestPage } from "../features/public/PublicRequestPage";
 import { NewSitePage } from "../features/provisioning/NewSitePage";
 import { TrustConsolePage } from "../features/security-console/TrustConsolePage";
 import { SiteRoute } from "../runtime/SiteRoutes";
@@ -23,6 +26,10 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<RequireAuth><HubPage /></RequireAuth>} />
+      <Route path="/public/:slug/request" element={<PublicRequestPage />} />
+      <Route path="/hub" element={<RequireAuth><HubPage /></RequireAuth>} />
+      <Route path="/hub/sites" element={<RequireAuth><HubPage view="sites" /></RequireAuth>} />
+      <Route path="/hub/builder" element={<RequireAuth><HubPage view="builder" /></RequireAuth>} />
       <Route path="/sites/new" element={<RequireAuth><NewSitePage /></RequireAuth>} />
       <Route path="/trust" element={<RequireAuth><TrustConsolePage /></RequireAuth>} />
       <Route path="/s/:slug/*" element={<RequireAuth><SiteRoute /></RequireAuth>} />
@@ -37,9 +44,11 @@ export function App() {
   useEffect(() => {
     void restore();
   }, [restore]);
+  useEffect(() => startOfflineSync(), []);
   return (
     <BrowserRouter>
       <AppRoutes />
+      <CommandPalette />
       <Toaster />
     </BrowserRouter>
   );

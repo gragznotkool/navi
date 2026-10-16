@@ -1,14 +1,18 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { createRequestPayloadSchema, type CreateRequestPayload, type RequestRecord } from "@opshub/contracts";
 import { ErrorState, LoadingState } from "../../components/feedback";
+import { PendingOps } from "../../components/PendingOps";
+import { SlaRing } from "../../components/SlaRing";
 import { parseFieldValue, visibleFields } from "../../components/FieldInputs";
 import { RecordView } from "../../components/tables/RecordView";
 import { Button, PageHeader, Panel, SelectField, StatusBadge, TextField } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
 import { formatDateTime, shortId, totalQuantity } from "../../lib/format";
+import { approvalSlaSeconds } from "../../lib/sla";
 import { toRequestError } from "../../lib/api";
+import { enqueue, isNetworkFailure, SYNCED_EVENT, syncNow } from "../../lib/offline/engine";
 import { useSiteRuntime } from "../../runtime/context";
 import type { ModuleProps } from "../../runtime/registry";
 import { opsApi } from "../../services";
@@ -17,8 +21,16 @@ import { notify } from "../../stores/toast";
 const STATUSES = ["submitted", "approved", "assigned", "fulfilled", "rejected"];
 
 export function RequestsModule({ page, layout }: ModuleProps) {
-  const { siteId, permissions } = useSiteRuntime();
+  const { siteId, permissions, config } = useSiteRuntime();
   const requests = useAsync(() => opsApi.requests(siteId), [siteId]);
+  const receivedAt = useMemo(() => Date.now(), [requests.data]);
+  const sla = approvalSlaSeconds(config);
+  // Reload when queued changes have just been accepted by the server.
+  useEffect(() => {
+    const on = () => requests.reload();
+    window.addEventListener(SYNCED_EVENT, on);
+    return () => window.removeEventListener(SYNCED_EVENT, on);
+  }, [requests.reload]);
   const [creating, setCreating] = useState(false);
   const canCreate = permissions.has("request:create");
 
@@ -40,6 +52,7 @@ export function RequestsModule({ page, layout }: ModuleProps) {
           />
         </div>
       )}
+      <PendingOps siteId={siteId} types={["request.create"]} />
       {requests.loading && !requests.data && <LoadingState />}
       {requests.error ? <ErrorState error={requests.error} onRetry={requests.reload} /> : null}
       {requests.data && (
@@ -56,6 +69,7 @@ export function RequestsModule({ page, layout }: ModuleProps) {
             <>
               <p className="text-sm font-medium">#{shortId(r.id)} · {r.lines.length} item(s), qty {totalQuantity(r)}</p>
               <p className="text-xs text-muted">{formatDateTime(r.createdAt)}</p>
+              <SlaRing status={r.status} ageSeconds={r.ageSeconds} receivedAt={receivedAt} slaSeconds={sla} />
             </>
           )}
           columns={[
@@ -63,6 +77,7 @@ export function RequestsModule({ page, layout }: ModuleProps) {
             { key: "lines", header: "Items", align: "right", render: (r) => r.lines.length },
             { key: "qty", header: "Qty", align: "right", render: (r) => totalQuantity(r) },
             { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
+            ...(sla === null ? [] : [{ key: "sla", header: "Deadline", render: (r: RequestRecord) => <SlaRing status={r.status} ageSeconds={r.ageSeconds} receivedAt={receivedAt} slaSeconds={sla} /> }]),
             { key: "ver", header: "Config v", align: "right", render: (r) => r.releaseVersion },
             { key: "created", header: "Created", render: (r) => formatDateTime(r.createdAt) },
           ]}
@@ -109,6 +124,17 @@ function RequestForm({ siteId, onDone }: { siteId: string; onDone: () => void })
       notify.success("Request submitted");
       onDone();
     } catch (e) {
+      if (isNetworkFailure(e)) {
+        // No connection: keep the request on this device and send it (once) when the server can be reached.
+        const names = values.lines.map((l) => itemOptions.find((i) => i.id === l.itemId)?.sku ?? "item");
+        const saved = await enqueue(siteId, "request.create", values, `Request for ${names.join(", ")}`);
+        if (saved) {
+          notify.info("Saved on this device. It will be sent when you are back online.");
+          void syncNow();
+          onDone();
+          return;
+        }
+      }
       notify.error(toRequestError(e).message);
     }
   });

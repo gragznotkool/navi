@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import type { RequestRecord } from "@opshub/contracts";
-import { ErrorState, LoadingState } from "../../components/feedback";
+import { ErrorState, LoadingState, useOnline } from "../../components/feedback";
 import { DataTable } from "../../components/tables/DataTable";
 import { Button, PageHeader, Panel } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
@@ -19,6 +19,7 @@ export function AssignmentsModule({ page }: ModuleProps) {
   // One key per request, reused across retries of the same click, so a retry can never allocate twice.
   const keys = useRef(new Map<string, string>());
   const canAssign = permissions.has("assignment:create");
+  const online = useOnline();
 
   const assign = async (r: RequestRecord) => {
     setBusy(r.id);
@@ -44,6 +45,7 @@ export function AssignmentsModule({ page }: ModuleProps) {
   return (
     <>
       <PageHeader title={page.title} subtitle="Approved requests ready for stock allocation, and assignments already made." />
+      {!online && <p role="status" className="mb-3 text-sm text-amber-800">Assigning stock changes quantities, so it is switched off until you are back online. Requests and consumption can still be saved on this device.</p>}
       <div className="grid gap-4 xl:grid-cols-2">
         <Panel title="Approved — ready to assign">
           {requests.loading && !requests.data && <LoadingState />}
@@ -64,7 +66,7 @@ export function AssignmentsModule({ page }: ModuleProps) {
                   header: "",
                   render: (r) =>
                     canAssign ? (
-                      <Button variant="primary" loading={busy === r.id} onClick={() => assign(r)} aria-label={`Assign stock for request ${shortId(r.id)}`}>Assign stock</Button>
+                      <Button variant="primary" loading={busy === r.id} disabled={!online} title={online ? undefined : "Assigning stock changes quantities, so it needs a live connection."} onClick={() => assign(r)} aria-label={`Assign stock for request ${shortId(r.id)}`}>Assign stock</Button>
                     ) : (
                       <span className="text-xs text-muted">Read-only</span>
                     ),

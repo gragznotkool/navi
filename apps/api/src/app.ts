@@ -14,6 +14,9 @@ import {
   paginationRequestSchema,
   publishRequestSchema,
   impactRequestSchema,
+  aiPatchRequestSchema,
+  publicRequestSchema,
+  syncRequestSchema,
   provisionSiteRequestSchema,
   updateItemFieldsPayloadSchema,
   recordConsumptionPayloadSchema,
@@ -22,6 +25,13 @@ import {
   type PaginationRequest,
   type SiteSummary,
 } from "@opshub/contracts";
+import * as excel from "./excel/service.js";
+import { XLSX_MIME } from "./excel/export.js";
+import { MAX_FILE_BYTES } from "./excel/zipGuard.js";
+import * as syncSvc from "./services/sync.js";
+import { submitPublicRequest } from "./public/intake.js";
+import { proposePatch } from "./ai/service.js";
+import { selectProvider, type PatchProvider } from "./ai/providers.js";
 import { compileConfiguration } from "./compiler/compile.js";
 import type { Env } from "./config/env.js";
 import type { Database } from "./db/scoped.js";
@@ -59,9 +69,15 @@ export interface AppDeps {
   /** Max login attempts per window; tests raise it. */
   loginRateLimit?: number;
   log?: (msg: string, meta: Record<string, unknown>) => void;
+  /** Tests inject a provider; otherwise it is chosen from the environment (null = deterministic fallback). */
+  aiProvider?: PatchProvider | null;
+  /** Max public intake submissions per minute per client; tests raise it. */
+  publicRateLimit?: number;
+  /** Max AI requests per minute per client; tests raise it. */
+  aiRateLimit?: number;
 }
 
-export function createApp({ db, env, loginRateLimit = 10, log = () => undefined }: AppDeps): Express {
+export function createApp({ db, env, loginRateLimit = 10, log = () => undefined, aiProvider, aiRateLimit = 20, publicRateLimit = 5 }: AppDeps): Express {
   manifest.length = 0;
   const app = express();
   app.disable("x-powered-by");
@@ -292,6 +308,13 @@ data: ${JSON.stringify(snap.job)}
     res.json({ data: rows.map((r) => ({ id: r.id, siteId: r.siteId, actorId: r.actorId, action: r.action, entityType: r.entityType, entityId: r.entityId, createdAt: r.createdAt.toISOString() })) });
   });
 
+  // ---------- Bolo & Build: propose a configuration change from an utterance. Never saves or publishes.
+  const aiLimiter = rateLimit({ windowMs: 60_000, limit: aiRateLimit, standardHeaders: true, legacyHeaders: false, message: { error: { code: "rate_limited", message: "Too many AI requests. Wait a minute and try again." } } });
+  const provider = aiProvider === undefined ? selectProvider(env) : aiProvider;
+  st.post("/:siteId/ai/patch", auth, requireSite(db, "config:manage"), aiLimiter, validateBody(aiPatchRequestSchema), async (req, res) => {
+    res.json({ data: await proposePatch({ db, provider, log }, { siteId: req.siteAccess!.siteId, userId: req.user!.id, requestId: req.requestId }, req.body) });
+  });
+
   // ---------- operations
   const opActor = (req: express.Request): ops.Actor => ({ siteId: req.siteAccess!.siteId, userId: req.user!.id, requestId: req.requestId });
   const paging = validateQuery(paginationRequestSchema);
@@ -334,6 +357,36 @@ data: ${JSON.stringify(snap.job)}
     res.status(201).json({ data: await ops.recordConsumption(db, opActor(req), req.body.assignmentId, req.body.quantity) });
   });
 
+  // ---------- Excel: exports of the caller's own site, and a guarded import (dry run first)
+  const sendXlsx = (res: express.Response, siteSlug: string, name: string, file: Buffer) => {
+    res.setHeader("content-type", XLSX_MIME);
+    res.setHeader("content-disposition", `attachment; filename="${siteSlug.replace(/[^a-z0-9-]/g, "")}-${name}.xlsx"`);
+    res.setHeader("cache-control", "no-store");
+    res.send(file);
+  };
+  st.get("/:siteId/reports/inventory.xlsx", auth, requireSite(db, "inventory:view"), async (req, res) => {
+    sendXlsx(res, req.siteAccess!.siteSlug, "inventory", await excel.exportInventory(db, opActor(req)));
+  });
+  st.get("/:siteId/reports/requests.xlsx", auth, requireSite(db, "request:view"), async (req, res) => {
+    sendXlsx(res, req.siteAccess!.siteSlug, "requests", await excel.exportRequests(db, opActor(req)));
+  });
+  st.get("/:siteId/imports/inventory/template.xlsx", auth, requireSite(db, "inventory:manage"), async (req, res) => {
+    sendXlsx(res, req.siteAccess!.siteSlug, "inventory-template", await excel.importTemplate(db, opActor(req)));
+  });
+  st.post("/:siteId/imports/inventory", auth, requireSite(db, "inventory:manage"), express.raw({ type: () => true, limit: MAX_FILE_BYTES }), async (req, res) => {
+    if (!Buffer.isBuffer(req.body)) throw new AppError(415, "unsupported_media_type", "Send the .xlsx file as the raw request body.");
+    const dryRun = req.query.dryRun !== "false"; // safe by default: only an explicit dryRun=false writes
+    const key = req.header("idempotency-key");
+    if (!dryRun && (!key || key.length < 8 || key.length > 128)) throw badRequest("Idempotency-Key header (8-128 chars) is required to apply an import");
+    const report = await excel.importInventory(db, opActor(req), req.body, { dryRun, idempotencyKey: key });
+    res.status(report.applied && !report.replayed ? 201 : 200).json({ data: report });
+  });
+
+  // ---------- offline sync: replay queued safe operations (each under its own idempotency key)
+  st.post("/:siteId/sync", auth, requireSite(db), validateBody(syncRequestSchema), async (req, res) => {
+    res.json({ data: { results: await syncSvc.applySync(db, opActor(req), req.siteAccess!.permissions, req.body.ops) } });
+  });
+
   // ---------- documented but not yet built: honest 501s (still authenticated and site-scoped)
   const unavailable = (feature: string): RequestHandler[] => [
     auth,
@@ -347,7 +400,20 @@ data: ${JSON.stringify(snap.job)}
   st.unavailable("GET", "/:siteId/repairs", ...unavailable("PCB repair"));
   st.unavailable("POST", "/:siteId/repairs", ...unavailable("PCB repair"));
   st.unavailable("GET", "/:siteId/analytics/stock-summary", ...unavailable("Analytics"));
-  st.unavailable("GET", "/:siteId/reports/inventory.xlsx", ...unavailable("Excel reports"));
+
+  // ---------- public intake (no sign-in). Exists per site only when its active release enables it; see public/intake.ts.
+  const publicLimiter = rateLimit({ windowMs: 60_000, limit: publicRateLimit, standardHeaders: true, legacyHeaders: false, message: { error: { code: "rate_limited", message: "Too many submissions. Try again in a minute." } } });
+  app.post("/api/public/:slug/requests", publicLimiter, validateBody(publicRequestSchema), async (req, res, next) => {
+    try {
+      const slug = String(req.params.slug);
+      if (!/^[a-z0-9-]{1,64}$/.test(slug)) throw notFound("Not found");
+      // A filled honeypot is a bot: pretend to accept, store nothing.
+      if (!req.body.website) await submitPublicRequest(db, slug, req.body, req.requestId);
+      res.status(202).json({ data: { accepted: true } });
+    } catch (e) {
+      next(e);
+    }
+  });
 
   app.use("/api/v1", api);
   app.use(notFoundHandler);
