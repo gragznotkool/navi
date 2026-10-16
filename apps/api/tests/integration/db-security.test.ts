@@ -71,6 +71,7 @@ describe("tenant isolation (RLS)", () => {
       "inventory_items",
       "stock_ledger",
       "requests",
+      "request_lines",
       "approvals",
       "assignments",
       "consumption_records",
@@ -87,6 +88,29 @@ describe("tenant isolation (RLS)", () => {
     for (const t of tables) {
       const r = await db.withoutTenant((tx) => tx.execute(sql.raw(`select count(*)::int as n from ${t}`)));
       expect(r.rows[0]?.n, `${t} leaked rows without tenant context`).toBe(0);
+    }
+  });
+
+  it("every table with a site_id column has RLS enabled, forced and at least one policy", async () => {
+    const admin = adminPool();
+    try {
+      const rows = (
+        await admin.query(
+          `select c.relname, c.relrowsecurity, c.relforcerowsecurity,
+                  (select count(*)::int from pg_policy p where p.polrelid = c.oid) as policies
+             from pg_class c
+             join pg_namespace n on n.oid = c.relnamespace and n.nspname = 'public'
+            where c.relkind = 'r'
+              and exists (select 1 from information_schema.columns col where col.table_schema = 'public' and col.table_name = c.relname and col.column_name = 'site_id')`,
+        )
+      ).rows;
+      expect(rows.length).toBeGreaterThan(10);
+      for (const r of rows) {
+        expect(r, `${r.relname} must have forced RLS and a policy`).toMatchObject({ relrowsecurity: true, relforcerowsecurity: true });
+        expect(r.policies, `${r.relname} has no policy`).toBeGreaterThan(0);
+      }
+    } finally {
+      await admin.end();
     }
   });
 

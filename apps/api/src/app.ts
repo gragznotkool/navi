@@ -3,7 +3,7 @@ import cors from "cors";
 import express, { Router, type Express, type RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import {
   configurationPayloadSchema,
   createAssignmentPayloadSchema,
@@ -38,13 +38,14 @@ import {
 } from "./middleware/core.js";
 import { dataTypes, moduleDefinitions } from "./modules/registry.js";
 import { readChecks } from "./trust/checks.js";
+import { lastResult, ProofBusy, proofDefinitions, runProof, UnknownProof } from "./trust/proofs.js";
 import * as releases from "./releases/service.js";
 import { ValidationFailed } from "./releases/service.js";
 import { getActiveRelease, parseStoredConfig } from "./repositories/releases.js";
 import { manifest, mount } from "./routes/manifest.js";
 import * as authSvc from "./services/auth.js";
 import * as ops from "./services/operations.js";
-import { AppError, badRequest, forbidden, notImplemented } from "./utils/errors.js";
+import { AppError, badRequest, forbidden, notFound, notImplemented } from "./utils/errors.js";
 
 export interface AppDeps {
   db: Database;
@@ -79,7 +80,7 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   });
 
   // ---------- authentication
-  const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: loginRateLimit, standardHeaders: true, legacyHeaders: false, message: { error: { code: "rate_limited", message: "Too many login attempts. Try again later." } } });
+  const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: loginRateLimit, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false, message: { error: { code: "rate_limited", message: "Too many login attempts. Try again later." } } });
   const a = mount(api, "/auth");
   api.use(requireCsrfHeader);
   a.post("/login", authLimiter, validateBody(loginRequestSchema), async (req, res) => {
@@ -110,6 +111,32 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   trust.get("/checks", auth, (req, res) => {
     if (!req.user!.isPlatformAdmin) throw forbidden();
     res.json({ data: readChecks() });
+  });
+  const adminOnly: RequestHandler = (req, _res, next) => (req.user?.isPlatformAdmin ? next() : next(forbidden()));
+  trust.get("/proofs", auth, adminOnly, async (_req, res) => {
+    const url = new URL(env.DATABASE_URL);
+    const role = await db.withoutTenant(async (tx) => (await tx.execute<{ who: string }>(sql`select current_user as who`)).rows[0]!.who);
+    res.json({
+      data: {
+        environment: {
+          nodeEnv: env.NODE_ENV,
+          database: `${url.hostname}:${url.port || "5432"}${url.pathname}`,
+          databaseRole: role,
+          labSite: "trust-lab (reserved system site)",
+          note: "Proofs run live in THIS API's environment against the reserved lab site, using the same database role the API uses. They show these controls working right now; they are not production monitoring.",
+        },
+        proofs: proofDefinitions.map((definition) => ({ definition, last: lastResult(definition.id) })),
+      },
+    });
+  });
+  trust.post("/proofs/:id/run", auth, adminOnly, async (req, res) => {
+    try {
+      res.json({ data: await runProof(String(req.params.id), { db, connectionString: env.DATABASE_URL, actorId: req.user!.id }) });
+    } catch (e) {
+      if (e instanceof UnknownProof) throw notFound("Unknown proof");
+      if (e instanceof ProofBusy) throw new AppError(409, "proof_running", "This proof is already running");
+      throw e;
+    }
   });
 
   // ---------- sites

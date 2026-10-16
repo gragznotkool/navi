@@ -9,6 +9,8 @@ import type {
   ImpactRequest,
   ModuleDefinition,
   PaginatedResponse,
+  ProofList,
+  ProofResult,
   PublishRequest,
   ReleaseDiff,
   ReleaseSummary,
@@ -79,4 +81,6 @@ export const releasesApi = {
 
 export const trustApi = {
   checks: () => call<{ generatedAt: string | null; checks: TrustCheckResult[] }>(http.get("/trust/checks")),
+  proofs: () => call<ProofList>(http.get("/trust/proofs")),
+  runProof: (id: string) => call<ProofResult>(http.post(`/trust/proofs/${id}/run`)),
 };
