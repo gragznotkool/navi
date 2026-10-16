@@ -275,8 +275,14 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
     if (!compiled || compiled.siteId !== req.siteAccess!.siteId) throw new ValidationFailed(compiled ? { ...result, valid: false, errors: [{ severity: "error", stage: "identity", code: "identity.mismatch", message: "Configuration siteId does not match the target site" }] } : result);
     res.json({ data: { validation: result, configuration: compiled } });
   });
+  st.get("/:siteId/config/draft", auth, requireSite(db, "config:manage"), async (req, res) => {
+    res.json({ data: await releases.getDraft(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }) });
+  });
   st.put("/:siteId/config/draft", auth, requireSite(db, "config:manage"), validateBody(configurationDraftSchema), async (req, res) => {
     res.json({ data: await releases.saveDraft(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, req.body.baseVersion, req.body.configuration) });
+  });
+  st.delete("/:siteId/config/draft", auth, requireSite(db, "config:manage"), async (req, res) => {
+    res.json({ data: await releases.discardDraft(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }) });
   });
 
   // ---------- releases

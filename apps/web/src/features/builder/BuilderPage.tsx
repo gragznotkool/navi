@@ -92,6 +92,18 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
   const doRedo = useCallback(() => { setHist(redo); setValidation(null); }, []);
 
   useEffect(() => {
+    let active = true;
+    configApi.draft(siteId).then((d) => {
+      if (!active || !d || !d.configuration) return;
+      if (d.baseVersion === activeVersion) {
+        setHist(createHistory(d.configuration));
+        notify.info("Restored saved draft");
+      }
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [siteId, activeVersion]);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!(e.ctrlKey || e.metaKey)) return;
       const t = e.target as HTMLElement | null;
@@ -221,6 +233,13 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
       setValidation(r.validation);
       notify.success("Draft saved");
     });
+  const discardDraft = () =>
+    run("draft", async () => {
+      await configApi.discardDraft(siteId);
+      setHist(createHistory(activeConfig));
+      setValidation(null);
+      notify.info("Draft discarded");
+    });
   const preview = () =>
     run("preview", async () => {
       const r = await configApi.preview(siteId, config);
@@ -281,6 +300,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button onClick={validate} loading={busy === "validate"}>Validate</Button>
           <Button onClick={saveDraft} loading={busy === "draft"} disabled={!dirty}>Save draft</Button>
+          {dirty && <Button variant="ghost" onClick={discardDraft} loading={busy === "draft"}>Discard</Button>}
           <Button onClick={preview} loading={busy === "preview"}>Preview</Button>
           <Button variant="primary" onClick={() => setReviewing(true)} loading={busy === "publish"} disabled={!validation?.valid || !dirty || stale}>Review & publish</Button>
         </div>

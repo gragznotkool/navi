@@ -13,7 +13,7 @@ import { configs, renderInSite } from "./helpers";
 vi.mock("../src/services", () => ({
   authApi: { login: vi.fn(), logout: vi.fn(), me: vi.fn() },
   sitesApi: { modules: vi.fn(), dataTypes: vi.fn() },
-  configApi: { validate: vi.fn(), saveDraft: vi.fn(), preview: vi.fn() },
+  configApi: { validate: vi.fn(), saveDraft: vi.fn(), preview: vi.fn(), draft: vi.fn(), discardDraft: vi.fn() },
   releasesApi: { publish: vi.fn(), impact: vi.fn() },
 }));
 import { authApi, configApi, releasesApi, sitesApi } from "../src/services";
@@ -32,6 +32,7 @@ const registry: ModuleDefinition[] = [
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(configApi.draft).mockResolvedValue(null);
   useSession.setState({ status: "anonymous", session: null });
 });
 

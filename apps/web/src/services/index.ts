@@ -106,8 +106,12 @@ export const configApi = {
     call<ConfigurationValidationResult>(http.post(`/sites/${siteId}/config/validate`, { configuration })),
   preview: (siteId: string, configuration: SiteConfiguration) =>
     call<{ validation: ConfigurationValidationResult; configuration: SiteConfiguration }>(http.post(`/sites/${siteId}/config/preview`, { configuration })),
+  draft: (siteId: string) =>
+    call<{ baseVersion: number | null; configuration: SiteConfiguration | null; updatedAt: string } | null>(http.get(`/sites/${siteId}/config/draft`)),
   saveDraft: (siteId: string, baseVersion: number | null, configuration: SiteConfiguration) =>
     call<{ savedAt: string; validation: ConfigurationValidationResult }>(http.put(`/sites/${siteId}/config/draft`, { baseVersion, configuration })),
+  discardDraft: (siteId: string) =>
+    call<{ discarded: boolean }>(http.delete(`/sites/${siteId}/config/draft`)),
 };
 
 export const releasesApi = {

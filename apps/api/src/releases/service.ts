@@ -105,6 +105,11 @@ export async function publish(db: Database, actor: Actor, req: PublishRequest): 
       .values({ siteId: actor.siteId, version, configuration: compiled, note: req.note ?? null, publishedBy: actor.userId })
       .returning();
     await activate(tx, actor.siteId, row!.id, version);
+    try {
+      await tx.delete(s.siteDrafts).where(eq(s.siteDrafts.siteId, actor.siteId));
+    } catch {
+      await tx.update(s.siteDrafts).set({ configuration: null }).where(eq(s.siteDrafts.siteId, actor.siteId));
+    }
     await recordAudit(tx, { siteId: actor.siteId, actorId: actor.userId, action: "release.published", entityType: "site_release", entityId: row!.id, configVersion: version, metadata: { version, previousVersion: active?.version ?? null }, requestId: actor.requestId });
     return toSummary(row!, true);
   });
@@ -167,6 +172,29 @@ export async function saveDraft(db: Database, actor: { siteId: string; userId: s
       .onConflictDoUpdate({ target: s.siteDrafts.siteId, set: { baseVersion, configuration: configuration ?? null, updatedBy: actor.userId, updatedAt: now } });
     await recordAudit(tx, { siteId: actor.siteId, actorId: actor.userId, action: "draft.saved", entityType: "site_draft", entityId: actor.siteId, metadata: { valid: result.valid } });
     return { savedAt: now.toISOString(), validation: result };
+  });
+}
+
+export async function getDraft(db: Database, actor: { siteId: string; userId: string }): Promise<{ baseVersion: number | null; configuration: SiteConfiguration | null; updatedAt: string } | null> {
+  return db.withTenant(actor, async (tx) => {
+    const [row] = await tx.select().from(s.siteDrafts).where(eq(s.siteDrafts.siteId, actor.siteId));
+    if (!row || !row.configuration) return null;
+    return {
+      baseVersion: row.baseVersion,
+      configuration: row.configuration as SiteConfiguration,
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  });
+}
+
+export async function discardDraft(db: Database, actor: { siteId: string; userId: string }): Promise<{ discarded: boolean }> {
+  return db.withTenant(actor, async (tx) => {
+    try {
+      await tx.delete(s.siteDrafts).where(eq(s.siteDrafts.siteId, actor.siteId));
+    } catch {
+      await tx.update(s.siteDrafts).set({ configuration: null }).where(eq(s.siteDrafts.siteId, actor.siteId));
+    }
+    return { discarded: true };
   });
 }
 
