@@ -4,12 +4,15 @@ import { EmptyState, ErrorState, LoadingState, OfflineBanner } from "../../compo
 import { Badge } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
 import { sitesApi } from "../../services";
+import { getLastSite } from "../../stores/lastSite";
 import { useSession } from "../../stores/session";
 
 export function HubPage() {
   const { session, logout } = useSession();
   const navigate = useNavigate();
   const sites = useAsync(() => sitesApi.list(), []);
+  const lastSlug = getLastSite();
+  const last = sites.data?.find((s) => s.slug === lastSlug);
 
   return (
     <div className="flex min-h-full flex-col">
@@ -30,6 +33,12 @@ export function HubPage() {
         {sites.loading && <LoadingState />}
         {sites.error ? <ErrorState error={sites.error} onRetry={sites.reload} /> : null}
         {sites.data && sites.data.length === 0 && <EmptyState title="No sites assigned" hint="Ask a platform administrator to add you to a site." />}
+        {last && (
+          <Link to={`/s/${last.slug}`} className="mb-3 flex items-center justify-between rounded-ui border border-line bg-surface px-4 py-2.5 text-sm hover:bg-slate-50">
+            <span>Continue where you left off: <strong>{last.name}</strong></span>
+            <span aria-hidden>→</span>
+          </Link>
+        )}
         {sites.data && sites.data.length > 0 && (
           <ul className="divide-y divide-line rounded-ui border border-line bg-surface">
             {sites.data.map((s) => (

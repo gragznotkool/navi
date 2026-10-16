@@ -1,6 +1,9 @@
 import { create } from "zustand";
 import type { AuthSession, LoginRequest } from "@opshub/contracts";
+import { configureAuthHandlers } from "../lib/api";
 import { authApi } from "../services";
+import { clearLastSite } from "./lastSite";
+import { notify } from "./toast";
 
 type Status = "unknown" | "authenticated" | "anonymous";
 
@@ -30,7 +33,17 @@ export const useSession = create<SessionState>((set) => ({
     try {
       await authApi.logout();
     } finally {
+      clearLastSite();
       set({ session: null, status: "anonymous" });
     }
   },
 }));
+
+// The HTTP layer refreshes expired sessions on its own; it reports back here.
+configureAuthHandlers({
+  onRefreshed: (session) => useSession.setState({ session, status: "authenticated" }),
+  onAuthFailure: () => {
+    if (useSession.getState().status === "authenticated") notify.info("Your session has ended. Please sign in again.");
+    useSession.setState({ session: null, status: "anonymous" });
+  },
+});

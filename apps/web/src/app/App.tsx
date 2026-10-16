@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { LoadingState, Toaster } from "../components/feedback";
 import { LoginPage } from "../features/auth/LoginPage";
 import { HubPage } from "../features/hub/HubPage";
@@ -10,8 +10,10 @@ import { EmptyState } from "../components/feedback";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const status = useSession((s) => s.status);
+  const location = useLocation();
   if (status === "unknown") return <div className="p-8"><LoadingState label="Restoring session…" /></div>;
-  if (status === "anonymous") return <Navigate to="/login" replace />;
+  // Remember where the user was so signing in again returns them there.
+  if (status === "anonymous") return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   return <>{children}</>;
 }
 

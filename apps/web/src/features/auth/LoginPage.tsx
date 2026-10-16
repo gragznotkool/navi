@@ -1,25 +1,31 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { loginRequestSchema, type LoginRequest } from "@opshub/contracts";
 import { Button, TextField } from "../../components/ui";
 import { toRequestError } from "../../lib/api";
 import { useSession } from "../../stores/session";
 import { useState } from "react";
 
+/** Only same-app paths are honoured, so a crafted link cannot redirect a user off-site after login. */
+function safeReturnPath(v: unknown): string {
+  return typeof v === "string" && /^\/(?!\/)/.test(v) && !v.startsWith("/login") ? v : "/";
+}
+
 export function LoginPage() {
   const { status, login } = useSession();
   const navigate = useNavigate();
+  const from = safeReturnPath((useLocation().state as { from?: unknown } | null)?.from);
   const [serverError, setServerError] = useState<string | null>(null);
   const { register, handleSubmit, formState } = useForm<LoginRequest>({ resolver: zodResolver(loginRequestSchema) });
 
-  if (status === "authenticated") return <Navigate to="/" replace />;
+  if (status === "authenticated") return <Navigate to={from} replace />;
 
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     try {
       await login(values);
-      navigate("/", { replace: true });
+      navigate(from, { replace: true });
     } catch (e) {
       setServerError(toRequestError(e).message);
     }

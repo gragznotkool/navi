@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { useAsync } from "../hooks/useAsync";
 import { BuilderPage } from "../features/builder/BuilderPage";
 import { ReleasesPage } from "../features/releases/ReleasesPage";
 import { sitesApi } from "../services";
+import { setLastSite } from "../stores/lastSite";
 import { useSession } from "../stores/session";
 import { SiteRuntimeProvider } from "./context";
 import { SiteShell } from "./SiteShell";
@@ -18,6 +20,9 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
   const session = useSession((s) => s.session);
   const membership = session?.memberships.find((m) => m.siteSlug === slug);
   const draft = usePreviewStore((s) => s.drafts[slug]);
+  useEffect(() => {
+    if (membership && !preview) setLastSite(slug);
+  }, [membership, preview, slug]);
   // Permissions are re-read with the config: they derive from the ACTIVE release's roles, so a
   // publish/rollback changes them and the login-time session snapshot would be stale.
   const active = useAsync(async () => {

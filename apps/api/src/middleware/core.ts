@@ -10,6 +10,9 @@ import { verifyToken } from "../security/tokens.js";
 import { z } from "zod";
 
 export const SESSION_COOKIE = "opshub_session";
+export const REFRESH_COOKIE = "opshub_refresh";
+/** The refresh cookie is only ever sent to the auth endpoints. */
+export const REFRESH_COOKIE_PATH = "/api/v1/auth";
 
 export interface AuthedUser {
   id: string;

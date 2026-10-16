@@ -33,6 +33,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
         <div className="flex-1">
           <p className="text-sm font-medium text-ink">{unavailable ? "Not available yet" : "Something went wrong"}</p>
           <p className="mt-0.5 text-sm text-muted">{e?.message ?? "Unexpected error"}</p>
+          {e?.requestId && <p className="mt-0.5 text-xs text-muted">Reference: {e.requestId}</p>}
           {onRetry && !unavailable && (
             <Button className="mt-3" onClick={onRetry}>
               Try again

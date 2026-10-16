@@ -31,6 +31,8 @@ import {
   requestId,
   requireCsrfHeader,
   requireSite,
+  REFRESH_COOKIE,
+  REFRESH_COOKIE_PATH,
   SESSION_COOKIE,
   validateBody,
   validatedQuery,
@@ -45,7 +47,7 @@ import { getActiveRelease, parseStoredConfig } from "./repositories/releases.js"
 import { manifest, mount } from "./routes/manifest.js";
 import * as authSvc from "./services/auth.js";
 import * as ops from "./services/operations.js";
-import { AppError, badRequest, forbidden, notFound, notImplemented } from "./utils/errors.js";
+import { AppError, badRequest, forbidden, notFound, notImplemented, unauthorized } from "./utils/errors.js";
 
 export interface AppDeps {
   db: Database;
@@ -81,16 +83,41 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
 
   // ---------- authentication
   const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: loginRateLimit, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false, message: { error: { code: "rate_limited", message: "Too many login attempts. Try again later." } } });
+  const refreshLimiter = rateLimit({ windowMs: 15 * 60_000, limit: loginRateLimit * 12, standardHeaders: true, legacyHeaders: false, message: { error: { code: "rate_limited", message: "Too many refresh attempts. Try again later." } } });
+  const authDeps = { db, jwtSecret: env.JWT_SECRET, expiresInSeconds: env.JWT_EXPIRES_IN_SECONDS, refreshExpiresInSeconds: env.REFRESH_EXPIRES_IN_SECONDS };
+  const setAuthCookies = (res: express.Response, issued: authSvc.IssuedSession) => {
+    res.cookie(SESSION_COOKIE, issued.token, { httpOnly: true, sameSite: "lax", secure: secureCookie, path: "/", maxAge: env.JWT_EXPIRES_IN_SECONDS * 1000 });
+    res.cookie(REFRESH_COOKIE, issued.refreshToken, { httpOnly: true, sameSite: "strict", secure: secureCookie, path: REFRESH_COOKIE_PATH, expires: issued.refreshExpiresAt });
+  };
+  const clearAuthCookies = (res: express.Response) => {
+    res.clearCookie(SESSION_COOKIE, { path: "/" });
+    res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
+  };
   const a = mount(api, "/auth");
   api.use(requireCsrfHeader);
   a.post("/login", authLimiter, validateBody(loginRequestSchema), async (req, res) => {
-    const { session, token } = await authSvc.login({ db, jwtSecret: env.JWT_SECRET, expiresInSeconds: env.JWT_EXPIRES_IN_SECONDS }, req.body, req.requestId);
-    res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: secureCookie, path: "/", maxAge: env.JWT_EXPIRES_IN_SECONDS * 1000 });
-    res.json({ data: session });
+    const issued = await authSvc.login(authDeps, req.body, req.requestId);
+    setAuthCookies(res, issued);
+    res.json({ data: issued.session });
+  });
+  a.post("/refresh", refreshLimiter, async (req, res) => {
+    const raw = (req.cookies as Record<string, string | undefined> | undefined)?.[REFRESH_COOKIE];
+    if (!raw || raw.length > 200) {
+      clearAuthCookies(res);
+      throw unauthorized("Session expired. Sign in again.");
+    }
+    try {
+      const issued = await authSvc.refresh(authDeps, raw, req.requestId);
+      setAuthCookies(res, issued);
+      res.json({ data: issued.session });
+    } catch (e) {
+      clearAuthCookies(res);
+      throw e;
+    }
   });
   a.post("/logout", auth, async (req, res) => {
     await authSvc.logout(db, req.user!.id, req.requestId);
-    res.clearCookie(SESSION_COOKIE, { path: "/" });
+    clearAuthCookies(res);
     res.status(204).end();
   });
   a.get("/me", auth, async (req, res) => {
