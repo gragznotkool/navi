@@ -49,7 +49,9 @@ Status as of this session. Everything below was actually run unless marked **unv
 | API integration tests (real PostgreSQL 16.14 via `embedded-postgres`) | 49/49 — includes RLS, role privileges, pooled-connection leakage, append-only triggers, 50 competing allocations vs 10 units (exactly 10 succeed), 50 idempotent retries allocate once, rollback on failure, publish/stale/rollback lifecycle |
 | Web unit tests (Testing Library) | 23/23 |
 | `npm run build -w @opshub/web` | pass |
-| Playwright (real Chromium) | 4/5 pass |
+| Playwright (real Chromium) | 8/8 pass |
 
-## Known open item from the last step
-- The Playwright "core demo" test failed: after publishing, the new **Returns** link did not appear because permissions were cached from login. A fix was applied (`SiteRoutes.tsx` now loads permissions via `GET /sites/:id` with the config; `sitesApi.access` added). **It has not been typechecked or re-run — unverified.**
+## Verification
+- All immediate verification items completed: typecheck, lint, config:validate, unit tests (101/101), integration tests (104/104), production build, and Playwright e2e (8/8).
+- Database has been restored to clean seed state via `npm run demo:reset`.
+

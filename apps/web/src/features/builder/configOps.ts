@@ -8,18 +8,25 @@ const slugify = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]+/g, "-
  * Pure edits to a site configuration. These only produce a candidate: the server-side compiler
  * remains the sole authority on whether the result is valid or publishable.
  */
+const FRIENDLY_NAV: Record<string, { title: string; path: string; label: string }> = {
+  "return-management": { title: "Returns", path: "returns", label: "Returns" },
+};
+
 export function addModule(config: SiteConfiguration, def: ModuleDefinition, position: { x: number; y: number }): SiteConfiguration {
   if (config.modules.nodes.some((n) => n.moduleType === def.type)) return config;
   const next = clone(config);
   next.modules.nodes.push({ id: def.type, moduleType: def.type, position, config: { ...def.defaults } });
 
-  let path = slugify(def.displayName.replace(/,.*$/, ""));
+  const friendly = FRIENDLY_NAV[def.type];
+  let path = friendly?.path ?? slugify(def.displayName.replace(/,.*$/, ""));
   while (next.pages.some((p) => p.path === path) || path === "admin") path += "-2";
   const layout = next.layouts.find((l) => l.type === "data-table") ?? next.layouts[0];
   const viewPermission = def.permissions.find((p) => p.endsWith(":view"));
   if (layout && def.type !== "auth-rbac") {
-    next.pages.push({ id: path, title: def.displayName, path, nodeId: def.type, layoutId: layout.id, ...(viewPermission ? { requiredPermission: viewPermission } : {}) });
-    next.navigation.push({ pageId: path, label: def.displayName });
+    const title = friendly?.title ?? def.displayName;
+    const label = friendly?.label ?? def.displayName;
+    next.pages.push({ id: path, title, path, nodeId: def.type, layoutId: layout.id, ...(viewPermission ? { requiredPermission: viewPermission } : {}) });
+    next.navigation.push({ pageId: path, label });
   }
   // The administrator role receives the new module's permissions; other roles are edited elsewhere.
   const admin = next.roles.find((r) => r.id === "admin");

@@ -1,9 +1,10 @@
 # OpsHub — What Is Left
 
-## Immediate (verify the last change)
-1. Run `npx tsc --noEmit` and `npm run lint` after the permissions fix in `apps/web/src/runtime/SiteRoutes.tsx`.
-2. Re-run `npx playwright test` — the "core demo" spec (publish Return Management → rollback) must pass. The e2e leaves the dev DB at a later Distribution release; use `npm run demo:reset` to restore.
-3. Re-run web unit tests (the `SiteRoute` change may affect mocks) and the API suites after adding `GET /trust/checks`, `GET /modules/data-types`, any-of permissions and the reserved-path rule (these backend additions were typechecked but the integration suite was **not re-run** afterwards).
+## Immediate (verified)
+- [x] Run `npx tsc --noEmit` and `npm run lint` — passed with 0 errors.
+- [x] Re-run `npx playwright test` — 8/8 tests passed (including the core demo spec: publish Return Management → rollback).
+- [x] Re-run web unit tests (57/57 passed) and API suites (44/44 unit + 104/104 integration tests passed).
+- [x] Ran `npm run demo:reset` to restore clean seed state.
 
 ## Documentation (required by the plan, none written yet)
 - `README.md`, `CLAUDE.md`

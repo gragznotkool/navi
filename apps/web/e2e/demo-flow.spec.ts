@@ -44,7 +44,7 @@ test("core demo: sites, switching, builder, publish, runtime change, rollback", 
   await nav.getByRole("link", { name: "Configuration builder" }).click();
   await expect(page.getByRole("button", { name: "Review & publish" })).toBeDisabled();
   await page.getByLabel("Add module").selectOption({ label: "Return Management" });
-  await page.getByRole("button", { name: "Add" }).click();
+  await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.getByRole("button", { name: "Validate" }).click();
   await expect(page.getByText("No errors or warnings.")).toBeVisible();
   await page.getByRole("button", { name: "Review & publish" }).click();
@@ -57,7 +57,7 @@ test("core demo: sites, switching, builder, publish, runtime change, rollback", 
   // The common runtime now shows the module; no restart or redeploy happened.
   const nav2 = page.getByRole("navigation", { name: "Main" });
   await nav2.getByRole("link", { name: "Returns" }).click();
-  await expect(page.getByText("Not implemented yet")).toBeVisible();
+  await expect(page.getByText("Not implemented yet", { exact: true })).toBeVisible();
 
   // Roll back: Returns disappears again, history is preserved.
   await nav2.getByRole("link", { name: "Releases" }).click();
