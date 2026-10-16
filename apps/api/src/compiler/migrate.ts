@@ -7,9 +7,11 @@ export type MigrationResult =
 /**
  * Explicit configuration schema migrations, keyed by the version they upgrade FROM.
  * Each function must return a configuration at version `from + 1`.
- * No migrations exist yet because version 1 is the first schema version.
+ * v1 -> v2: adds configurable `fields` (empty; existing sites keep their shape).
  */
-const migrations: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {};
+const migrations: Record<number, (config: Record<string, unknown>) => Record<string, unknown>> = {
+  1: (config) => ({ ...config, fields: [] }),
+};
 
 export function migrateConfiguration(input: unknown): MigrationResult {
   if (typeof input !== "object" || input === null || Array.isArray(input)) {

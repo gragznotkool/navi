@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "siteId": "00000000-0000-4000-8000-000000000002",
   "slug": "service-centre",
   "name": "Service Centre",
@@ -342,6 +342,7 @@
     }
   ],
   "calculatedFieldDefinitions": [],
+  "fields": [],
   "metadata": {
     "description": "Service Centre seed configuration (development demo)"
   }

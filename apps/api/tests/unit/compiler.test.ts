@@ -56,6 +56,30 @@ describe("registry", () => {
   });
 });
 
+describe("schema migration v1 -> v2", () => {
+  it("upgrades a v1 configuration by adding empty fields", () => {
+    const v1 = clone(load("central-stores")) as unknown as Record<string, unknown>;
+    v1.schemaVersion = 1;
+    delete v1.fields;
+    const out = compileConfiguration(v1);
+    expect(out.result.errors).toEqual([]);
+    expect(out.compiled?.schemaVersion).toBe(2);
+    expect(out.compiled?.fields).toEqual([]);
+  });
+
+  it("rejects duplicate field keys, unsafe keys and invalid SLA values", () => {
+    const cfg = clone(load("central-stores"));
+    cfg.fields = [
+      { id: "f1", entity: "inventory_item", key: "colour", label: "Colour", type: "text", required: false, hidden: false },
+      { id: "f2", entity: "inventory_item", key: "colour", label: "Colour 2", type: "text", required: false, hidden: false },
+    ];
+    expect(codes(cfg)).toContain("fields.duplicate-key");
+    const bad = clone(load("distribution"));
+    bad.modules.nodes.find((n) => n.moduleType === "approval")!.config["slaSeconds"] = -5;
+    expect(codes(bad)).toContain("sla.invalid");
+  });
+});
+
 describe("compiler rejections", () => {
   it("rejects non-object input and unsupported versions with actionable errors", () => {
     expect(codes("x")).toContain("schema.not-object");

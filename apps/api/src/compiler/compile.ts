@@ -202,7 +202,26 @@ export function compileConfiguration(input: unknown): CompileOutput {
     }
   });
 
-  // Stages 15-16.
+  // Stage 15: configurable fields (unique ids and per-entity keys) and approval SLA settings.
+  for (const dup of duplicates(config.fields.map((f) => f.id))) {
+    issues.push(error("fields", "fields.duplicate-id", `Duplicate field id "${dup}"`, "fields"));
+  }
+  for (const dup of duplicates(config.fields.map((f) => `${f.entity}.${f.key}`))) {
+    issues.push(error("fields", "fields.duplicate-key", `Duplicate field key "${dup}"`, "fields"));
+  }
+  config.fields.forEach((f, i) => {
+    if (["__proto__", "constructor", "prototype"].includes(f.key)) {
+      issues.push(error("fields", "fields.unsafe-key", `Field key "${f.key}" is not allowed`, `fields.${i}`));
+    }
+  });
+  config.modules.nodes.forEach((n, i) => {
+    const sla = n.config["slaSeconds"];
+    if (sla !== undefined && (typeof sla !== "number" || !Number.isInteger(sla) || sla < 1 || sla > 2_592_000)) {
+      issues.push(error("sla", "sla.invalid", `Node "${n.id}": slaSeconds must be a whole number between 1 and 2592000`, `modules.nodes.${i}.config.slaSeconds`));
+    }
+  });
+
+  // Stage 16.
   return finish(issues, config);
 }
 

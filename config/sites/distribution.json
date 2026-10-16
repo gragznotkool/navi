@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "siteId": "00000000-0000-4000-8000-000000000003",
   "slug": "distribution",
   "name": "Distribution",
@@ -346,6 +346,7 @@
     }
   ],
   "calculatedFieldDefinitions": [],
+  "fields": [],
   "metadata": {
     "description": "Distribution seed configuration (development demo)"
   }
