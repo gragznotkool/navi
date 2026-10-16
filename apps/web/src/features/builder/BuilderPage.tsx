@@ -25,32 +25,43 @@ function ModuleNodeView({ data, selected }: NodeProps<Node<ModuleNodeData>>) {
   const def = data.def;
   const inputs = def?.ports.filter((p) => p.direction === "input") ?? [];
   const outputs = def?.ports.filter((p) => p.direction === "output") ?? [];
-  const border = data.problem ? "border-danger border-dashed" : selected ? "border-accent ring-2 ring-accent/30" : "border-line";
+  const border = data.problem
+    ? "border-[#FF5C5C] border-dashed"
+    : selected
+    ? "border-[#FFE500] ring-2 ring-[#FFE500]/40 shadow-[0_0_15px_rgba(255,229,0,0.25)]"
+    : "border-[#303432] hover:border-[#FFE500]/60";
+
   return (
-    <div className={`w-56 rounded-ui border bg-surface text-xs ${border} ${data.shake ? "ops-shake" : ""}`} data-testid={`node-${data.moduleType}`}>
-      <div className="flex items-center justify-between border-b border-line px-3 py-2">
-        <span className="font-semibold text-ink">{def?.displayName ?? data.moduleType}</span>
-        {def?.platformModule && <Badge tone="info">platform</Badge>}
+    <div className={`w-60 rounded-[3px] border bg-[#171919] text-xs transition-all ${border} ${data.shake ? "ops-shake" : ""}`} data-testid={`node-${data.moduleType}`}>
+      <div className="flex items-center justify-between border-b border-[#303432] bg-[#111313] px-3 py-2">
+        <span className="font-['Barlow_Condensed',sans-serif] text-sm font-bold uppercase tracking-wider text-[#F5F5F0]">
+          {def?.displayName ?? data.moduleType}
+        </span>
+        {def?.platformModule ? (
+          <Badge tone="yellow">CORE</Badge>
+        ) : (
+          <span className="font-mono text-[9px] text-[#777C79] uppercase">MOD</span>
+        )}
       </div>
-      <div className="flex justify-between gap-2 px-3 py-2 text-muted">
-        <ul>
+      <div className="flex justify-between gap-3 p-3 font-mono text-[11px] text-[#A5A8A6]">
+        <ul className="space-y-1">
           {inputs.map((p) => (
-            <li key={p.id} className="relative py-0.5">
-              <Handle type="target" id={p.id} position={Position.Left} style={{ left: -13 }} />
-              {p.label}
+            <li key={p.id} className="relative py-0.5 text-left">
+              <Handle type="target" id={p.id} position={Position.Left} style={{ left: -15, width: 8, height: 8, background: "#FFE500", borderRadius: 1 }} />
+              <span className="text-[#FFE500]">«</span> {p.label}
             </li>
           ))}
         </ul>
-        <ul className="text-right">
+        <ul className="space-y-1 text-right">
           {outputs.map((p) => (
             <li key={p.id} className="relative py-0.5">
-              <Handle type="source" id={p.id} position={Position.Right} style={{ right: -13 }} />
-              {p.label}
+              <Handle type="source" id={p.id} position={Position.Right} style={{ right: -15, width: 8, height: 8, background: "#FFE500", borderRadius: 1 }} />
+              {p.label} <span className="text-[#FFE500]">»</span>
             </li>
           ))}
         </ul>
       </div>
-      {data.problem && <p role="status" className="border-t border-dashed border-danger px-3 py-1.5 text-[11px] text-danger">{data.problem}</p>}
+      {data.problem && <p role="status" className="border-t border-dashed border-[#FF5C5C] bg-[#FF5C5C]/10 px-3 py-1.5 font-mono text-[10px] text-[#FF5C5C]">{data.problem}</p>}
     </div>
   );
 }
@@ -281,32 +292,32 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           <Button onClick={() => window.location.reload()}>Reload</Button>
         </div>
       )}
-      <div className="mb-3 flex flex-wrap items-center gap-2 rounded-ui border border-line bg-surface p-2" role="toolbar" aria-label="Starter layouts">
-        <span className="inline-flex items-center gap-1 px-1 text-xs font-medium text-muted"><Sparkles className="h-3.5 w-3.5" aria-hidden /> Starter layouts</span>
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[4px] border border-[#303432] bg-[#111313] p-2.5" role="toolbar" aria-label="Starter layouts">
+        <span className="inline-flex items-center gap-1.5 px-2 font-mono text-xs font-bold uppercase tracking-wider text-[#FFE500]"><Sparkles className="h-3.5 w-3.5" aria-hidden /> TEMPLATES</span>
         {PRESETS.map((p) => (
           <Button key={p.id} title={p.description} onClick={() => runPreset(p)}>{p.name}</Button>
         ))}
-        <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4" /></Button>
-          <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4" /></Button>
+        <div className="ml-auto flex items-center gap-1 border-l border-[#303432] pl-2">
+          <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4 text-[#A5A8A6]" /></Button>
+          <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#A5A8A6]" /></Button>
         </div>
       </div>
-      <div className="mb-3 flex flex-wrap items-end gap-2">
-        <SelectField label="Add module" value={toAdd} onChange={(e) => setToAdd(e.target.value)} className="w-64">
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-[4px] border border-[#303432] bg-[#171919] p-3">
+        <SelectField label="DEPLOY NEW MODULE" value={toAdd} onChange={(e) => setToAdd(e.target.value)} className="w-64">
           <option value="">Select a module…</option>
           {available.map((d) => <option key={d.type} value={d.type}>{d.displayName}</option>)}
         </SelectField>
-        <Button disabled={!toAdd} onClick={addSelected}>Add</Button>
+        <Button disabled={!toAdd} onClick={addSelected} variant="primary">+ ADD TO CANVAS</Button>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button onClick={validate} loading={busy === "validate"}>Validate</Button>
-          <Button onClick={saveDraft} loading={busy === "draft"} disabled={!dirty}>Save draft</Button>
-          {dirty && <Button variant="ghost" onClick={discardDraft} loading={busy === "draft"}>Discard</Button>}
-          <Button onClick={preview} loading={busy === "preview"}>Preview</Button>
-          <Button variant="primary" onClick={() => setReviewing(true)} loading={busy === "publish"} disabled={!validation?.valid || !dirty || stale}>Review & publish</Button>
+          <Button onClick={validate} loading={busy === "validate"}>VALIDATE GRAPH</Button>
+          <Button onClick={saveDraft} loading={busy === "draft"} disabled={!dirty}>SAVE DRAFT</Button>
+          {dirty && <Button variant="ghost" onClick={discardDraft} loading={busy === "draft"}>DISCARD</Button>}
+          <Button onClick={preview} loading={busy === "preview"}>PREVIEW</Button>
+          <Button variant="primary" onClick={() => setReviewing(true)} loading={busy === "publish"} disabled={!validation?.valid || !dirty || stale}>REVIEW & PUBLISH</Button>
         </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="h-[560px] rounded-ui border border-line bg-surface" aria-label="Module graph">
+        <div className="h-[580px] rounded-[4px] border border-[#303432] bg-[#0c0e0e]" aria-label="Module graph">
           <ReactFlow
             nodes={flowNodes}
             edges={flowEdges}
@@ -320,8 +331,8 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
             fitView
             deleteKeyCode={["Backspace", "Delete"]}
           >
-            <Background />
-            <Controls showInteractive={false} />
+            <Background color="#303432" gap={24} size={1} />
+            <Controls className="bg-[#171919] border border-[#303432] text-[#F5F5F0] rounded-[2px]" />
           </ReactFlow>
         </div>
         <div className="flex flex-col gap-4">
