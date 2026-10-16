@@ -116,7 +116,7 @@ const siteIdParam = z.string().uuid();
  * Verifies the authenticated user is a member of `:siteId` and (optionally) holds a permission.
  * The site id from the URL is never trusted on its own.
  */
-export function requireSite(db: Database, permission?: string): RequestHandler {
+export function requireSite(db: Database, permission?: string | string[]): RequestHandler {
   return async (req: Request, _res: Response, next: NextFunction) => {
     try {
       if (!req.user) throw unauthorized();
@@ -125,7 +125,8 @@ export function requireSite(db: Database, permission?: string): RequestHandler {
       const access = await resolveSiteAccess(db, req.user, parsed.data);
       // Non-members get 404, not 403, so site existence is not disclosed.
       if (!access) throw notFound("Site not found");
-      if (permission && !access.permissions.has(permission)) throw forbidden();
+      const anyOf = permission === undefined ? [] : Array.isArray(permission) ? permission : [permission];
+      if (anyOf.length > 0 && !anyOf.some((p) => access.permissions.has(p))) throw forbidden();
       req.siteAccess = access;
       next();
     } catch (e) {

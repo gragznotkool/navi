@@ -27,7 +27,8 @@
     "db:seed": "npm run db:seed -w @opshub/api",
     "db:reset": "npm run db:reset -w @opshub/api",
     "config:validate": "npm run config:validate -w @opshub/api",
-    "demo:reset": "npm run db:reset && npm run db:seed"
+    "demo:reset": "npm run db:reset && npm run db:seed",
+    "db:embedded": "npm run db:embedded -w @opshub/api"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

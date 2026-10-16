@@ -37,6 +37,9 @@ function finish(issues: ValidationIssue[], config?: SiteConfiguration): CompileO
   return { result: { valid, errors, warnings }, ...(valid && config ? { compiled: config } : {}) };
 }
 
+/** Paths used by platform routes (builder, releases) that configuration must not shadow. */
+const RESERVED_PATHS = new Set(["admin"]);
+
 function duplicates(ids: string[]): string[] {
   const seen = new Set<string>();
   const dup = new Set<string>();
@@ -149,6 +152,7 @@ export function compileConfiguration(input: unknown): CompileOutput {
   for (const id of duplicates(config.pages.map((p) => p.id))) issues.push(error("pages", "pages.duplicate", `Duplicate page id "${id}"`));
   for (const id of duplicates(config.pages.map((p) => p.path))) issues.push(error("pages", "pages.duplicate-path", `Duplicate page path "${id}"`));
   config.pages.forEach((p, i) => {
+    if (RESERVED_PATHS.has(p.path)) issues.push(error("pages", "pages.reserved-path", `Page path "${p.path}" is reserved by the platform`, `pages.${i}`));
     if (!nodeById.has(p.nodeId)) issues.push(error("pages", "pages.missing-node", `Page "${p.id}" references unknown node "${p.nodeId}"`, `pages.${i}`));
     if (!layoutIds.has(p.layoutId)) issues.push(error("pages", "pages.missing-layout", `Page "${p.id}" references unknown layout "${p.layoutId}"`, `pages.${i}`));
   });

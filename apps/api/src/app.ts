@@ -34,14 +34,15 @@ import {
   validatedQuery,
   validateQuery,
 } from "./middleware/core.js";
-import { moduleDefinitions } from "./modules/registry.js";
+import { dataTypes, moduleDefinitions } from "./modules/registry.js";
+import { readChecks } from "./trust/checks.js";
 import * as releases from "./releases/service.js";
 import { ValidationFailed } from "./releases/service.js";
 import { getActiveRelease, parseStoredConfig } from "./repositories/releases.js";
 import { manifest, mount } from "./routes/manifest.js";
 import * as authSvc from "./services/auth.js";
 import * as ops from "./services/operations.js";
-import { AppError, badRequest, notImplemented } from "./utils/errors.js";
+import { AppError, badRequest, forbidden, notImplemented } from "./utils/errors.js";
 
 export interface AppDeps {
   db: Database;
@@ -97,6 +98,16 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   const m = mount(api, "/modules");
   m.get("", auth, (_req, res) => {
     res.json({ data: moduleDefinitions });
+  });
+  m.get("/data-types", auth, (_req, res) => {
+    res.json({ data: dataTypes });
+  });
+
+  // ---------- trust console (platform admins; results come from recorded test runs only)
+  const trust = mount(api, "/trust");
+  trust.get("/checks", auth, (req, res) => {
+    if (!req.user!.isPlatformAdmin) throw forbidden();
+    res.json({ data: readChecks() });
   });
 
   // ---------- sites
@@ -160,7 +171,7 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   // ---------- operations
   const opActor = (req: express.Request): ops.Actor => ({ siteId: req.siteAccess!.siteId, userId: req.user!.id, requestId: req.requestId });
   const paging = validateQuery(paginationRequestSchema);
-  st.get("/:siteId/inventory", auth, requireSite(db, "inventory:view"), paging, async (req, res) => {
+  st.get("/:siteId/inventory", auth, requireSite(db, ["inventory:view", "request:create"]), paging, async (req, res) => {
     const p = validatedQuery<PaginationRequest>(res);
     res.json({ data: await ops.listItems(db, opActor(req), p.page, p.pageSize) });
   });

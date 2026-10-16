@@ -6,3 +6,6 @@ coverage
 playwright-report
 test-results
 .vite
+
+.pgdata
+apps/api/test-results

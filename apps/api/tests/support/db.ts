@@ -51,7 +51,7 @@ export async function rejectsWith(promise: Promise<unknown>, pattern?: RegExp | 
     const text = parts.join(" | ");
     if (pattern === undefined) return;
     const ok = typeof pattern === "string" ? text.includes(pattern) : pattern.test(text);
-    if (!ok) throw new Error(`Rejected, but error did not match ${String(pattern)}: ${text}`);
+    if (!ok) throw new Error(`Rejected, but error did not match ${String(pattern)}: ${text}`, { cause: e });
     return;
   }
   throw new Error("Expected promise to reject, but it resolved");
