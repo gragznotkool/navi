@@ -5,7 +5,7 @@ import { loadEnv } from "../config/env.js";
 import { runMigrations } from "./migrate.js";
 
 /** Destroys ALL data in the target database and re-applies migrations. Development only. */
-export async function resetDatabase(adminUrl: string, appUrl: string): Promise<void> {
+export async function dropSchema(adminUrl: string): Promise<void> {
   const pool = new pg.Pool({ connectionString: adminUrl, max: 1 });
   try {
     await pool.query("drop schema if exists public cascade");
@@ -14,6 +14,10 @@ export async function resetDatabase(adminUrl: string, appUrl: string): Promise<v
   } finally {
     await pool.end();
   }
+}
+
+export async function resetDatabase(adminUrl: string, appUrl: string): Promise<void> {
+  await dropSchema(adminUrl);
   await runMigrations(adminUrl, appUrl);
 }
 

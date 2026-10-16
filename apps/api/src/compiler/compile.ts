@@ -6,6 +6,7 @@ import {
   type ValidationIssue,
 } from "@opshub/contracts";
 import { getModuleDefinition, isCompatible, moduleDefinitions } from "../modules/registry.js";
+import { columnKeys, isReportKey } from "../reports/catalog.js";
 import { checkExpression } from "./expression.js";
 import { migrateConfiguration } from "./migrate.js";
 
@@ -124,6 +125,16 @@ export function compileConfiguration(input: unknown): CompileOutput {
     }
   });
 
+  // Stage 8b: a workflow module whose input ports are all unconnected is isolated (an Approval with no Request feeding it, an Assignment with nothing approved).
+  const wired = new Set(config.modules.edges.map((e) => `${e.targetNodeId}.${e.targetPortId}`));
+  for (const n of config.modules.nodes) {
+    const def = getModuleDefinition(n.moduleType);
+    const inputs = def?.ports.filter((p) => p.direction === "input") ?? [];
+    if (inputs.length > 0 && inputs.every((p) => ["request", "approved-request"].includes(p.dataType) && !wired.has(`${n.id}.${p.id}`))) {
+      issues.push(warning("ports", "ports.isolated-module", `${def?.displayName} is isolated: nothing is connected to its ${inputs.map((p) => `"${p.label}"`).join(" / ")} input`, `modules.nodes.${n.id}`));
+    }
+  }
+
   // Stage 9: module dependencies and mandatory platform modules.
   const enabled = new Set(nodeTypes);
   for (const n of config.modules.nodes) {
@@ -178,6 +189,38 @@ export function compileConfiguration(input: unknown): CompileOutput {
       issues.push(error("roles", "pages.unknown-permission", `Page "${p.id}" requires unknown permission "${p.requiredPermission}"`, `pages.${i}`));
     }
   });
+
+  // Stage 12a: custom fields must belong to an existing node and be unique per node.
+  const fieldNames = new Set<string>();
+  config.customFields.forEach((f, i) => {
+    if (!nodeById.has(f.nodeId)) issues.push(error("fields", "fields.missing-node", `Custom field "${f.name}" references unknown node "${f.nodeId}"`, `customFields.${i}`));
+    const k = `${f.nodeId}:${f.name.toLowerCase()}`;
+    if (fieldNames.has(k)) issues.push(error("fields", "fields.duplicate", `Duplicate custom field "${f.name}" on node "${f.nodeId}"`, `customFields.${i}`));
+    fieldNames.add(k);
+  });
+
+  // Stage 12b: Excel report policies.
+  const roleIds = new Set(config.roles.map((r) => r.id));
+  const reportEntries = Object.entries(config.reports);
+  if (reportEntries.length > 0 && !enabled.has("reports-excel")) {
+    issues.push(error("reports", "reports.module-missing", 'Reports are configured but the "reports-excel" module is not enabled', "reports"));
+  }
+  for (const [key, def] of reportEntries) {
+    const p = `reports.${key}`;
+    if (!isReportKey(key)) {
+      issues.push(error("reports", "reports.unknown-report", `Unknown report "${key}"`, p));
+      continue;
+    }
+    for (const role of [...def.exportRoles, ...def.importRoles, ...Object.keys(def.maskColumns)]) {
+      if (!roleIds.has(role)) issues.push(error("reports", "reports.unknown-role", `Report "${key}" references unknown role "${role}"`, p));
+    }
+    const cols = new Set(columnKeys(key));
+    for (const [role, masked] of Object.entries(def.maskColumns)) {
+      for (const col of masked) {
+        if (!cols.has(col)) issues.push(error("reports", "reports.unknown-column", `Report "${key}" masks unknown column "${col}" for role "${role}"`, `${p}.maskColumns.${role}`));
+      }
+    }
+  }
 
   // Stage 13: workflow transitions.
   config.workflowDefinitions.forEach((w, i) => {

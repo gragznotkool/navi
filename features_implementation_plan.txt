@@ -1,0 +1,231 @@
+================================================================================
+OPSHUB: FEATURES IMPLEMENTATION PLAN & CREATIVE PRESENTATION GUIDE
+================================================================================
+Scope: Features F4 (Typed Visual Builder), F9 (Role-Restricted Excel), F10 (Seed Data & Backup), plus F5 Reference
+Format: Instructions, Architecture & Creative Demos (No code)
+================================================================================
+
+CURRENT BASELINE (REALITY CHECK)
+--------------------------------------------------------------------------------
+- Feature F4 (Typed Visual Builder): ~80% Complete
+  * Already exists: React Flow canvas, module registry, typed port compatibility
+    validation, add/remove modules, draft saving, validate/preview/publish flow.
+  * Missing: Quick-start preset templates, animated visual feedback on invalid
+    connections, detailed inspector controls, canvas undo/redo.
+
+- Feature F9 (Role-Restricted Excel Engine): 0% Complete
+  * Currently returns 501 Not Implemented. Needs full build (ExcelJS export/import,
+    role column masking, formula injection sanitization, atomic transaction import).
+
+- Feature F10 (Realistic Seed Data & Backup Engine): ~50% Complete
+  * Already exists: Seed runner with 3 sites, 5 users, 5 stock items, opening ledger.
+  * Missing: Scaling to 120+ requests across sites with full audit trail, SQL ledger
+    balance assertions, automated backup/restore scripts, Admin UI backup download.
+
+--------------------------------------------------------------------------------
+PRIORITY IMPLEMENTATION ORDER
+--------------------------------------------------------------------------------
+1. 1st: Feature F10 (Seed Data & Backup) - ~3 Hours
+   Reason: All modules, Excel exports, and analytics require realistic data first.
+
+2. 2nd: Feature F9 (Role-Restricted Excel) - ~4 Hours
+   Reason: Needs the seeded data to export meaningful reports and test role masking.
+
+3. 3rd: Feature F4 (Typed Visual Builder Polish) - ~2 Hours
+   Reason: Builder core is already 80% working; only UI polish and presets remain.
+
+
+================================================================================
+FEATURE F4: TYPED VISUAL BUILDER (ENHANCEMENT & POLISH)
+================================================================================
+
+1. WHAT IT IS:
+   A visual drag-and-drop workspace where operational architects wire together 
+   modules like circuit blocks. Invalid connections (e.g., connecting a Chart 
+   directly to a Request without a query source, or placing an Approval node alone) 
+   are strictly blocked with clear reasons.
+
+2. WHAT TO IMPLEMENT (INSTRUCTIONS):
+   A. Presets Bar:
+      - Add a top toolbar with 3 one-click starter layouts:
+        * "Inventory Starter" (Inventory -> Stock Movements -> Audit Log)
+        * "Approval Chain" (Request Submission -> Multi-Level Approval -> Dispatch)
+        * "Repair Shop" (Work Orders -> Parts Consumption -> Inspection)
+      - Clicking any preset automatically positions nodes and wires typed edges.
+
+   B. Visual Rejection & Feedback Animations:
+      - When an invalid edge connection is attempted:
+        * Shake the target node.
+        * Turn the edge dashed red for 1.5 seconds.
+        * Display an informative toast explaining the rejection (e.g., 
+          "Incompatible Port: Approval module requires a Request input stream").
+      - When a valid edge is connected:
+        * Flash the edge with a brief glowing green pulse.
+
+   C. Inspector Configuration Panel:
+      - Expand the right-hand properties sidebar:
+        * Custom field configuration (field name, type, required toggle).
+        * Role access permissions checklist (Create, Read, Update, Delete per role).
+        * Formula builder for calculated fields.
+        * SLA timeout / reminder duration input for Approval nodes.
+
+   D. Undo / Redo History Stack:
+      - Implement a standard history buffer capturing canvas actions:
+        * Node drag/reposition.
+        * Node add/delete.
+        * Edge connect/disconnect.
+      - Bind to standard keyboard shortcuts (Ctrl+Z / Ctrl+Y).
+
+3. CREATIVE PRESENTATION IDEA: "THE CIRCUIT BREAKER DEMO"
+   - Live on screen, deliberately attempt 3 illegal connections in front of the audience:
+     1. Drop an Approval node completely isolated with no incoming request.
+     2. Try connecting an Analytics Chart directly into a Request input.
+     3. Try feeding Inventory balance directly into a Returns pipeline.
+   - Each attempt immediately trips: the line flashes red with a crisp error toast.
+   - Then, click the "Approval Chain" preset: every module snaps into place and 
+     all connecting lines pulse bright green.
+   - Catchphrase:
+     "OpsHub doesn't just let you build operations. It refuses to let you build them wrong."
+
+
+================================================================================
+FEATURE F9: ROLE-RESTRICTED EXCEL ENGINE (BUILD FROM SCRATCH)
+================================================================================
+
+1. WHAT IT IS:
+   An enterprise spreadsheet pipeline. Exports dynamically mask or hide confidential 
+   columns depending on who is logged in. Imports parse spreadsheets, validate every 
+   cell against strict schema rules, and rollback the entire operation if even a 
+   single cell is invalid.
+
+2. WHAT TO IMPLEMENT (INSTRUCTIONS):
+   A. Engine & Configuration:
+      - Install ExcelJS in the API package.
+      - In the site configuration schema, add a `reports` section:
+        * Define allowed export roles and allowed import roles.
+        * Define `maskColumns` mapping each role to restricted fields 
+          (e.g., UnitCost, TotalValue, VendorMargin).
+
+   B. Export Pipeline (GET /api/v1/sites/:siteId/reports/:key/export):
+      - Authenticate caller and evaluate role permissions (return 403 if unpermitted).
+      - Query table records within the active tenant partition.
+      - For columns listed under the user's role in `maskColumns`, replace cell 
+        values with "*** CONFIDENTIAL ***".
+      - Sanitize text cells starting with `=`, `+`, `-`, or `@` by prepending a 
+        single quote (') to neutralize formula injection (CSV/Excel macro injection).
+      - Set headers (`Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`)
+        and stream the workbook directly to client.
+
+   C. Import Pipeline (POST /api/v1/sites/:siteId/reports/:key/import):
+      - Enforce role check, file size limit (5MB), and maximum row limit (5,000 rows).
+      - Read workbook buffer and validate every row against compiled Zod schemas.
+      - Validation Rule: Zero Tolerance.
+        * If any row contains bad types, missing required values, or negative numbers, 
+          abort immediately. Collect all row numbers and exact column error messages.
+        * If 100% of rows pass, execute a single database transaction inserting all 
+          records.
+      - Emit an audit log entry detailing file name, row count, and uploader.
+
+   D. Web Interface:
+      - Export: "Export Excel" button with loading spinner on module tables.
+      - Import: Modal drag-and-drop zone with format hints, preview summary, and 
+        an interactive error table showing exact row/cell failures if rejected.
+
+3. CREATIVE PRESENTATION IDEA: "THE X-RAY SPREADSHEET"
+   - Open two browser windows side-by-side:
+     * Left Window: Logged in as Platform Admin (`admin@opshub.local`).
+     * Right Window: Logged in as Storekeeper (`storekeeper@opshub.local`).
+   - Click "Export Inventory Report" in both windows simultaneously.
+   - Open the two exported `.xlsx` files:
+     * Admin file shows every detail: SKU, Item Name, Quantity, Unit Cost ($), Margin (%).
+     * Storekeeper file shows SKU, Item Name, Quantity, but Unit Cost and Margin show 
+       "*** LOCKED ***".
+   - Now take a spreadsheet, purposely change Row 14's Quantity to `-5`, and drag it 
+     into the Import box.
+   - The UI immediately rejects: "Row 14: Quantity must be greater than or equal to 0. 
+     0 rows written to database."
+   - Catchphrase:
+     "Same button, same data source, completely different trust level. And a single 
+     corrupt cell will never poison your database."
+
+
+================================================================================
+FEATURE F10: REALISTIC SEED DATA & BACKUP VERIFICATION (EXPANSION)
+================================================================================
+
+1. WHAT IT IS:
+   A complete, mathematically balanced demo environment with over 120 operational 
+   records, cryptographic/ledger integrity assertions, and a one-click automated 
+   backup and recovery engine.
+
+2. WHAT TO IMPLEMENT (INSTRUCTIONS):
+   A. Scale Up Seed Data to 120+ Records:
+      - Expand `apps/api/src/db/seeds/seed.ts`:
+        * 120 Requests across sites:
+          - 34 in Service Centre (Maintenance requests, tool sign-outs).
+          - 86 in Distribution (Dispatch orders, store transfers, safety gear).
+        * Full request lifecycle states: SUBMITTED, APPROVED, ASSIGNED, FULFILLED, REJECTED.
+        * Matched companion records:
+          - Approval timestamps and approver IDs.
+          - Assignment logs tied to specific technicians.
+          - Ledger deduction entries matching exact inventory consumption.
+        * Expand inventory to 15+ industrial SKUs (valves, hydraulic seals, circuit breakers).
+        * Use fixed deterministic UUIDs so counts, charts, and dot-grids are 100% reproducible.
+
+   B. Mathematical Ledger Balance Assertion:
+      - At the conclusion of the seed script, run a validation query:
+        For every SKU: SUM(ledger.quantityDelta) MUST equal item.currentOnHand.
+      - If any discrepancy exists, fail the build immediately.
+
+   C. Backup & Restore Scripts:
+      - Create `scripts/backup.sh` (or PowerShell equivalent):
+        * Runs `pg_dump -Fc` producing timestamped dump `backup/opshub-<timestamp>.dump`.
+      - Create `scripts/restore.sh`:
+        * Runs `pg_restore --clean --if-exists` to restore fresh DB from dump.
+
+   D. Admin UI Backup Download:
+      - Add endpoint `GET /api/v1/hub/backup` restricted to Platform Admins.
+      - Streams `pg_dump` binary directly through the browser.
+      - Add a "Download Production Backup" button in the Hub Admin settings.
+
+   E. One-Command Reset (`npm run demo:reset`):
+      - Reset database, apply all migrations, compile site JSON configs, and seed 
+        120+ records in under 5 seconds.
+
+3. CREATIVE PRESENTATION IDEA: "THE PHOENIX RESET"
+   - In front of the evaluators, deliberately tamper with production data in the UI:
+     * Delete an inventory record.
+     * Manually approve a rejected order.
+   - Switch to the terminal and run:
+     `npm run demo:reset`
+   - Show the live console output:
+     "[1/4] Dropping schema... 
+      [2/4] Applying migrations... 
+      [3/4] Seeding 120 requests & 15 SKUs... 
+      [4/4] Validating ledger balance: SUM(delta) == onHand [OK]
+      Pristine environment restored in 3.8s."
+   - Refresh the web app: the entire application is restored to perfection.
+   - Click "Download System Backup" in the admin bar to prove live pg_dump file generation.
+   - Catchphrase:
+     "Disaster recovery in 4 seconds. Not a sales promise, but a mathematical guarantee."
+
+
+================================================================================
+BONUS REFERENCE: FEATURE F5 (FORMULA & CALCULATED EXPRESSIONS)
+================================================================================
+
+1. WHAT IT IS:
+   Dynamic in-app calculation engine that evaluates expressions on field values 
+   (e.g., `totalPrice = quantity * unitCost * (1 - discountPercentage/100)`) 
+   safely without evaluating arbitrary JavaScript (`eval`).
+
+2. KEY INSTRUCTIONS:
+   - Use AST-based parser (`jsep`) already installed in the repo.
+   - Evaluate expressions in a sandboxed runtime context with strict whitelist of 
+     allowed math operators (`+`, `-`, `*`, `/`, `round`, `min`, `max`).
+   - In UI form fields, make calculated fields read-only with an auto-calculating 
+     badge that updates in real time as inputs change.
+
+================================================================================
+END OF IMPLEMENTATION PLAN
+================================================================================

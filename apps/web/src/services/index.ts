@@ -3,6 +3,8 @@ import type {
   Assignment,
   AuthSession,
   ConfigurationValidationResult,
+  ImportResult,
+  ReportAccess,
   CreateRequestPayload,
   DataTypeDefinition,
   ModuleDefinition,
@@ -18,7 +20,7 @@ import type {
   TrustCheckResult,
   LoginRequest,
 } from "@opshub/contracts";
-import { call, http } from "../lib/api";
+import { call, http, toRequestErrorFromBlob } from "../lib/api";
 
 export const authApi = {
   login: (body: LoginRequest) => call<AuthSession>(http.post("/auth/login", body)),
@@ -73,4 +75,39 @@ export const releasesApi = {
 
 export const trustApi = {
   checks: () => call<{ generatedAt: string | null; checks: TrustCheckResult[] }>(http.get("/trust/checks")),
+};
+
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+export const reportsApi = {
+  list: (siteId: string) => call<ReportAccess[]>(http.get(`/sites/${siteId}/reports`)),
+  /** Returns the workbook bytes; the server has already applied this user's column masking. */
+  export: async (siteId: string, key: string): Promise<{ blob: Blob; fileName: string }> => {
+    try {
+      const res = await http.get<Blob>(`/sites/${siteId}/reports/${key}/export`, { responseType: "blob" });
+      return { blob: res.data, fileName: `${key}-report.xlsx` };
+    } catch (e) {
+      throw await toRequestErrorFromBlob(e);
+    }
+  },
+  import: (siteId: string, key: string, file: File, dryRun: boolean) =>
+    call<ImportResult>(
+      http.post(`/sites/${siteId}/reports/${key}/import`, file, {
+        params: dryRun ? { dryRun: true } : undefined,
+        headers: { "Content-Type": XLSX_MIME, "X-File-Name": encodeURIComponent(file.name) },
+      }),
+    ),
+};
+
+export const hubApi = {
+  /** Streams a pg_dump custom-format backup (platform admins only). */
+  backup: async (): Promise<{ blob: Blob; fileName: string }> => {
+    try {
+      const res = await http.get<Blob>("/hub/backup", { responseType: "blob" });
+      const disposition = String(res.headers["content-disposition"] ?? "");
+      return { blob: res.data, fileName: /filename="([^"]+)"/.exec(disposition)?.[1] ?? "opshub-backup.dump" };
+    } catch (e) {
+      throw await toRequestErrorFromBlob(e);
+    }
+  },
 };

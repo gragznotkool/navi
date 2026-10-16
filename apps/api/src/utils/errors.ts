@@ -30,6 +30,14 @@ export function toApiError(err: unknown, requestId: string | undefined): { statu
       body: { code: err.code, message: err.message, ...(requestId ? { requestId } : {}), ...(err.details ? { details: err.details } : {}) },
     };
   }
+  // body-parser failures (oversized or malformed bodies) carry a type and an HTTP status.
+  const parserType = typeof err === "object" && err !== null ? (err as { type?: unknown }).type : undefined;
+  if (parserType === "entity.too.large") {
+    return { status: 413, body: { code: "payload_too_large", message: "Upload is larger than the 5 MB limit", ...(requestId ? { requestId } : {}) } };
+  }
+  if (parserType === "entity.parse.failed") {
+    return { status: 400, body: { code: "bad_request", message: "Malformed request body", ...(requestId ? { requestId } : {}) } };
+  }
   return {
     status: 500,
     body: { code: "internal_error", message: "An unexpected error occurred", ...(requestId ? { requestId } : {}) },

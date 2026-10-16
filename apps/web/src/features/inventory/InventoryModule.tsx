@@ -8,6 +8,7 @@ import { formatDateTime } from "../../lib/format";
 import { useSiteRuntime } from "../../runtime/context";
 import type { ModuleProps } from "../../runtime/registry";
 import { opsApi } from "../../services";
+import { ReportActions } from "../reports/ReportActions";
 
 const levelBadge = (i: StockItem, threshold: number) =>
   i.onHand === 0 ? <Badge tone="danger">Out of stock</Badge> : i.onHand <= Math.max(i.reorderLevel, threshold) ? <Badge tone="warning">Low</Badge> : <Badge tone="success">OK</Badge>;
@@ -29,7 +30,7 @@ export function InventoryModule({ node, page }: ModuleProps) {
 
   return (
     <>
-      <PageHeader title={page.title} subtitle="Stock levels from the site database. Select an item to see its ledger." />
+      <PageHeader title={page.title} subtitle="Stock levels from the site database. Select an item to see its ledger." actions={<ReportActions reportKey="inventory" />} />
       {items.loading && <LoadingState />}
       {items.error ? <ErrorState error={items.error} onRetry={items.reload} /> : null}
       {items.data && (

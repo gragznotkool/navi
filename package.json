@@ -11,10 +11,12 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "npm-run-all --parallel dev:api dev:web",
+    "dev": "npm run build:contracts && npm-run-all --parallel dev:contracts dev:api dev:web",
+    "dev:contracts": "npm run dev -w @opshub/contracts",
     "dev:web": "npm run dev -w @opshub/web",
     "dev:api": "npm run dev -w @opshub/api",
-    "build": "npm run build -w @opshub/contracts && npm run build -w @opshub/api && npm run build -w @opshub/web",
+    "build:contracts": "npm run build -w @opshub/contracts",
+    "build": "npm run build:contracts && npm run build -w @opshub/api && npm run build -w @opshub/web",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "npm run typecheck --workspaces --if-present",
@@ -27,7 +29,9 @@
     "db:seed": "npm run db:seed -w @opshub/api",
     "db:reset": "npm run db:reset -w @opshub/api",
     "config:validate": "npm run config:validate -w @opshub/api",
-    "demo:reset": "npm run db:reset && npm run db:seed",
+    "demo:reset": "npm run demo:reset -w @opshub/api",
+    "backup": "bash scripts/backup.sh",
+    "restore": "bash scripts/restore.sh",
     "db:embedded": "npm run db:embedded -w @opshub/api"
   },
   "devDependencies": {

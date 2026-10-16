@@ -101,3 +101,40 @@ export const recordConsumptionPayloadSchema = z.object({
   quantity: z.number().int().min(1).max(1_000_000),
 });
 export type RecordConsumptionPayload = z.infer<typeof recordConsumptionPayloadSchema>;
+
+// ---- Excel reports (F9) ----
+
+export const MASKED_CELL = "*** CONFIDENTIAL ***";
+export const REPORT_MAX_BYTES = 5 * 1024 * 1024;
+export const REPORT_MAX_ROWS = 5000;
+
+export const reportColumnSchema = z.object({
+  key: z.string(),
+  header: z.string(),
+  required: z.boolean(),
+  masked: z.boolean(),
+  /** Export-only columns (calculated) are ignored on import. */
+  importable: z.boolean(),
+});
+export type ReportColumn = z.infer<typeof reportColumnSchema>;
+
+/** What the signed-in user may do with a report, with their role-specific masking already applied. */
+export const reportAccessSchema = z.object({
+  key: z.string(),
+  title: z.string(),
+  canExport: z.boolean(),
+  canImport: z.boolean(),
+  columns: z.array(reportColumnSchema),
+});
+export type ReportAccess = z.infer<typeof reportAccessSchema>;
+
+export const importRowErrorSchema = z.object({ row: z.number().int(), column: z.string(), message: z.string() });
+export type ImportRowError = z.infer<typeof importRowErrorSchema>;
+
+export const importResultSchema = z.object({
+  fileName: z.string(),
+  rowCount: z.number().int(),
+  dryRun: z.boolean(),
+  written: z.number().int(),
+});
+export type ImportResult = z.infer<typeof importResultSchema>;

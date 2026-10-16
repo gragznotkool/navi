@@ -15,9 +15,12 @@ import {
   recordConsumptionPayloadSchema,
   rollbackRequestSchema,
   configurationDraftSchema,
+  REPORT_MAX_BYTES,
   type PaginationRequest,
   type SiteSummary,
 } from "@opshub/contracts";
+import { backupFileName, streamBackup } from "./backup/pgdump.js";
+import { recordAudit } from "./audit/audit.js";
 import { compileConfiguration } from "./compiler/compile.js";
 import type { Env } from "./config/env.js";
 import type { Database } from "./db/scoped.js";
@@ -41,6 +44,8 @@ import { ValidationFailed } from "./releases/service.js";
 import { getActiveRelease, parseStoredConfig } from "./repositories/releases.js";
 import { manifest, mount } from "./routes/manifest.js";
 import * as authSvc from "./services/auth.js";
+import * as reportSvc from "./reports/service.js";
+import { XLSX_MIME } from "./reports/excel.js";
 import * as ops from "./services/operations.js";
 import { AppError, badRequest, forbidden, notImplemented } from "./utils/errors.js";
 
@@ -58,7 +63,7 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   app.disable("x-powered-by");
   app.use(requestId);
   app.use(helmet());
-  app.use(cors({ origin: env.WEB_ORIGIN, credentials: true, allowedHeaders: ["content-type", "x-opshub-client", "idempotency-key", "x-request-id"] }));
+  app.use(cors({ origin: env.WEB_ORIGIN, credentials: true, allowedHeaders: ["content-type", "x-opshub-client", "idempotency-key", "x-request-id", "x-file-name"] }));
   app.use(express.json({ limit: "1mb" }));
   app.use(cookieParser());
 
@@ -108,6 +113,16 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   trust.get("/checks", auth, (req, res) => {
     if (!req.user!.isPlatformAdmin) throw forbidden();
     res.json({ data: readChecks() });
+  });
+
+  // ---------- hub administration (platform admins only)
+  const hub = mount(api, "/hub");
+  hub.get("/backup", auth, async (req, res) => {
+    if (!req.user!.isPlatformAdmin) throw forbidden();
+    if (!env.DATABASE_ADMIN_URL) throw new AppError(503, "backup_unavailable", "Backups need DATABASE_ADMIN_URL on the API host");
+    const fileName = backupFileName();
+    const bytes = await streamBackup(res, { adminUrl: env.DATABASE_ADMIN_URL, pgDumpPath: env.PG_DUMP_PATH, fileName });
+    await db.withoutTenant((tx) => recordAudit(tx, { siteId: null, actorId: req.user!.id, action: "backup.downloaded", entityType: "database", entityId: fileName, metadata: { bytes }, requestId: req.requestId }));
   });
 
   // ---------- sites
@@ -207,6 +222,34 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
     res.status(201).json({ data: await ops.recordConsumption(db, opActor(req), req.body.assignmentId, req.body.quantity) });
   });
 
+  // ---------- Excel reports (role-masked export, zero-tolerance import)
+  const reportActor = (req: express.Request): reportSvc.ReportActor => ({ siteId: req.siteAccess!.siteId, userId: req.user!.id, roles: req.siteAccess!.roles, requestId: req.requestId });
+  st.get("/:siteId/reports", auth, requireSite(db), async (req, res) => {
+    res.json({ data: await reportSvc.listReports(db, reportActor(req)) });
+  });
+  st.get("/:siteId/reports/:key/export", auth, requireSite(db), async (req, res) => {
+    const { workbook, fileName } = await reportSvc.exportReport(db, reportActor(req), String(req.params.key));
+    res.status(200);
+    res.setHeader("Content-Type", XLSX_MIME);
+    res.setHeader("Content-Disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("Cache-Control", "no-store");
+    await workbook.xlsx.write(res);
+    res.end();
+  });
+  st.post("/:siteId/reports/:key/import", auth, requireSite(db), express.raw({ type: () => true, limit: REPORT_MAX_BYTES }), async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw badRequest("Upload an .xlsx file as the request body");
+    const rawName = req.header("x-file-name");
+    let fileName = "upload.xlsx";
+    try {
+      if (rawName) fileName = decodeURIComponent(rawName).replace(/[^\w .()-]/g, "_").slice(0, 200);
+    } catch {
+      /* keep default */
+    }
+    const dryRun = req.query.dryRun === "true";
+    const out = await reportSvc.importReport(db, reportActor(req), String(req.params.key), req.body, fileName, dryRun);
+    res.status(dryRun ? 200 : 201).json({ data: out });
+  });
+
   // ---------- documented but not yet built: honest 501s (still authenticated and site-scoped)
   const unavailable = (feature: string): RequestHandler[] => [
     auth,
@@ -220,7 +263,6 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   st.unavailable("GET", "/:siteId/repairs", ...unavailable("PCB repair"));
   st.unavailable("POST", "/:siteId/repairs", ...unavailable("PCB repair"));
   st.unavailable("GET", "/:siteId/analytics/stock-summary", ...unavailable("Analytics"));
-  st.unavailable("GET", "/:siteId/reports/inventory.xlsx", ...unavailable("Excel reports"));
 
   app.use("/api/v1", api);
   app.use(notFoundHandler);

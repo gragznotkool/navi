@@ -118,7 +118,10 @@ export const moduleDefinitions: readonly ModuleDefinition[] = [
       { id: "approved-out", label: "Approved requests", direction: "output", dataType: "approved-request" },
     ],
     dependencies: ["request"],
-    configFields: [],
+    configFields: [
+      { key: "slaHours", label: "SLA timeout (hours)", type: "number", required: false },
+      { key: "reminderHours", label: "Reminder after (hours)", type: "number", required: false },
+    ],
     permissions: ["approval:view", "approval:decide"],
     defaults: {},
     platformModule: false,

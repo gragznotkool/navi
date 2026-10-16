@@ -2,12 +2,13 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import bcrypt from "bcrypt";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import pg from "pg";
 import type { SiteConfiguration } from "@opshub/contracts";
 import { compileConfiguration } from "../../compiler/compile.js";
 import * as s from "../schema/index.js";
+import { assertLedgerBalance, seedDemoData, type DemoSummary } from "./demo-data.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const sitesDir = resolve(here, "../../../../../config/sites");
@@ -33,15 +34,15 @@ const devUsers = [
 ] as const;
 
 /** Demo stock (clearly seed data). Quantity becomes an opening-balance ledger entry. */
-const demoStock: Record<string, { sku: string; name: string; unit: string; qty: number; reorder: number }[]> = {
+const demoStock: Record<string, { sku: string; name: string; unit: string; qty: number; reorder: number; cost: number; margin: number }[]> = {
   "central-stores": [
-    { sku: "BRG-6204", name: "Ball bearing 6204", unit: "each", qty: 120, reorder: 40 },
-    { sku: "FLT-OIL-10", name: "Oil filter 10 micron", unit: "each", qty: 18, reorder: 25 },
-    { sku: "GSK-KIT-A", name: "Gasket kit A", unit: "kit", qty: 60, reorder: 20 },
+    { sku: "BRG-6204", name: "Ball bearing 6204", unit: "each", qty: 120, reorder: 40, cost: 8.5, margin: 28 },
+    { sku: "FLT-OIL-10", name: "Oil filter 10 micron", unit: "each", qty: 18, reorder: 25, cost: 12.75, margin: 31 },
+    { sku: "GSK-KIT-A", name: "Gasket kit A", unit: "kit", qty: 60, reorder: 20, cost: 36, margin: 22 },
   ],
   distribution: [
-    { sku: "CBL-3C-2.5", name: "Cable 3-core 2.5mm", unit: "metre", qty: 500, reorder: 100 },
-    { sku: "MCB-16A", name: "MCB 16A single pole", unit: "each", qty: 80, reorder: 30 },
+    { sku: "CBL-3C-2.5", name: "Cable 3-core 2.5mm", unit: "metre", qty: 500, reorder: 100, cost: 1.9, margin: 26 },
+    { sku: "MCB-16A", name: "MCB 16A single pole", unit: "each", qty: 80, reorder: 30, cost: 5.6, margin: 29 },
   ],
 };
 
@@ -63,12 +64,24 @@ function loadSiteConfigs(): SiteConfiguration[] {
  * Idempotent: safe to re-run. Must run as the admin/owner role (superuser or BYPASSRLS),
  * because it writes across tenants. The application role can never do this.
  */
-export async function seed(adminUrl: string): Promise<void> {
+export interface SeedOptions {
+  /** Adds the deterministic 120-request operational dataset (see demo-data.ts). Off by default so tests start small. */
+  demoData?: boolean;
+}
+
+export interface SeedResult {
+  demo: DemoSummary | null;
+  /** Number of SKUs whose ledger sum was verified against on_hand. */
+  skusVerified: number;
+}
+
+export async function seed(adminUrl: string, options: SeedOptions = {}): Promise<SeedResult> {
   const pool = new pg.Pool({ connectionString: adminUrl, max: 1 });
-  const db = drizzle(pool);
+  const db = drizzle(pool, { schema: s });
   const configs = loadSiteConfigs();
   const passwordHash = await bcrypt.hash(DEV_PASSWORD, 10);
 
+  let demo: DemoSummary | null = null;
   try {
     await db.transaction(async (tx) => {
       for (const [key, name] of Object.entries(roleNames)) {
@@ -119,13 +132,16 @@ export async function seed(adminUrl: string): Promise<void> {
           if (found.length > 0) continue;
           const [row] = await tx
             .insert(s.inventoryItems)
-            .values({ siteId: sid, sku: it.sku, name: it.name, unit: it.unit, onHand: it.qty, reorderLevel: it.reorder })
+            .values({ siteId: sid, sku: it.sku, name: it.name, unit: it.unit, onHand: it.qty, reorderLevel: it.reorder, unitCost: it.cost.toFixed(2), vendorMargin: it.margin.toFixed(2) })
             .returning({ id: s.inventoryItems.id });
           await tx.insert(s.stockLedger).values({ siteId: sid, itemId: row!.id, delta: it.qty, balanceAfter: it.qty, reason: "opening-balance", refType: "seed", refId: row!.id, actorId: devUsers[0].id });
         }
       }
-      await tx.execute(sql`select 1`);
+      if (options.demoData) demo = await seedDemoData(tx);
     });
+    // Fails the seed (and therefore the build / demo reset) on any SUM(delta) != on_hand discrepancy.
+    const skusVerified = await assertLedgerBalance(pool);
+    return { demo, skusVerified };
   } finally {
     await pool.end();
   }

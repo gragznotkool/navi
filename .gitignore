@@ -9,3 +9,6 @@ test-results
 
 .pgdata
 apps/api/test-results
+
+# Database backups
+backup/

@@ -1,10 +1,39 @@
-import { LogOut, ShieldCheck } from "lucide-react";
+import { DatabaseBackup, LogOut, ShieldCheck } from "lucide-react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState, OfflineBanner } from "../../components/feedback";
-import { Badge } from "../../components/ui";
+import { Badge, Button, Panel } from "../../components/ui";
+import { saveBlob, toRequestError } from "../../lib/api";
+import { notify } from "../../stores/toast";
 import { useAsync } from "../../hooks/useAsync";
-import { sitesApi } from "../../services";
+import { hubApi, sitesApi } from "../../services";
 import { useSession } from "../../stores/session";
+
+function BackupPanel() {
+  const [busy, setBusy] = useState(false);
+  const download = async () => {
+    setBusy(true);
+    try {
+      const { blob, fileName } = await hubApi.backup();
+      saveBlob(blob, fileName);
+      notify.success(`Backup downloaded: ${fileName} (${(blob.size / 1024).toFixed(0)} KB)`);
+    } catch (e) {
+      notify.error(toRequestError(e).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="mt-6">
+      <Panel title="Hub administration">
+        <p className="mb-3 text-sm text-muted">Streams a live <code>pg_dump</code> (custom format) of the whole database. Restore it with <code>scripts/restore.sh</code>. Each download is audited.</p>
+        <Button onClick={download} loading={busy}>
+          {!busy && <DatabaseBackup className="h-4 w-4" aria-hidden />} Download Production Backup
+        </Button>
+      </Panel>
+    </div>
+  );
+}
 
 export function HubPage() {
   const { session, logout } = useSession();
@@ -46,6 +75,7 @@ export function HubPage() {
             ))}
           </ul>
         )}
+        {session?.user.isPlatformAdmin && <BackupPanel />}
       </main>
     </div>
   );

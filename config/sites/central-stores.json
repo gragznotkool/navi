@@ -216,6 +216,33 @@
       "resultType": "number"
     }
   ],
+  "customFields": [],
+  "reports": {
+    "inventory": {
+      "title": "Inventory report",
+      "exportRoles": [
+        "admin",
+        "storekeeper",
+        "viewer"
+      ],
+      "importRoles": [
+        "admin",
+        "storekeeper"
+      ],
+      "maskColumns": {
+        "storekeeper": [
+          "unitCost",
+          "vendorMargin",
+          "totalValue"
+        ],
+        "viewer": [
+          "unitCost",
+          "vendorMargin",
+          "totalValue"
+        ]
+      }
+    }
+  },
   "metadata": {
     "description": "Central Stores seed configuration (development demo)"
   }
