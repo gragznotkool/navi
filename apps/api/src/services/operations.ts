@@ -458,99 +458,85 @@ export async function getStockSummary(db: Database, a: Actor): Promise<StockSumm
 }
 
 export async function getHubOverview(db: Database, userId: string): Promise<HubOverviewResponse> {
-  return db.withoutTenant(async (tx) => {
-    const [user] = await tx.select().from(s.users).where(eq(s.users.id, userId));
-    if (!user) throw notFound("User not found");
-    const siteRows = user.isPlatformAdmin
-      ? await tx.select({ id: s.sites.id, name: s.sites.name, slug: s.sites.slug }).from(s.sites).where(eq(s.sites.isSystem, false))
-      : await tx.select({ id: s.sites.id, name: s.sites.name, slug: s.sites.slug })
+  const [user] = await db.withoutTenant((tx) => tx.select().from(s.users).where(eq(s.users.id, userId)));
+  if (!user) throw notFound("User not found");
+
+  const siteRows = await db.withUser(userId, async (tx) => {
+    return user.isPlatformAdmin
+      ? tx.select({ id: s.sites.id, name: s.sites.name, slug: s.sites.slug }).from(s.sites).where(eq(s.sites.isSystem, false))
+      : tx
+          .select({ id: s.sites.id, name: s.sites.name, slug: s.sites.slug })
           .from(s.userSiteRoles)
           .innerJoin(s.sites, eq(s.sites.id, s.userSiteRoles.siteId))
           .where(and(eq(s.userSiteRoles.userId, userId), eq(s.sites.isSystem, false)));
-
-    const uniqueSitesMap = new Map<string, { id: string; name: string; slug: string }>();
-    for (const r of siteRows) uniqueSitesMap.set(r.id, r);
-    const sites = Array.from(uniqueSitesMap.values());
-    if (sites.length === 0) {
-      return {
-        totals: { sites: 0, inventoryItems: 0, stockUnits: 0, pendingRequests: 0, pendingApprovals: 0, outstandingAssignments: 0 },
-        sites: [],
-      };
-    }
-
-    const perSite = new Map<string, {
-      siteId: string;
-      name: string;
-      slug: string;
-      inventoryItems: number;
-      stockUnits: number;
-      pendingRequests: number;
-      pendingApprovals: number;
-      outstandingAssignments: number;
-    }>();
-
-    for (const site of sites) {
-      perSite.set(site.id, {
-        siteId: site.id,
-        name: site.name,
-        slug: site.slug,
-        inventoryItems: 0,
-        stockUnits: 0,
-        pendingRequests: 0,
-        pendingApprovals: 0,
-        outstandingAssignments: 0,
-      });
-    }
-
-    const invRows = await tx.execute<{ site_id: string; items: number; units: number }>(sql`
-      SELECT site_id, count(*)::int AS items, coalesce(sum(on_hand), 0)::float AS units
-      FROM inventory_items GROUP BY site_id
-    `);
-    for (const r of invRows.rows) {
-      const entry = perSite.get(r.site_id);
-      if (entry) {
-        entry.inventoryItems = Number(r.items);
-        entry.stockUnits = Number(r.units);
-      }
-    }
-
-    const reqRows = await tx.execute<{ site_id: string; status: string; n: number }>(sql`
-      SELECT site_id, status, count(*)::int AS n
-      FROM requests GROUP BY site_id, status
-    `);
-    for (const r of reqRows.rows) {
-      const entry = perSite.get(r.site_id);
-      if (entry) {
-        if (["submitted", "draft"].includes(r.status)) entry.pendingRequests += Number(r.n);
-        if (r.status === "submitted") entry.pendingApprovals += Number(r.n);
-      }
-    }
-
-    const asgRows = await tx.execute<{ site_id: string; n: number }>(sql`
-      SELECT site_id, count(*)::int AS n
-      FROM assignments GROUP BY site_id
-    `);
-    for (const r of asgRows.rows) {
-      const entry = perSite.get(r.site_id);
-      if (entry) entry.outstandingAssignments = Number(r.n);
-    }
-
-    const siteList = Array.from(perSite.values());
-    const sum = (k: "inventoryItems" | "stockUnits" | "pendingRequests" | "pendingApprovals" | "outstandingAssignments") =>
-      siteList.reduce((acc, cur) => acc + cur[k], 0);
-
-    return {
-      totals: {
-        sites: siteList.length,
-        inventoryItems: sum("inventoryItems"),
-        stockUnits: sum("stockUnits"),
-        pendingRequests: sum("pendingRequests"),
-        pendingApprovals: sum("pendingApprovals"),
-        outstandingAssignments: sum("outstandingAssignments"),
-      },
-      sites: siteList,
-    };
   });
+
+  const uniqueSitesMap = new Map<string, { id: string; name: string; slug: string }>();
+  for (const r of siteRows) uniqueSitesMap.set(r.id, r);
+  const sites = Array.from(uniqueSitesMap.values());
+  if (sites.length === 0) {
+    return {
+      totals: { sites: 0, inventoryItems: 0, stockUnits: 0, pendingRequests: 0, pendingApprovals: 0, outstandingAssignments: 0 },
+      sites: [],
+    };
+  }
+
+  const siteList = await Promise.all(
+    sites.map(async (site) => {
+      return db.withTenant({ siteId: site.id, userId }, async (tx) => {
+        const [{ items = 0 } = {}] = await tx
+          .select({ items: count() })
+          .from(s.inventoryItems)
+          .where(eq(s.inventoryItems.siteId, site.id));
+        const [{ units = 0 } = {}] = await tx
+          .select({ units: sql`coalesce(sum(${s.inventoryItems.onHand}), 0)::float` })
+          .from(s.inventoryItems)
+          .where(eq(s.inventoryItems.siteId, site.id));
+        const reqs = await tx
+          .select({ status: s.requests.status, n: count() })
+          .from(s.requests)
+          .where(eq(s.requests.siteId, site.id))
+          .groupBy(s.requests.status);
+        const [{ asgs = 0 } = {}] = await tx
+          .select({ asgs: count() })
+          .from(s.assignments)
+          .where(eq(s.assignments.siteId, site.id));
+
+        let pendingRequests = 0;
+        let pendingApprovals = 0;
+        for (const r of reqs) {
+          if (["submitted", "draft"].includes(r.status)) pendingRequests += Number(r.n);
+          if (r.status === "submitted") pendingApprovals += Number(r.n);
+        }
+
+        return {
+          siteId: site.id,
+          name: site.name,
+          slug: site.slug,
+          inventoryItems: Number(items),
+          stockUnits: Number(units),
+          pendingRequests,
+          pendingApprovals,
+          outstandingAssignments: Number(asgs),
+        };
+      });
+    }),
+  );
+
+  const sum = (k: "inventoryItems" | "stockUnits" | "pendingRequests" | "pendingApprovals" | "outstandingAssignments") =>
+    siteList.reduce((acc, cur) => acc + cur[k], 0);
+
+  return {
+    totals: {
+      sites: siteList.length,
+      inventoryItems: sum("inventoryItems"),
+      stockUnits: sum("stockUnits"),
+      pendingRequests: sum("pendingRequests"),
+      pendingApprovals: sum("pendingApprovals"),
+      outstandingAssignments: sum("outstandingAssignments"),
+    },
+    sites: siteList,
+  };
 }
 
 export async function generateInventoryExcel(db: Database, a: Actor): Promise<Buffer> {
