@@ -23,13 +23,20 @@ export function signToken(secret: string, claims: Omit<TokenClaims, "exp">, expi
   return { token, expiresAt: new Date(Date.now() + expiresInSeconds * 1000) };
 }
 
-/** Verifies signature, algorithm, issuer, audience and expiry. Returns null for any failure. */
-export function verifyToken(secret: string, token: string): TokenClaims | null {
-  try {
-    const decoded = jwt.verify(token, secret, { algorithms: ["HS256"], issuer: ISSUER, audience: AUDIENCE });
-    const parsed = claimsSchema.safeParse(decoded);
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
+/**
+ * Verifies signature, algorithm, issuer, audience and expiry. Returns null for any failure.
+ * `secrets` may list the current key first and older keys after it, so a key can be rotated without signing everyone
+ * out: new tokens are always signed with the first key, and tokens signed with a listed older key stay valid until they expire.
+ */
+export function verifyToken(secrets: string | readonly string[], token: string): TokenClaims | null {
+  for (const secret of typeof secrets === "string" ? [secrets] : secrets) {
+    try {
+      const decoded = jwt.verify(token, secret, { algorithms: ["HS256"], issuer: ISSUER, audience: AUDIENCE });
+      const parsed = claimsSchema.safeParse(decoded);
+      if (parsed.success) return parsed.data;
+    } catch {
+      // try the next key
+    }
   }
+  return null;
 }

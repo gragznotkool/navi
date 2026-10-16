@@ -6,9 +6,9 @@ import { runMigrations } from "./migrate.js";
 import { seed } from "./seeds/seed.js";
 
 /**
- * Development fallback for machines without Docker: runs a real PostgreSQL 16 using the
+ * Development database: runs a real PostgreSQL 16 using the
  * credentials from .env, then migrates and seeds it. Data persists in apps/api/.pgdata.
- * The documented/CI path is docker-compose.yml.
+ * CI uses a PostgreSQL 16 service container.
  */
 const env = loadEnv();
 if (env.NODE_ENV === "production" || !env.DATABASE_ADMIN_URL) throw new Error("dev-embedded requires a development .env with DATABASE_ADMIN_URL");

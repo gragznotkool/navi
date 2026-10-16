@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { startOfflineSync } from "../lib/offline/engine";
 import { LoadingState, Toaster } from "../components/feedback";
@@ -6,11 +6,13 @@ import { CommandPalette } from "../features/palette/CommandPalette";
 import { LoginPage } from "../features/auth/LoginPage";
 import { HubPage } from "../features/hub/HubPage";
 import { PublicRequestPage } from "../features/public/PublicRequestPage";
-import { NewSitePage } from "../features/provisioning/NewSitePage";
-import { TrustConsolePage } from "../features/security-console/TrustConsolePage";
 import { SiteRoute } from "../runtime/SiteRoutes";
 import { useSession } from "../stores/session";
 import { EmptyState } from "../components/feedback";
+
+// Rarely used platform screens load on demand.
+const NewSitePage = lazy(() => import("../features/provisioning/NewSitePage").then((m) => ({ default: m.NewSitePage })));
+const TrustConsolePage = lazy(() => import("../features/security-console/TrustConsolePage").then((m) => ({ default: m.TrustConsolePage })));
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const status = useSession((s) => s.status);
@@ -23,6 +25,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
 
 export function AppRoutes() {
   return (
+    <Suspense fallback={<div className="p-8"><LoadingState /></div>}>
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<RequireAuth><HubPage /></RequireAuth>} />
@@ -36,6 +39,7 @@ export function AppRoutes() {
       <Route path="/preview/:slug/*" element={<RequireAuth><SiteRoute preview /></RequireAuth>} />
       <Route path="*" element={<div className="p-8"><EmptyState title="Page not found" hint="That address does not exist." /></div>} />
     </Routes>
+    </Suspense>
   );
 }
 

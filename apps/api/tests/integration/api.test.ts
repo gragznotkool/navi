@@ -139,13 +139,6 @@ describe("site membership and tenancy", () => {
     const { agent } = await loginAs("storekeeper@opshub.local");
     expect((await agent.get("/api/v1/modules")).body.data).toHaveLength(13);
   });
-
-  it("returns honest 501s for unbuilt endpoints", async () => {
-    const { agent } = await loginAs("admin@opshub.local");
-    const res = await agent.get(`/api/v1/sites/${SITES.serviceCentre}/repairs`);
-    expect(res.status).toBe(501);
-    expect(res.body.error.code).toBe("not_implemented");
-  });
 });
 
 describe("configuration validation and release lifecycle", () => {

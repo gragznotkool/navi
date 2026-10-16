@@ -93,6 +93,7 @@ export const repairRecordSchema = z.object({
   siteId: uuid,
   boardSerial: z.string(),
   status: repairStatusSchema,
+  technicianId: uuid.nullable().default(null),
   createdAt: isoTimestamp,
 });
 export type RepairRecord = z.infer<typeof repairRecordSchema>;

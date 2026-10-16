@@ -11,6 +11,7 @@ import { notify } from "../../stores/toast";
 import { useSiteRuntime } from "../../runtime/context";
 import type { ModuleProps } from "../../runtime/registry";
 import { opsApi } from "../../services";
+import { AdjustStock } from "./AdjustStock";
 import { ExcelPanel } from "./ExcelPanel";
 
 const levelBadge = (i: StockItem, threshold: number) =>
@@ -98,6 +99,7 @@ function ItemDetail({ siteId, itemId, onSaved }: { siteId: string; itemId: strin
               {canEdit && <Button variant="primary" disabled={!dirty} loading={saving} onClick={save}>Save fields</Button>}
             </div>
           )}
+          {canEdit && <AdjustStock siteId={siteId} itemId={itemId} onDone={() => { detail.reload(); onSaved(); }} />}
           <h3 className="mb-1 mt-4 text-xs font-semibold uppercase tracking-wide text-muted">Stock ledger (latest 50)</h3>
           <DataTable
             caption="Stock ledger"

@@ -1,13 +1,19 @@
-import type { ComponentType } from "react";
+import { lazy, type ComponentType } from "react";
 import type { LayoutType, ModuleNode, ModuleType, PageDefinition } from "@opshub/contracts";
 import { ApprovalsModule } from "../../features/approvals/ApprovalsModule";
 import { AssignmentsModule } from "../../features/assignments/AssignmentsModule";
 import { ConsumptionModule } from "../../features/assignments/ConsumptionModule";
-import { AnalyticsModule } from "../../features/analytics/AnalyticsModule";
+import { RepairsModule } from "../../features/repairs/RepairsModule";
+import { ReportsModule } from "../../features/reports/ReportsModule";
+import { ReturnsModule } from "../../features/returns/ReturnsModule";
+import { UsersModule } from "../../features/users/UsersModule";
 import { InventoryModule } from "../../features/inventory/InventoryModule";
 import { RequestsModule } from "../../features/requests/RequestsModule";
 import { DashboardModule } from "../pages/DashboardModule";
 import { UnavailableModule } from "../pages/UnavailableModule";
+
+// Charts are only needed on the analytics page, so they are loaded on demand.
+const AnalyticsModule = lazy(() => import("../../features/analytics/AnalyticsModule").then((m) => ({ default: m.AnalyticsModule })));
 
 export interface ModuleProps {
   node: ModuleNode;
@@ -28,17 +34,17 @@ const unavailable = (title: string, reason: string): ComponentType<ModuleProps> 
 export const rendererRegistry: Record<ModuleType, ComponentType<ModuleProps>> = {
   "auth-rbac": unavailable("Authentication and RBAC", "Managed by the platform; it has no page of its own."),
   "dashboard-shell": DashboardModule,
-  "user-management": unavailable("User management", "Contract defined; the user administration screens and API are not built yet."),
+  "user-management": UsersModule,
   inventory: InventoryModule,
   request: RequestsModule,
   approval: ApprovalsModule,
   "material-assignment": AssignmentsModule,
   "assignment-frontend": AssignmentsModule,
   "consumption-tracking": ConsumptionModule,
-  "return-management": unavailable("Return management", "Enabled by configuration, but the return workflow API is not implemented yet (the endpoint answers 501)."),
-  "pcb-repair": unavailable("PCB repair", "Enabled by configuration, but the repair workflow API is not implemented yet (the endpoint answers 501)."),
+  "return-management": ReturnsModule,
+  "pcb-repair": RepairsModule,
   "analytics-dashboard": AnalyticsModule,
-  "reports-excel": unavailable("Reports", "Excel export is not implemented yet (the endpoint answers 501)."),
+  "reports-excel": ReportsModule,
 };
 
 export function resolveRenderer(moduleType: string): ComponentType<ModuleProps> | null {

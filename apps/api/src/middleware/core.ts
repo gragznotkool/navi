@@ -86,7 +86,7 @@ export const requireCsrfHeader: RequestHandler = (req, _res, next) => {
   next();
 };
 
-export function authenticate(db: Database, jwtSecret: string): RequestHandler {
+export function authenticate(db: Database, jwtSecret: string | readonly string[]): RequestHandler {
   return async (req, _res, next) => {
     try {
       const token = (req.cookies as Record<string, string | undefined> | undefined)?.[SESSION_COOKIE];

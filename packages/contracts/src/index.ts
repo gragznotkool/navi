@@ -13,3 +13,4 @@ export * from "./ai/index.js";
 export * from "./excel/index.js";
 export * from "./public/index.js";
 export * from "./sync/index.js";
+export * from "./operations/index.js";

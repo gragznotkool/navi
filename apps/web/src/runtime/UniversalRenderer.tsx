@@ -1,4 +1,6 @@
 import { ShieldAlert, TriangleAlert } from "lucide-react";
+import { Suspense } from "react";
+import { LoadingState } from "../components/feedback";
 import type { PageDefinition } from "@opshub/contracts";
 import { useSiteRuntime } from "./context";
 import { LayoutFrame } from "./layouts";
@@ -41,7 +43,9 @@ export function UniversalRenderer({ page }: { page: PageDefinition }) {
   }
   return (
     <LayoutFrame type={layout.type}>
-      <Renderer node={node} page={page} layout={layout.type} />
+      <Suspense fallback={<LoadingState />}>
+        <Renderer node={node} page={page} layout={layout.type} />
+      </Suspense>
     </LayoutFrame>
   );
 }

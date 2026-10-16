@@ -1,9 +1,0 @@
-node_modules
-**/node_modules
-**/dist
-.git
-.env
-.pgdata
-**/test-results
-**/playwright-report
-*.md

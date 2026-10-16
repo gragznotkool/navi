@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { Assignment, ConsumptionRecord, PaginatedResponse, RequestRecord, SiteConfiguration, StockItem } from "@opshub/contracts";
 import { recordAudit } from "../audit/audit.js";
 import type { Database, Tx } from "../db/scoped.js";
@@ -209,6 +209,8 @@ export async function decideRequest(db: Database, a: Actor, requestId: string, d
 /** Runs `fn` at most once per (site, key). A replay returns the stored response; a changed payload is rejected. */
 export async function idempotent<T>(tx: Tx, a: Actor, key: string, operation: string, payload: unknown, fn: () => Promise<T>): Promise<{ value: T; replayed: boolean }> {
   const requestHash = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  // Opportunistic housekeeping: keys older than 30 days are no longer expected to be replayed.
+  if (Math.random() < 0.02) await tx.delete(s.idempotencyKeys).where(and(eq(s.idempotencyKeys.siteId, a.siteId), lt(s.idempotencyKeys.createdAt, new Date(Date.now() - 30 * 86_400_000))));
   const inserted = await tx.insert(s.idempotencyKeys).values({ siteId: a.siteId, key, operation, requestHash }).onConflictDoNothing().returning();
   if (inserted.length === 0) {
     // The concurrent first attempt has committed (the conflicting insert blocks until it does).

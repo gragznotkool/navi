@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { recordAudit } from "../audit/audit.js";
 import type { Database, Tx } from "../db/scoped.js";
 import * as s from "../db/schema/index.js";
@@ -14,10 +14,16 @@ export interface IssuedRefresh {
 }
 
 /** Starts a new token family (a login) or extends an existing one (a rotation). */
+/** Removes tokens that can never be used again: expired a week ago, or revoked a month ago. Cheap, bounded, idempotent. */
+export async function purgeDeadRefreshTokens(tx: Tx): Promise<void> {
+  await tx.delete(s.refreshTokens).where(or(lt(s.refreshTokens.expiresAt, new Date(Date.now() - 7 * 86_400_000)), lt(s.refreshTokens.revokedAt, new Date(Date.now() - 30 * 86_400_000))));
+}
+
 export async function issueRefreshToken(tx: Tx, userId: string, ttlSeconds: number, familyId: string = randomUUID()): Promise<IssuedRefresh & { id: string }> {
   const raw = newRawToken();
   const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
   const [row] = await tx.insert(s.refreshTokens).values({ userId, familyId, tokenHash: hashToken(raw), expiresAt }).returning({ id: s.refreshTokens.id });
+  if (Math.random() < 0.05) await purgeDeadRefreshTokens(tx); // opportunistic housekeeping, no scheduler needed
   return { raw, expiresAt, id: row!.id };
 }
 

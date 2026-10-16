@@ -1,8 +1,7 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { useAsync } from "../hooks/useAsync";
-import { BuilderPage } from "../features/builder/BuilderPage";
 import { ReleasesPage } from "../features/releases/ReleasesPage";
 import { RewindPage } from "../features/releases/RewindPage";
 import { sitesApi } from "../services";
@@ -14,6 +13,9 @@ import { UniversalRenderer } from "./UniversalRenderer";
 import { useSiteRuntime } from "./context";
 import { Link } from "react-router-dom";
 import { usePreviewStore } from "../features/builder/previewStore";
+
+// The builder pulls in the graph editor, so it is loaded only when someone opens it.
+const BuilderPage = lazy(() => import("../features/builder/BuilderPage").then((m) => ({ default: m.BuilderPage })));
 
 /** Loads the ACTIVE release for the site named in the URL and provides it to the runtime. */
 export function SiteRoute({ preview = false }: { preview?: boolean }) {
@@ -59,7 +61,7 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
     >
       <Routes>
         <Route index element={<FirstPage />} />
-        {!preview && <Route path="admin/builder" element={<SiteShell title="Configuration builder"><BuilderPage activeVersion={active.data.version} activeConfig={active.data.configuration} /></SiteShell>} />}
+        {!preview && <Route path="admin/builder" element={<SiteShell title="Configuration builder"><Suspense fallback={<LoadingState label="Loading the builder…" />}><BuilderPage activeVersion={active.data.version} activeConfig={active.data.configuration} /></Suspense></SiteShell>} />}
         {!preview && <Route path="admin/rewind" element={<SiteShell title="Rewind"><RewindPage /></SiteShell>} />}
         {!preview && <Route path="admin/releases" element={<SiteShell title="Releases"><ReleasesPage /></SiteShell>} />}
         <Route path=":pagePath" element={<PageRoute />} />

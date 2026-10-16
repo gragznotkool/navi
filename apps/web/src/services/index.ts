@@ -1,4 +1,14 @@
 import type {
+  AddMemberPayload,
+  AdjustStockPayload,
+  AnalyticsSummary,
+  CreateRepairPayload,
+  CreateReturnPayload,
+  RepairRecord,
+  RepairStatus,
+  ReturnRecord,
+  ReturnStatus,
+  SiteMember,
   AiPatchRequest,
   AiPatchResponse,
   AuditEvent,
@@ -76,6 +86,36 @@ export const configApi = {
   preview: (siteId: string, configuration: unknown) => call<{ validation: ConfigurationValidationResult; configuration: SiteConfiguration }>(http.post(`/sites/${siteId}/config/preview`, { configuration })),
   saveDraft: (siteId: string, baseVersion: number | null, configuration: unknown) =>
     call<{ savedAt: string; validation: ConfigurationValidationResult }>(http.put(`/sites/${siteId}/config/draft`, { baseVersion, configuration })),
+};
+
+export const returnsApi = {
+  list: (siteId: string) => cachedRead(siteId, "returns", () => call<ReturnRecord[]>(http.get(`/sites/${siteId}/returns`))),
+  create: (siteId: string, body: CreateReturnPayload) => call<ReturnRecord>(http.post(`/sites/${siteId}/returns`, body)),
+  /** Restocking moves stock, so it carries an idempotency key. */
+  transition: (siteId: string, id: string, to: Exclude<ReturnStatus, "initiated">, key?: string) =>
+    call<ReturnRecord>(http.post(`/sites/${siteId}/returns/${id}/transition`, { to }, key ? { headers: { "Idempotency-Key": key } } : undefined)),
+};
+
+export const repairsApi = {
+  list: (siteId: string) => cachedRead(siteId, "repairs", () => call<RepairRecord[]>(http.get(`/sites/${siteId}/repairs`))),
+  create: (siteId: string, body: CreateRepairPayload) => call<RepairRecord>(http.post(`/sites/${siteId}/repairs`, body)),
+  transition: (siteId: string, id: string, to: RepairStatus) => call<RepairRecord>(http.post(`/sites/${siteId}/repairs/${id}/transition`, { to })),
+};
+
+export const stockApi = {
+  adjust: (siteId: string, itemId: string, body: AdjustStockPayload, key: string) =>
+    call<{ onHand: number }>(http.post(`/sites/${siteId}/inventory/${itemId}/adjust`, body, { headers: { "Idempotency-Key": key } })),
+};
+
+export const analyticsApi = {
+  summary: (siteId: string) => cachedRead(siteId, "analytics", () => call<AnalyticsSummary>(http.get(`/sites/${siteId}/analytics/summary`))),
+};
+
+export const membersApi = {
+  list: (siteId: string) => call<SiteMember[]>(http.get(`/sites/${siteId}/members`)),
+  add: (siteId: string, body: AddMemberPayload) => call<SiteMember>(http.post(`/sites/${siteId}/members`, body)),
+  setRoles: (siteId: string, userId: string, roles: string[]) => call<SiteMember>(http.put(`/sites/${siteId}/members/${userId}`, { roles })),
+  remove: (siteId: string, userId: string) => http.delete(`/sites/${siteId}/members/${userId}`).then(() => undefined),
 };
 
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";

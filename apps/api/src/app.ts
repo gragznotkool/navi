@@ -4,7 +4,7 @@ import express, { Router, type Express, type RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
 import { z } from "zod";
 import helmet from "helmet";
-import { eq, sql } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import {
   configurationPayloadSchema,
   createAssignmentPayloadSchema,
@@ -16,6 +16,13 @@ import {
   impactRequestSchema,
   aiPatchRequestSchema,
   publicRequestSchema,
+  createReturnPayloadSchema,
+  transitionReturnPayloadSchema,
+  createRepairPayloadSchema,
+  transitionRepairPayloadSchema,
+  adjustStockPayloadSchema,
+  addMemberPayloadSchema,
+  setMemberRolesPayloadSchema,
   syncRequestSchema,
   provisionSiteRequestSchema,
   updateItemFieldsPayloadSchema,
@@ -25,6 +32,8 @@ import {
   type PaginationRequest,
   type SiteSummary,
 } from "@opshub/contracts";
+import { buildOpenApi } from "./docs/openapi.js";
+import * as domain from "./services/domain.js";
 import * as excel from "./excel/service.js";
 import { XLSX_MIME } from "./excel/export.js";
 import { MAX_FILE_BYTES } from "./excel/zipGuard.js";
@@ -61,7 +70,7 @@ import { getActiveRelease, parseStoredConfig } from "./repositories/releases.js"
 import { manifest, mount } from "./routes/manifest.js";
 import * as authSvc from "./services/auth.js";
 import * as ops from "./services/operations.js";
-import { AppError, badRequest, forbidden, notFound, notImplemented, unauthorized } from "./utils/errors.js";
+import { AppError, badRequest, forbidden, notFound, unauthorized } from "./utils/errors.js";
 
 export interface AppDeps {
   db: Database;
@@ -81,6 +90,8 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined,
   manifest.length = 0;
   const app = express();
   app.disable("x-powered-by");
+  // Behind a reverse proxy (nginx, a load balancer) the real client address is needed for rate limits and audit.
+  if (env.TRUST_PROXY > 0) app.set("trust proxy", env.TRUST_PROXY);
   app.use(requestId);
   app.use(helmet());
   app.use(cors({ origin: env.WEB_ORIGIN, credentials: true, allowedHeaders: ["content-type", "x-opshub-client", "idempotency-key", "x-request-id"] }));
@@ -89,10 +100,10 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined,
 
   const api = Router();
   // A malformed id can never match a row: answer 404 instead of letting the database reject it (500).
-  for (const name of ["itemId", "requestId", "releaseId", "jobId"]) {
+  for (const name of ["itemId", "requestId", "releaseId", "jobId", "returnId", "repairId", "userId"]) {
     api.param(name, (_req, _res, next, value: string) => (z.string().uuid().safeParse(value).success ? next() : next(notFound("Not found"))));
   }
-  const auth = authenticate(db, env.JWT_SECRET);
+  const auth = authenticate(db, [env.JWT_SECRET, ...env.JWT_SECRET_PREVIOUS]);
   const secureCookie = env.NODE_ENV === "production";
 
   // ---------- platform health (unauthenticated, no data)
@@ -146,6 +157,11 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined,
   });
   a.get("/me", auth, async (req, res) => {
     res.json({ data: await authSvc.currentSession(db, req.user!, req.sessionExpiresAt!) });
+  });
+
+  // ---------- API description (generated from the registered routes, so it cannot drift from them)
+  mount(api).get("/openapi.json", (_req, res) => {
+    res.json(buildOpenApi(manifest));
   });
 
   // ---------- module registry
@@ -304,7 +320,7 @@ data: ${JSON.stringify(snap.job)}
     res.json({ data: await releases.diff(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, String(req.params.releaseId)) });
   });
   st.get("/:siteId/audit-events", auth, requireSite(db, "config:manage"), async (req, res) => {
-    const rows = await db.withTenant({ siteId: req.siteAccess!.siteId, userId: req.user!.id }, (tx) => tx.select().from(s.auditEvents).orderBy(s.auditEvents.createdAt).limit(200));
+    const rows = await db.withTenant({ siteId: req.siteAccess!.siteId, userId: req.user!.id }, (tx) => tx.select().from(s.auditEvents).orderBy(desc(s.auditEvents.createdAt)).limit(200));
     res.json({ data: rows.map((r) => ({ id: r.id, siteId: r.siteId, actorId: r.actorId, action: r.action, entityType: r.entityType, entityId: r.entityId, createdAt: r.createdAt.toISOString() })) });
   });
 
@@ -387,19 +403,52 @@ data: ${JSON.stringify(snap.job)}
     res.json({ data: { results: await syncSvc.applySync(db, opActor(req), req.siteAccess!.permissions, req.body.ops) } });
   });
 
-  // ---------- documented but not yet built: honest 501s (still authenticated and site-scoped)
-  const unavailable = (feature: string): RequestHandler[] => [
-    auth,
-    requireSite(db),
-    () => {
-      throw notImplemented(feature);
-    },
-  ];
-  st.unavailable("GET", "/:siteId/returns", ...unavailable("Return management"));
-  st.unavailable("POST", "/:siteId/returns", ...unavailable("Return management"));
-  st.unavailable("GET", "/:siteId/repairs", ...unavailable("PCB repair"));
-  st.unavailable("POST", "/:siteId/repairs", ...unavailable("PCB repair"));
-  st.unavailable("GET", "/:siteId/analytics/stock-summary", ...unavailable("Analytics"));
+  // ---------- returns, PCB repair, stock adjustment, analytics, site members
+  const needKey = (req: express.Request): string => {
+    const key = req.header("idempotency-key");
+    if (!key || key.length < 8 || key.length > 128) throw badRequest("Idempotency-Key header (8-128 chars) is required");
+    return key;
+  };
+  st.get("/:siteId/returns", auth, requireSite(db, "return:view"), async (req, res) => {
+    res.json({ data: await domain.listReturns(db, opActor(req)) });
+  });
+  st.post("/:siteId/returns", auth, requireSite(db, "return:process"), validateBody(createReturnPayloadSchema), async (req, res) => {
+    res.status(201).json({ data: await domain.createReturn(db, opActor(req), req.body) });
+  });
+  st.post("/:siteId/returns/:returnId/transition", auth, requireSite(db, "return:process"), validateBody(transitionReturnPayloadSchema), async (req, res) => {
+    const to = req.body.to as "inspected" | "restocked" | "rejected";
+    res.json({ data: await domain.transitionReturn(db, opActor(req), String(req.params.returnId), to, to === "restocked" ? needKey(req) : undefined) });
+  });
+  st.get("/:siteId/repairs", auth, requireSite(db, "repair:view"), async (req, res) => {
+    res.json({ data: await domain.listRepairs(db, opActor(req)) });
+  });
+  st.post("/:siteId/repairs", auth, requireSite(db, "repair:update"), validateBody(createRepairPayloadSchema), async (req, res) => {
+    res.status(201).json({ data: await domain.createRepair(db, opActor(req), req.body.boardSerial) });
+  });
+  st.post("/:siteId/repairs/:repairId/transition", auth, requireSite(db, "repair:update"), validateBody(transitionRepairPayloadSchema), async (req, res) => {
+    res.json({ data: await domain.transitionRepair(db, opActor(req), String(req.params.repairId), req.body.to) });
+  });
+  st.post("/:siteId/inventory/:itemId/adjust", auth, requireSite(db, "inventory:manage"), validateBody(adjustStockPayloadSchema), async (req, res) => {
+    const out = await domain.adjustStock(db, opActor(req), String(req.params.itemId), req.body.delta, req.body.reason, needKey(req));
+    res.status(out.replayed ? 200 : 201).setHeader("Idempotent-Replay", String(out.replayed)).json({ data: { onHand: out.onHand } });
+  });
+  st.get("/:siteId/analytics/summary", auth, requireSite(db, "analytics:view"), async (req, res) => {
+    const p = req.siteAccess!.permissions;
+    res.json({ data: await domain.analyticsSummary(db, opActor(req), { stock: p.has("inventory:view"), requests: p.has("request:view"), returns: p.has("return:view"), repairs: p.has("repair:view") }) });
+  });
+  st.get("/:siteId/members", auth, requireSite(db, "users:view"), async (req, res) => {
+    res.json({ data: await domain.listMembers(db, opActor(req)) });
+  });
+  st.post("/:siteId/members", auth, requireSite(db, "users:manage"), validateBody(addMemberPayloadSchema), async (req, res) => {
+    res.status(201).json({ data: await domain.addMember(db, opActor(req), req.body.email, req.body.role) });
+  });
+  st.put("/:siteId/members/:userId", auth, requireSite(db, "users:manage"), validateBody(setMemberRolesPayloadSchema), async (req, res) => {
+    res.json({ data: await domain.setMemberRoles(db, opActor(req), { userId: String(req.params.userId) }, req.body.roles) });
+  });
+  st.delete("/:siteId/members/:userId", auth, requireSite(db, "users:manage"), async (req, res) => {
+    await domain.setMemberRoles(db, opActor(req), { userId: String(req.params.userId) }, []);
+    res.status(204).end();
+  });
 
   // ---------- public intake (no sign-in). Exists per site only when its active release enables it; see public/intake.ts.
   const publicLimiter = rateLimit({ windowMs: 60_000, limit: publicRateLimit, standardHeaders: true, legacyHeaders: false, message: { error: { code: "rate_limited", message: "Too many submissions. Try again in a minute." } } });

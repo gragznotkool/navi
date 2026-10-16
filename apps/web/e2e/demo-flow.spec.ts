@@ -57,7 +57,8 @@ test("core demo: sites, switching, builder, publish, runtime change, rollback", 
   // The common runtime now shows the module; no restart or redeploy happened.
   const nav2 = page.getByRole("navigation", { name: "Main" });
   await nav2.getByRole("link", { name: "Returns" }).click();
-  await expect(page.getByText("Not implemented yet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Returns" })).toBeVisible();
+  await expect(page.getByText("Start a return")).toBeVisible(); // the module is real now, not a placeholder
 
   // Roll back: Returns disappears again, history is preserved.
   await nav2.getByRole("link", { name: "Releases" }).click();

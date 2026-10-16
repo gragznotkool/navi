@@ -73,7 +73,7 @@ test("hub routes, Ctrl+K from any page, and a live SLA ring that turns overdue w
   await page.keyboard.press("Control+k");
   await page.getByRole("combobox", { name: "Search commands" }).fill("switch to central");
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/s\/central-stores(\/|$)/); // the site index redirects to its first page
+  await expect(page).toHaveURL(/\/s\/central-stores\/[a-z-]+$/); // wait for the site index to redirect to its first page
   const here = page.url();
   await page.keyboard.press("Control+k");
   await expect(page.getByRole("dialog", { name: "Command palette" })).toBeVisible();

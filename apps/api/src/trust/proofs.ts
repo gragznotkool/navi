@@ -112,16 +112,19 @@ const proofs: ProofDef[] = [
   {
     id: "role-privileges",
     title: "Application database role is least-privilege",
-    description: "The API connects as a role that is not a superuser, cannot bypass row-level security, cannot run DDL and has no DELETE on any tenant table.",
+    description: "The API connects as a role that is not a superuser, cannot bypass row-level security, cannot run DDL and has no DELETE on any tenant table except membership and idempotency keys.",
     writesToLab: false,
     async run({ db }) {
       const role = await db.withoutTenant(async (tx) =>
         (await tx.execute<{ who: string; rolsuper: boolean; rolbypassrls: boolean; rolcreatedb: boolean; rolcreaterole: boolean }>(sql`select current_user as who, rolsuper, rolbypassrls, rolcreatedb, rolcreaterole from pg_roles where rolname = current_user`)).rows[0]!,
       );
       const tables = await tenantTables(db);
+      // Deliberate, documented exceptions (migration 0006): membership rows and expired idempotency keys.
+      const deleteAllowed = new Set(["user_site_roles", "idempotency_keys"]);
       const withDelete = await db.withoutTenant(async (tx) => {
         const out: string[] = [];
         for (const t of tables) {
+          if (deleteAllowed.has(t.name)) continue;
           const r = (await tx.execute<{ ok: boolean }>(sql.raw(`select has_table_privilege(current_user, 'public.${t.name}', 'DELETE') as ok`))).rows[0]!;
           if (r.ok) out.push(t.name);
         }
@@ -140,7 +143,7 @@ const proofs: ProofDef[] = [
           { label: "cannot bypass RLS", ok: !role.rolbypassrls, detail: `rolbypassrls = ${role.rolbypassrls}` },
           { label: "cannot create databases or roles", ok: !role.rolcreatedb && !role.rolcreaterole, detail: `createdb = ${role.rolcreatedb}, createrole = ${role.rolcreaterole}` },
           { label: "cannot run DDL", ok: ddl === "denied", detail: `CREATE TABLE → ${ddl}` },
-          { label: "no DELETE on tenant tables", ok: withDelete.length === 0, detail: withDelete.length ? `DELETE allowed on: ${withDelete.join(", ")}` : `checked ${tables.length} tables` },
+          { label: "no DELETE on tenant tables (except membership and idempotency keys)", ok: withDelete.length === 0, detail: withDelete.length ? `DELETE allowed on: ${withDelete.join(", ")}` : `checked ${tables.length} tables` },
         ],
         evidence: { connectedAs: role.who, tablesChecked: tables.length },
       };

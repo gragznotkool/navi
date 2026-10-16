@@ -48,7 +48,7 @@ jobs:
         image: postgres:16
         env:
           POSTGRES_USER: opshub_admin
-          POSTGRES_PASSWORD: ci-admin-password
+          POSTGRES_PASSWORD: test-ci-admin-password
           POSTGRES_DB: opshub_test
           # UTF8 so Hindi and Marathi text is stored correctly.
           POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
@@ -60,7 +60,7 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      TEST_DATABASE_ADMIN_URL: postgres://opshub_admin:ci-admin-password@localhost:5432/opshub_test
+      TEST_DATABASE_ADMIN_URL: postgres://opshub_admin:test-ci-admin-password@localhost:5432/opshub_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

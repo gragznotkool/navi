@@ -207,8 +207,8 @@ export const stockLedger = pgTable(
     check("stock_ledger_delta_nonzero", sql`${t.delta} <> 0`),
     check("stock_ledger_balance_nonneg", sql`${t.balanceAfter} >= 0`),
     index("stock_ledger_item_created_idx").on(t.itemId, t.createdAt),
-    // One assignment/return can create at most one ledger row for a given reason.
-    unique("stock_ledger_ref_reason_uq").on(t.refType, t.refId, t.reason),
+    // One business document (assignment line, return) writes at most one ledger row per item and reason.
+    unique("stock_ledger_ref_reason_item_uq").on(t.refType, t.refId, t.reason, t.itemId),
   ],
 );
 
