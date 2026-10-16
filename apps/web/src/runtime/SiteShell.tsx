@@ -1,5 +1,21 @@
-import { Boxes, ClipboardCheck, ClipboardList, FileSpreadsheet, GitBranch, History, LayoutDashboard, LogOut, PackageCheck, RotateCcw, Users, Wrench, BarChart3, ChevronRight, type LucideIcon } from "lucide-react";
-import type { CSSProperties, ReactNode } from "react";
+import {
+  Boxes,
+  ClipboardCheck,
+  ClipboardList,
+  FileSpreadsheet,
+  GitBranch,
+  History,
+  LayoutDashboard,
+  LogOut,
+  PackageCheck,
+  RotateCcw,
+  Users,
+  Wrench,
+  BarChart3,
+  ChevronRight,
+  type LucideIcon,
+} from "lucide-react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import type { ModuleType } from "@opshub/contracts";
 import { OfflineBanner } from "../components/feedback";
@@ -74,7 +90,9 @@ function SiteSwitcher({ dark }: { dark?: boolean }) {
         id="site-switcher"
         value={slug}
         onChange={(e) => navigate(`/s/${e.target.value}`)}
-        className={`h-8 rounded-ui border px-2 text-sm font-medium ${dark ? "border-slate-600 bg-slate-800 text-white" : "border-line bg-surface text-ink"}`}
+        className={`h-8 rounded-ui border px-2 text-sm font-medium ${
+          dark ? "border-slate-600 bg-slate-800 text-white" : "border-line bg-surface text-ink"
+        }`}
       >
         {session?.memberships.map((m) => (
           <option key={m.siteId} value={m.siteSlug}>
@@ -91,13 +109,17 @@ function UserMenu({ dark }: { dark?: boolean }) {
   const navigate = useNavigate();
   return (
     <div className="flex items-center gap-3">
-      <span className={`hidden text-xs sm:inline ${dark ? "text-slate-300" : "text-muted"}`}>{session?.user.displayName}</span>
+      <span className={`hidden text-xs sm:inline ${dark ? "text-slate-300" : "text-muted"}`}>
+        {session?.user.displayName}
+      </span>
       <button
         onClick={async () => {
           await logout();
           navigate("/login");
         }}
-        className={`inline-flex h-8 items-center gap-1.5 rounded-ui px-2 text-xs font-medium ${dark ? "text-slate-200 hover:bg-slate-700" : "text-ink hover:bg-slate-100"}`}
+        className={`inline-flex h-8 items-center gap-1.5 rounded-ui px-2 text-xs font-medium ${
+          dark ? "text-slate-200 hover:bg-slate-700" : "text-ink hover:bg-slate-100"
+        }`}
       >
         <LogOut className="h-3.5 w-3.5" aria-hidden /> Sign out
       </button>
@@ -109,11 +131,17 @@ function Breadcrumbs({ current, dark }: { current: string; dark?: boolean }) {
   const { config, basePath } = useSiteRuntime();
   return (
     <nav aria-label="Breadcrumb" className={`flex items-center gap-1 text-xs ${dark ? "text-slate-300" : "text-muted"}`}>
-      <Link to="/" className="hover:underline">Sites</Link>
+      <Link to="/" className="hover:underline">
+        Sites
+      </Link>
       <ChevronRight className="h-3 w-3" aria-hidden />
-      <Link to={basePath} className="hover:underline">{config.name}</Link>
+      <Link to={basePath} className="hover:underline">
+        {config.name}
+      </Link>
       <ChevronRight className="h-3 w-3" aria-hidden />
-      <span aria-current="page" className={dark ? "text-white" : "text-ink"}>{current}</span>
+      <span aria-current="page" className={dark ? "text-white" : "text-ink"}>
+        {current}
+      </span>
     </nav>
   );
 }
@@ -130,39 +158,76 @@ function PreviewBanner() {
 
 /** Application shell. The variant comes from configuration (`shell`), never from the site slug. */
 export function SiteShell({ title, children }: { title: string; children: ReactNode }) {
-  const { config } = useSiteRuntime();
+  const { config, slug, version } = useSiteRuntime();
+  const session = useSession((s) => s.session);
+  const membership = session?.memberships.find((m) => m.siteSlug === slug);
+  const roleName = membership?.roles.join(", ") || "Member";
+  const [compact, setCompact] = useState(false);
+
   const { main, platform } = useNav();
   const style = { "--accent": config.theme.primary, "--accent-2": config.theme.secondary } as CSSProperties;
   const Brand = (
     <Link to="/" className="flex items-center gap-2 text-sm font-semibold">
-      <span aria-hidden className="grid h-6 w-6 place-items-center rounded bg-accent text-xs font-bold text-white">O</span>
-      OpsHub
+      <span aria-hidden className="grid h-6 w-6 place-items-center rounded bg-accent text-xs font-bold text-white">
+        O
+      </span>
+      {!compact && <span>OpsHub</span>}
     </Link>
   );
   const all = [...main, ...platform];
 
+  // Shell 1: Sidebar shell (Central Stores)
   if (config.shell === "sidebar") {
     return (
-      <div style={style} className="flex h-full flex-col">
+      <div style={style} className="flex h-full flex-col" data-shell="sidebar">
         <OfflineBanner />
         <PreviewBanner />
         <div className="flex min-h-0 flex-1">
-          <aside className="flex w-60 shrink-0 flex-col gap-4 border-r border-line bg-surface p-3">
-            {Brand}
-            <SiteSwitcher />
-            <nav aria-label="Main" className="flex flex-col gap-1">
-              {main.map((e) => <NavItem key={e.to} entry={e} variant="side" />)}
+          <aside
+            className={`flex shrink-0 flex-col gap-3 border-r border-line bg-surface p-3 transition-all duration-150 ${
+              compact ? "w-16 items-center" : "w-60"
+            }`}
+          >
+            <div className="flex w-full items-center justify-between">
+              {Brand}
+              <button
+                type="button"
+                onClick={() => setCompact(!compact)}
+                aria-pressed={compact}
+                aria-label="Collapse navigation"
+                className="rounded border border-line p-1 text-xs text-muted hover:bg-slate-100 hover:text-ink"
+                title={compact ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {compact ? "»" : "«"}
+              </button>
+            </div>
+            {!compact && <SiteSwitcher />}
+            {!compact && (
+              <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                Role: {roleName}
+              </span>
+            )}
+            <nav aria-label="Main" className="flex w-full flex-col gap-1">
+              {main.map((e) => (
+                <NavItem key={e.to} entry={e} variant="side" />
+              ))}
             </nav>
-            {platform.length > 0 && (
+            {platform.length > 0 && !compact && (
               <nav aria-label="Platform administration" className="flex flex-col gap-1 border-t border-line pt-3">
                 <p className="px-3 text-xs font-medium uppercase tracking-wide text-muted">Platform</p>
-                {platform.map((e) => <NavItem key={e.to} entry={e} variant="side" />)}
+                {platform.map((e) => (
+                  <NavItem key={e.to} entry={e} variant="side" />
+                ))}
               </nav>
             )}
-            <div className="mt-auto"><UserMenu /></div>
+            <div className="mt-auto w-full pt-2 border-t border-line">
+              <UserMenu />
+            </div>
           </aside>
           <main className="min-w-0 flex-1 overflow-auto p-6">
-            <div className="mb-3"><Breadcrumbs current={title} /></div>
+            <div className="mb-3">
+              <Breadcrumbs current={title} />
+            </div>
             {children}
           </main>
         </div>
@@ -170,26 +235,130 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
     );
   }
 
-  const bench = config.shell === "workbench";
+  // Shell 2: Workbench shell (Distribution)
+  if (config.shell === "workbench") {
+    return (
+      <div style={style} className="flex h-full flex-col" data-shell="workbench">
+        <OfflineBanner />
+        <PreviewBanner />
+        <header className="bg-slate-900 text-white">
+          <div className="flex h-12 items-center gap-4 px-4">
+            {Brand}
+            <SiteSwitcher dark />
+            <span className="hidden rounded bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-300 sm:inline">
+              Role: {roleName}
+            </span>
+            <div className="ml-auto flex items-center gap-3">
+              <UserMenu dark />
+            </div>
+          </div>
+          <nav aria-label="Main" className="toolrail flex h-10 items-stretch gap-1 overflow-x-auto border-t border-slate-700 px-3">
+            {all.map((e) => (
+              <NavItem key={e.to} entry={e} variant="bench" />
+            ))}
+          </nav>
+        </header>
+
+        <div className="flex min-h-0 flex-1">
+          {/* Central work area */}
+          <main className="work-area min-w-0 flex-1 overflow-auto bg-slate-50 p-6" aria-label={title}>
+            <div className="mb-3 flex items-center justify-between border-b border-line pb-3">
+              <div>
+                <Breadcrumbs current={title} />
+                <h1 className="text-xl font-bold tracking-tight text-ink">{title}</h1>
+              </div>
+              <span className="text-xs font-medium text-muted">{config.name}</span>
+            </div>
+            {children}
+          </main>
+
+          {/* Right Inspector panel */}
+          <aside
+            aria-label="Inspector"
+            className="hidden w-64 shrink-0 flex-col gap-4 border-l border-line bg-surface p-4 lg:flex"
+          >
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-muted">Workspace Details</h2>
+              <dl className="mt-3 grid gap-2.5 text-xs">
+                <div>
+                  <dt className="text-muted">Active Site</dt>
+                  <dd className="font-semibold text-ink">{config.name}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">Slug</dt>
+                  <dd className="font-mono text-ink">/{slug}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">Your Role</dt>
+                  <dd className="font-medium text-ink">{roleName}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">Current Page</dt>
+                  <dd className="font-medium text-ink">{title}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">Release</dt>
+                  <dd className="font-mono text-ink">v{version ?? "draft"}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">Shell Architecture</dt>
+                  <dd className="capitalize text-ink">{config.shell}</dd>
+                </div>
+              </dl>
+            </div>
+          </aside>
+        </div>
+      </div>
+    );
+  }
+
+  // Shell 3: Topbar cards shell (Service Centre)
   return (
-    <div style={style} className="flex h-full flex-col">
+    <div style={style} className="flex h-full flex-col" data-shell="topbar-cards">
       <OfflineBanner />
       <PreviewBanner />
-      <header className={bench ? "bg-slate-900 text-white" : "border-b border-line bg-surface"}>
-        <div className="flex h-12 items-center gap-4 px-4">
+      <header className="topbar border-b border-line bg-surface">
+        <div className="flex h-14 items-center gap-4 px-6">
           {Brand}
-          <SiteSwitcher dark={bench} />
-          <div className="ml-auto"><UserMenu dark={bench} /></div>
+          <strong className="text-sm font-semibold text-ink">{config.name}</strong>
+          <span className="hidden rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 sm:inline">
+            Role: {roleName}
+          </span>
+          <div className="ml-auto flex items-center gap-3">
+            <SiteSwitcher />
+            <UserMenu />
+          </div>
         </div>
-        <nav aria-label="Main" className={`flex h-10 items-stretch gap-1 overflow-x-auto px-3 ${bench ? "border-t border-slate-700" : "border-t border-line"}`}>
-          {all.map((e) => <NavItem key={e.to} entry={e} variant={bench ? "bench" : "top"} />)}
+        <nav aria-label="Main" className="flex h-10 items-stretch gap-1 overflow-x-auto border-t border-line px-4">
+          {all.map((e) => (
+            <NavItem key={e.to} entry={e} variant="top" />
+          ))}
         </nav>
       </header>
-      <main className={`min-h-0 flex-1 overflow-auto ${bench ? "bg-slate-100 p-3" : "p-6"}`}>
-        <div className="mb-3"><Breadcrumbs current={title} /></div>
+      {/* Quick entry card strip */}
+      <nav aria-label="Page cards" className="card-strip flex gap-2 overflow-x-auto border-b border-line bg-slate-50/70 p-3 px-6">
+        {main.map((n) => (
+          <NavLink
+            key={n.to}
+            to={n.to}
+            end
+            className={({ isActive }) =>
+              `flex items-center gap-2 rounded-ui border px-3 py-1.5 text-xs font-semibold transition ${
+                isActive ? "border-accent bg-surface text-accent shadow-xs" : "border-line bg-surface text-muted hover:border-slate-300 hover:text-ink"
+              }`
+            }
+          >
+            <n.icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            <span>{n.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+      <main className="min-h-0 flex-1 overflow-auto p-6">
+        <div className="mb-3">
+          <Breadcrumbs current={title} />
+        </div>
         {children}
       </main>
     </div>
   );
 }
-

@@ -138,3 +138,24 @@ export const importResultSchema = z.object({
   written: z.number().int(),
 });
 export type ImportResult = z.infer<typeof importResultSchema>;
+
+export const createReturnPayloadSchema = z.object({
+  assignmentId: uuid,
+  quantity: z.number().int().min(1, "Quantity must be at least 1").max(1_000_000),
+});
+export type CreateReturnPayload = z.infer<typeof createReturnPayloadSchema>;
+
+export const updateReturnStatusPayloadSchema = z.object({
+  status: returnStatusSchema,
+});
+export type UpdateReturnStatusPayload = z.infer<typeof updateReturnStatusPayloadSchema>;
+
+export const createRepairPayloadSchema = z.object({
+  boardSerial: z.string().min(1, "Serial number is required").max(100),
+});
+export type CreateRepairPayload = z.infer<typeof createRepairPayloadSchema>;
+
+export const updateRepairStatusPayloadSchema = z.object({
+  status: repairStatusSchema,
+});
+export type UpdateRepairStatusPayload = z.infer<typeof updateRepairStatusPayloadSchema>;

@@ -6,6 +6,9 @@ import { ConsumptionModule } from "../../features/assignments/ConsumptionModule"
 import { AnalyticsModule } from "../../features/analytics/AnalyticsModule";
 import { InventoryModule } from "../../features/inventory/InventoryModule";
 import { RequestsModule } from "../../features/requests/RequestsModule";
+import { PcbRepairModule } from "../../features/pcb-repair/PcbRepairModule";
+import { ReturnsModule } from "../../features/returns/ReturnsModule";
+import { ReportsModule } from "../../features/reports/ReportsModule";
 import { DashboardModule } from "../pages/DashboardModule";
 import { UnavailableModule } from "../pages/UnavailableModule";
 
@@ -35,12 +38,12 @@ export const rendererRegistry: Record<ModuleType, ComponentType<ModuleProps>> = 
   "material-assignment": AssignmentsModule,
   "assignment-frontend": AssignmentsModule,
   "consumption-tracking": ConsumptionModule,
-  "return-management": unavailable("Return management", "Enabled by configuration, but the return workflow API is not implemented yet (the endpoint answers 501)."),
-  "pcb-repair": unavailable("PCB repair", "Enabled by configuration, but the repair workflow API is not implemented yet (the endpoint answers 501)."),
+  "return-management": ReturnsModule,
+  "pcb-repair": PcbRepairModule,
   "analytics-dashboard": AnalyticsModule,
-  "reports-excel": unavailable("Reports", "Excel export is not implemented yet (the endpoint answers 501)."),
+  "reports-excel": ReportsModule,
 };
 
 export function resolveRenderer(moduleType: string): ComponentType<ModuleProps> | null {
-  return Object.prototype.hasOwnProperty.call(rendererRegistry, moduleType) ? rendererRegistry[moduleType as ModuleType] : null;
+  return (Object.prototype.hasOwnProperty.call(rendererRegistry, moduleType) ? rendererRegistry[moduleType as ModuleType] : null) ?? null;
 }

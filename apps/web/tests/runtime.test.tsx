@@ -7,7 +7,15 @@ import { UniversalRenderer } from "../src/runtime/UniversalRenderer";
 import { allPermissions, configs, renderInSite } from "./helpers";
 
 vi.mock("../src/services", () => ({
-  opsApi: { items: vi.fn(), requests: vi.fn(), assignments: vi.fn() },
+  opsApi: {
+    items: vi.fn(),
+    requests: vi.fn(),
+    assignments: vi.fn(),
+    repairs: vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 50, total: 0 }),
+    returns: vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 50, total: 0 }),
+    stockSummary: vi.fn().mockResolvedValue({ totalItems: 0, belowReorderLevel: 0, source: "database" }),
+    hubOverview: vi.fn().mockResolvedValue({ sites: [], totals: { sites: 0, inventoryItems: 0, stockUnits: 0, pendingRequests: 0, pendingApprovals: 0, outstandingAssignments: 0 } }),
+  },
   sitesApi: { modules: vi.fn().mockResolvedValue([]) },
   reportsApi: { list: vi.fn().mockResolvedValue([]) },
 }));
@@ -66,7 +74,7 @@ describe("UniversalRenderer", () => {
   });
 
   it("explains modules that are enabled but not implemented", () => {
-    renderInSite(<UniversalRenderer page={pageFor(configs.service, "pcb-repair")} />, { config: configs.service, permissions: allPermissions(configs.service) });
+    renderInSite(<UniversalRenderer page={pageFor(configs.service, "users")} />, { config: configs.service, permissions: allPermissions(configs.service) });
     expect(screen.getByRole("status")).toHaveTextContent("Not implemented yet");
   });
 });

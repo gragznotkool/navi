@@ -7,13 +7,17 @@ import { eq } from "drizzle-orm";
 import {
   configurationPayloadSchema,
   createAssignmentPayloadSchema,
+  createRepairPayloadSchema,
   createRequestPayloadSchema,
+  createReturnPayloadSchema,
   decideRequestPayloadSchema,
   loginRequestSchema,
   paginationRequestSchema,
   publishRequestSchema,
   recordConsumptionPayloadSchema,
   rollbackRequestSchema,
+  updateRepairStatusPayloadSchema,
+  updateReturnStatusPayloadSchema,
   configurationDraftSchema,
   REPORT_MAX_BYTES,
   type PaginationRequest,
@@ -47,7 +51,7 @@ import * as authSvc from "./services/auth.js";
 import * as reportSvc from "./reports/service.js";
 import { XLSX_MIME } from "./reports/excel.js";
 import * as ops from "./services/operations.js";
-import { AppError, badRequest, forbidden, notImplemented } from "./utils/errors.js";
+import { AppError, badRequest, forbidden } from "./utils/errors.js";
 
 export interface AppDeps {
   db: Database;
@@ -123,6 +127,9 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
     const fileName = backupFileName();
     const bytes = await streamBackup(res, { adminUrl: env.DATABASE_ADMIN_URL, pgDumpPath: env.PG_DUMP_PATH, fileName });
     await db.withoutTenant((tx) => recordAudit(tx, { siteId: null, actorId: req.user!.id, action: "backup.downloaded", entityType: "database", entityId: fileName, metadata: { bytes }, requestId: req.requestId }));
+  });
+  hub.get("/overview", auth, async (req, res) => {
+    res.json({ data: await ops.getHubOverview(db, req.user!.id) });
   });
 
   // ---------- sites
@@ -250,19 +257,40 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
     res.status(dryRun ? 200 : 201).json({ data: out });
   });
 
-  // ---------- documented but not yet built: honest 501s (still authenticated and site-scoped)
-  const unavailable = (feature: string): RequestHandler[] => [
-    auth,
-    requireSite(db),
-    () => {
-      throw notImplemented(feature);
-    },
-  ];
-  st.unavailable("GET", "/:siteId/returns", ...unavailable("Return management"));
-  st.unavailable("POST", "/:siteId/returns", ...unavailable("Return management"));
-  st.unavailable("GET", "/:siteId/repairs", ...unavailable("PCB repair"));
-  st.unavailable("POST", "/:siteId/repairs", ...unavailable("PCB repair"));
-  st.unavailable("GET", "/:siteId/analytics/stock-summary", ...unavailable("Analytics"));
+  // ---------- returns (Feature 3)
+  st.get("/:siteId/returns", auth, requireSite(db, "return:view"), paging, async (req, res) => {
+    const p = validatedQuery<PaginationRequest>(res);
+    res.json({ data: await ops.listReturns(db, opActor(req), p.page, p.pageSize) });
+  });
+  st.post("/:siteId/returns", auth, requireSite(db, ["return:view", "return:process"]), validateBody(createReturnPayloadSchema), async (req, res) => {
+    res.status(201).json({ data: await ops.createReturn(db, opActor(req), req.body) });
+  });
+  st.patch("/:siteId/returns/:returnId/status", auth, requireSite(db, "return:process"), validateBody(updateReturnStatusPayloadSchema), async (req, res) => {
+    res.json({ data: await ops.updateReturnStatus(db, opActor(req), String(req.params.returnId), req.body.status) });
+  });
+
+  // ---------- repairs (Feature 2)
+  st.get("/:siteId/repairs", auth, requireSite(db, "repair:view"), paging, async (req, res) => {
+    const p = validatedQuery<PaginationRequest>(res);
+    res.json({ data: await ops.listRepairs(db, opActor(req), p.page, p.pageSize) });
+  });
+  st.post("/:siteId/repairs", auth, requireSite(db, "repair:update"), validateBody(createRepairPayloadSchema), async (req, res) => {
+    res.status(201).json({ data: await ops.createRepair(db, opActor(req), req.body) });
+  });
+  st.patch("/:siteId/repairs/:repairId/status", auth, requireSite(db, "repair:update"), validateBody(updateRepairStatusPayloadSchema), async (req, res) => {
+    res.json({ data: await ops.updateRepairStatus(db, opActor(req), String(req.params.repairId), req.body.status) });
+  });
+
+  // ---------- analytics & reports
+  st.get("/:siteId/analytics/stock-summary", auth, requireSite(db, "analytics:view"), async (req, res) => {
+    res.json({ data: await ops.getStockSummary(db, opActor(req)) });
+  });
+  st.get("/:siteId/reports/inventory.xlsx", auth, requireSite(db, ["reports:view", "reports:export"]), async (req, res) => {
+    const buffer = await ops.generateInventoryExcel(db, opActor(req));
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="inventory-${req.siteAccess!.siteSlug}.xlsx"`);
+    res.send(buffer);
+  });
 
   app.use("/api/v1", api);
   app.use(notFoundHandler);

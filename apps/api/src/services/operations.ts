@@ -1,11 +1,24 @@
 import { createHash } from "node:crypto";
+import ExcelJS from "exceljs";
 import { and, count, desc, eq, gte, sql } from "drizzle-orm";
-import type { Assignment, ConsumptionRecord, PaginatedResponse, RequestRecord, StockItem } from "@opshub/contracts";
+import type {
+  Assignment,
+  ConsumptionRecord,
+  HubOverviewResponse,
+  PaginatedResponse,
+  RepairRecord,
+  RepairStatus,
+  RequestRecord,
+  ReturnRecord,
+  ReturnStatus,
+  StockItem,
+  StockSummary,
+} from "@opshub/contracts";
 import { recordAudit } from "../audit/audit.js";
 import type { Database, Tx } from "../db/scoped.js";
 import * as s from "../db/schema/index.js";
 import { getActiveRelease } from "../repositories/releases.js";
-import { canTransition, requestTransitions } from "../workflows/transitions.js";
+import { canTransition, repairTransitions, requestTransitions, returnTransitions } from "../workflows/transitions.js";
 import { AppError, conflict, notFound } from "../utils/errors.js";
 
 export interface Actor {
@@ -56,6 +69,21 @@ const toConsumption = (r: typeof s.consumptionRecords.$inferSelect): Consumption
   assignmentId: r.assignmentId,
   quantity: r.quantity,
   recordedBy: r.recordedBy,
+  createdAt: r.createdAt.toISOString(),
+});
+const toReturn = (r: typeof s.returnRecords.$inferSelect): ReturnRecord => ({
+  id: r.id,
+  siteId: r.siteId,
+  assignmentId: r.assignmentId,
+  quantity: r.quantity,
+  status: r.status,
+  createdAt: r.createdAt.toISOString(),
+});
+const toRepair = (r: typeof s.repairRecords.$inferSelect): RepairRecord => ({
+  id: r.id,
+  siteId: r.siteId,
+  boardSerial: r.boardSerial,
+  status: r.status,
   createdAt: r.createdAt.toISOString(),
 });
 
@@ -208,5 +236,254 @@ export async function reconcileStock(db: Database, a: Actor) {
   return db.withTenant(scope(a), async (tx) => {
     const rows = await tx.execute<{ item_id: string; sku: string; on_hand: number; ledger_sum: number; reconciled: boolean }>(sql`select item_id, sku, on_hand, ledger_sum, reconciled from stock_reconciliation where site_id = ${a.siteId} order by sku`);
     return rows.rows;
+  });
+}
+
+// ---------------------------------------------------------------- returns (Feature 3)
+
+export async function listReturns(db: Database, a: Actor, page: number, pageSize: number): Promise<PaginatedResponse<ReturnRecord>> {
+  return db.withTenant(scope(a), async (tx) => {
+    const [{ total } = { total: 0 }] = await tx.select({ total: count() }).from(s.returnRecords).where(eq(s.returnRecords.siteId, a.siteId));
+    const rows = await tx.select().from(s.returnRecords).where(eq(s.returnRecords.siteId, a.siteId)).orderBy(desc(s.returnRecords.createdAt)).limit(pageSize).offset((page - 1) * pageSize);
+    return { items: rows.map(toReturn), page, pageSize, total };
+  });
+}
+
+export async function createReturn(db: Database, a: Actor, input: { assignmentId: string; quantity: number }): Promise<ReturnRecord> {
+  return db.withTenant(scope(a), async (tx) => {
+    const [assignment] = await tx.select().from(s.assignments).where(and(eq(s.assignments.siteId, a.siteId), eq(s.assignments.id, input.assignmentId)));
+    if (!assignment) throw notFound("Assignment not found");
+    if (input.quantity > assignment.quantity) {
+      throw conflict("invalid_quantity", `Return quantity (${input.quantity}) cannot exceed assignment quantity (${assignment.quantity})`);
+    }
+    const [row] = await tx.insert(s.returnRecords).values({
+      siteId: a.siteId,
+      assignmentId: input.assignmentId,
+      quantity: input.quantity,
+      status: "initiated",
+      createdBy: a.userId,
+    }).returning();
+    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "return.initiated", entityType: "return", entityId: row!.id, metadata: { assignmentId: input.assignmentId, quantity: input.quantity }, requestId: a.requestId });
+    return toReturn(row!);
+  });
+}
+
+export async function updateReturnStatus(db: Database, a: Actor, returnId: string, toStatus: ReturnStatus): Promise<ReturnRecord> {
+  return db.withTenant(scope(a), async (tx) => {
+    const [ret] = await tx.select().from(s.returnRecords).where(and(eq(s.returnRecords.siteId, a.siteId), eq(s.returnRecords.id, returnId))).for("update");
+    if (!ret) throw notFound("Return record not found");
+    if (!canTransition(returnTransitions, ret.status, toStatus)) {
+      throw conflict("invalid_transition", `A return in status "${ret.status}" cannot become "${toStatus}"`);
+    }
+    if (toStatus === "restocked") {
+      const [assignment] = await tx.select().from(s.assignments).where(and(eq(s.assignments.siteId, a.siteId), eq(s.assignments.id, ret.assignmentId)));
+      if (!assignment) throw notFound("Associated assignment not found");
+      const [item] = await tx
+        .update(s.inventoryItems)
+        .set({ onHand: sql`${s.inventoryItems.onHand} + ${ret.quantity}`, updatedAt: new Date() })
+        .where(and(eq(s.inventoryItems.id, assignment.itemId), eq(s.inventoryItems.siteId, a.siteId)))
+        .returning();
+      if (!item) throw notFound("Associated inventory item not found");
+      await tx.insert(s.stockLedger).values({
+        siteId: a.siteId,
+        itemId: assignment.itemId,
+        delta: ret.quantity,
+        balanceAfter: item.onHand,
+        reason: "return-restock",
+        refType: "return",
+        refId: ret.id,
+        actorId: a.userId,
+      });
+    }
+    const [updated] = await tx.update(s.returnRecords).set({ status: toStatus, updatedAt: new Date() }).where(and(eq(s.returnRecords.siteId, a.siteId), eq(s.returnRecords.id, returnId))).returning();
+    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: `return.${toStatus}`, entityType: "return", entityId: returnId, requestId: a.requestId });
+    return toReturn(updated!);
+  });
+}
+
+// ---------------------------------------------------------------- repairs (Feature 2)
+
+export async function listRepairs(db: Database, a: Actor, page: number, pageSize: number): Promise<PaginatedResponse<RepairRecord>> {
+  return db.withTenant(scope(a), async (tx) => {
+    const [{ total } = { total: 0 }] = await tx.select({ total: count() }).from(s.repairRecords).where(eq(s.repairRecords.siteId, a.siteId));
+    const rows = await tx.select().from(s.repairRecords).where(eq(s.repairRecords.siteId, a.siteId)).orderBy(desc(s.repairRecords.createdAt)).limit(pageSize).offset((page - 1) * pageSize);
+    return { items: rows.map(toRepair), page, pageSize, total };
+  });
+}
+
+export async function createRepair(db: Database, a: Actor, input: { boardSerial: string }): Promise<RepairRecord> {
+  return db.withTenant(scope(a), async (tx) => {
+    const active = await getActiveRelease(tx, a.siteId);
+    if (!active) throw conflict("no_active_release", "Site has no active configuration release");
+    const [existing] = await tx.select().from(s.repairRecords).where(and(eq(s.repairRecords.siteId, a.siteId), eq(s.repairRecords.boardSerial, input.boardSerial)));
+    if (existing) throw conflict("duplicate_serial", `A repair record for board serial "${input.boardSerial}" already exists`);
+    const [row] = await tx.insert(s.repairRecords).values({
+      siteId: a.siteId,
+      boardSerial: input.boardSerial,
+      status: "received",
+      technicianId: a.userId,
+      releaseVersion: active.version,
+    }).returning();
+    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "repair.received", entityType: "repair", entityId: row!.id, metadata: { boardSerial: input.boardSerial }, requestId: a.requestId });
+    return toRepair(row!);
+  });
+}
+
+export async function updateRepairStatus(db: Database, a: Actor, repairId: string, toStatus: RepairStatus): Promise<RepairRecord> {
+  return db.withTenant(scope(a), async (tx) => {
+    const [rep] = await tx.select().from(s.repairRecords).where(and(eq(s.repairRecords.siteId, a.siteId), eq(s.repairRecords.id, repairId))).for("update");
+    if (!rep) throw notFound("Repair record not found");
+    if (!canTransition(repairTransitions, rep.status, toStatus)) {
+      throw conflict("invalid_transition", `A repair in status "${rep.status}" cannot become "${toStatus}"`);
+    }
+    const [updated] = await tx.update(s.repairRecords).set({
+      status: toStatus,
+      technicianId: a.userId,
+      updatedAt: new Date(),
+    }).where(and(eq(s.repairRecords.siteId, a.siteId), eq(s.repairRecords.id, repairId))).returning();
+    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: `repair.${toStatus}`, entityType: "repair", entityId: repairId, requestId: a.requestId });
+    return toRepair(updated!);
+  });
+}
+
+// ---------------------------------------------------------------- Analytics & Hub Overview
+
+export async function getStockSummary(db: Database, a: Actor): Promise<StockSummary> {
+  return db.withTenant(scope(a), async (tx) => {
+    const [{ totalItems = 0 } = {}] = await tx.select({ totalItems: count() }).from(s.inventoryItems).where(eq(s.inventoryItems.siteId, a.siteId));
+    const [{ belowReorder = 0 } = {}] = await tx.select({ belowReorder: count() }).from(s.inventoryItems).where(and(eq(s.inventoryItems.siteId, a.siteId), sql`${s.inventoryItems.onHand} <= ${s.inventoryItems.reorderLevel}`));
+    return {
+      totalItems: Number(totalItems),
+      belowReorderLevel: Number(belowReorder),
+      source: "database",
+    };
+  });
+}
+
+export async function getHubOverview(db: Database, userId: string): Promise<HubOverviewResponse> {
+  return db.withoutTenant(async (tx) => {
+    const [user] = await tx.select().from(s.users).where(eq(s.users.id, userId));
+    if (!user) throw notFound("User not found");
+    const siteRows = user.isPlatformAdmin
+      ? await tx.select({ id: s.sites.id, name: s.sites.name, slug: s.sites.slug }).from(s.sites)
+      : await tx.select({ id: s.sites.id, name: s.sites.name, slug: s.sites.slug })
+          .from(s.userSiteRoles)
+          .innerJoin(s.sites, eq(s.sites.id, s.userSiteRoles.siteId))
+          .where(eq(s.userSiteRoles.userId, userId));
+
+    const uniqueSitesMap = new Map<string, { id: string; name: string; slug: string }>();
+    for (const r of siteRows) uniqueSitesMap.set(r.id, r);
+    const sites = Array.from(uniqueSitesMap.values());
+    if (sites.length === 0) {
+      return {
+        totals: { sites: 0, inventoryItems: 0, stockUnits: 0, pendingRequests: 0, pendingApprovals: 0, outstandingAssignments: 0 },
+        sites: [],
+      };
+    }
+
+    const perSite = new Map<string, {
+      siteId: string;
+      name: string;
+      slug: string;
+      inventoryItems: number;
+      stockUnits: number;
+      pendingRequests: number;
+      pendingApprovals: number;
+      outstandingAssignments: number;
+    }>();
+
+    for (const site of sites) {
+      perSite.set(site.id, {
+        siteId: site.id,
+        name: site.name,
+        slug: site.slug,
+        inventoryItems: 0,
+        stockUnits: 0,
+        pendingRequests: 0,
+        pendingApprovals: 0,
+        outstandingAssignments: 0,
+      });
+    }
+
+    const invRows = await tx.execute<{ site_id: string; items: number; units: number }>(sql`
+      SELECT site_id, count(*)::int AS items, coalesce(sum(on_hand), 0)::float AS units
+      FROM inventory_items GROUP BY site_id
+    `);
+    for (const r of invRows.rows) {
+      const entry = perSite.get(r.site_id);
+      if (entry) {
+        entry.inventoryItems = Number(r.items);
+        entry.stockUnits = Number(r.units);
+      }
+    }
+
+    const reqRows = await tx.execute<{ site_id: string; status: string; n: number }>(sql`
+      SELECT site_id, status, count(*)::int AS n
+      FROM requests GROUP BY site_id, status
+    `);
+    for (const r of reqRows.rows) {
+      const entry = perSite.get(r.site_id);
+      if (entry) {
+        if (["submitted", "draft"].includes(r.status)) entry.pendingRequests += Number(r.n);
+        if (r.status === "submitted") entry.pendingApprovals += Number(r.n);
+      }
+    }
+
+    const asgRows = await tx.execute<{ site_id: string; n: number }>(sql`
+      SELECT site_id, count(*)::int AS n
+      FROM assignments GROUP BY site_id
+    `);
+    for (const r of asgRows.rows) {
+      const entry = perSite.get(r.site_id);
+      if (entry) entry.outstandingAssignments = Number(r.n);
+    }
+
+    const siteList = Array.from(perSite.values());
+    const sum = (k: "inventoryItems" | "stockUnits" | "pendingRequests" | "pendingApprovals" | "outstandingAssignments") =>
+      siteList.reduce((acc, cur) => acc + cur[k], 0);
+
+    return {
+      totals: {
+        sites: siteList.length,
+        inventoryItems: sum("inventoryItems"),
+        stockUnits: sum("stockUnits"),
+        pendingRequests: sum("pendingRequests"),
+        pendingApprovals: sum("pendingApprovals"),
+        outstandingAssignments: sum("outstandingAssignments"),
+      },
+      sites: siteList,
+    };
+  });
+}
+
+export async function generateInventoryExcel(db: Database, a: Actor): Promise<Buffer> {
+  return db.withTenant(scope(a), async (tx) => {
+    const items = await tx.select().from(s.inventoryItems).where(eq(s.inventoryItems.siteId, a.siteId)).orderBy(s.inventoryItems.sku);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "OpsHub Platform";
+    workbook.created = new Date();
+    const sheet = workbook.addWorksheet("Inventory");
+    sheet.columns = [
+      { header: "SKU", key: "sku", width: 18 },
+      { header: "Item Name", key: "name", width: 32 },
+      { header: "Unit", key: "unit", width: 12 },
+      { header: "On Hand", key: "onHand", width: 14 },
+      { header: "Reorder Level", key: "reorderLevel", width: 16 },
+      { header: "Reorder Status", key: "status", width: 18 },
+    ];
+    sheet.getRow(1).font = { bold: true };
+    for (const item of items) {
+      const sanitize = (val: string) => (/^[=+\-@\t\r]/.test(val) ? `'${val}` : val);
+      sheet.addRow({
+        sku: sanitize(item.sku),
+        name: sanitize(item.name),
+        unit: sanitize(item.unit),
+        onHand: item.onHand,
+        reorderLevel: item.reorderLevel,
+        status: item.onHand <= item.reorderLevel ? "REORDER NEEDED" : "OK",
+      });
+    }
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
   });
 }

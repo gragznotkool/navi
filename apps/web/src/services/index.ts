@@ -3,22 +3,32 @@ import type {
   Assignment,
   AuthSession,
   ConfigurationValidationResult,
-  ImportResult,
-  ReportAccess,
+  ConsumptionRecord,
+  CreateRepairPayload,
   CreateRequestPayload,
+  CreateReturnPayload,
   DataTypeDefinition,
+  HubOverviewResponse,
+  ImportResult,
+  LoginRequest,
   ModuleDefinition,
   PaginatedResponse,
   PublishRequest,
+  RecordConsumptionPayload,
   ReleaseDiff,
   ReleaseSummary,
+  RepairRecord,
+  RepairStatus,
+  ReportAccess,
   RequestRecord,
+  ReturnRecord,
+  ReturnStatus,
   RollbackRequest,
   SiteConfiguration,
   SiteSummary,
   StockItem,
+  StockSummary,
   TrustCheckResult,
-  LoginRequest,
 } from "@opshub/contracts";
 import { call, http, toRequestErrorFromBlob } from "../lib/api";
 
@@ -56,6 +66,28 @@ export const opsApi = {
   assignments: (siteId: string) => call<Assignment[]>(http.get(`/sites/${siteId}/assignments`)),
   assign: (siteId: string, requestId: string, idempotencyKey: string) =>
     call<Assignment>(http.post(`/sites/${siteId}/assignments`, { requestId }, { headers: { "Idempotency-Key": idempotencyKey } })),
+  recordConsumption: (siteId: string, body: RecordConsumptionPayload) =>
+    call<ConsumptionRecord>(http.post(`/sites/${siteId}/consumption`, body)),
+  returns: (siteId: string, page = 1) =>
+    call<PaginatedResponse<ReturnRecord>>(http.get(`/sites/${siteId}/returns`, { params: { page, pageSize: 100 } })),
+  createReturn: (siteId: string, body: CreateReturnPayload) =>
+    call<ReturnRecord>(http.post(`/sites/${siteId}/returns`, body)),
+  updateReturnStatus: (siteId: string, returnId: string, status: ReturnStatus) =>
+    call<ReturnRecord>(http.patch(`/sites/${siteId}/returns/${returnId}/status`, { status })),
+  repairs: (siteId: string, page = 1) =>
+    call<PaginatedResponse<RepairRecord>>(http.get(`/sites/${siteId}/repairs`, { params: { page, pageSize: 100 } })),
+  createRepair: (siteId: string, body: CreateRepairPayload) =>
+    call<RepairRecord>(http.post(`/sites/${siteId}/repairs`, body)),
+  updateRepairStatus: (siteId: string, repairId: string, status: RepairStatus) =>
+    call<RepairRecord>(http.patch(`/sites/${siteId}/repairs/${repairId}/status`, { status })),
+  stockSummary: (siteId: string) =>
+    call<StockSummary>(http.get(`/sites/${siteId}/analytics/stock-summary`)),
+  downloadExcel: async (siteId: string) => {
+    const res = await http.get(`/sites/${siteId}/reports/inventory.xlsx`, { responseType: "blob" });
+    return res.data as Blob;
+  },
+  hubOverview: () =>
+    call<HubOverviewResponse>(http.get("/hub/overview")),
 };
 
 export const configApi = {

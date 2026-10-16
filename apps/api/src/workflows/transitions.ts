@@ -1,4 +1,4 @@
-import type { RepairStatus, WorkflowStatus } from "@opshub/contracts";
+import type { RepairStatus, ReturnStatus, WorkflowStatus } from "@opshub/contracts";
 
 /**
  * Explicit, typed transition tables. Deterministic and deliberately simple: the platform does
@@ -22,6 +22,13 @@ export const repairTransitions: Record<RepairStatus, readonly RepairStatus[]> = 
   testing: ["completed", "repairing"],
   completed: [],
   scrapped: [],
+};
+
+export const returnTransitions: Record<ReturnStatus, readonly ReturnStatus[]> = {
+  initiated: ["inspected", "rejected"],
+  inspected: ["restocked", "rejected"],
+  restocked: [],
+  rejected: [],
 };
 
 export function canTransition<S extends string>(table: Record<S, readonly S[]>, from: S, to: S): boolean {
