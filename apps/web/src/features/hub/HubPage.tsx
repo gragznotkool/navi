@@ -1,4 +1,4 @@
-import { LogOut, ShieldCheck } from "lucide-react";
+import { LogOut, Plus, ShieldCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState, OfflineBanner } from "../../components/feedback";
 import { Badge } from "../../components/ui";
@@ -20,6 +20,9 @@ export function HubPage() {
       <header className="flex h-12 items-center justify-between border-b border-line bg-surface px-4">
         <span className="text-sm font-semibold">OpsHub</span>
         <div className="flex items-center gap-3">
+          {session?.user.isPlatformAdmin && (
+            <Link to="/sites/new" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink hover:underline"><Plus className="h-3.5 w-3.5" aria-hidden /> New site</Link>
+          )}
           {session?.user.isPlatformAdmin && (
             <Link to="/trust" className="inline-flex items-center gap-1.5 text-xs font-medium text-ink hover:underline"><ShieldCheck className="h-3.5 w-3.5" aria-hidden /> Trust console</Link>
           )}

@@ -179,7 +179,7 @@ const proofs: ProofDef[] = [
   {
     id: "cross-site-write",
     title: "A site cannot modify another site's rows",
-    description: "Connected as the lab site, attempt a no-op UPDATE of other sites' rows per table (always rolled back), and a cross-site INSERT.",
+    description: "Connected as the lab site, attempt a no-op UPDATE of other sites' rows per table, a cross-site INSERT, and creating a site without being a platform admin (all rolled back).",
     writesToLab: false,
     async run({ db }) {
       const tables = await tenantTables(db);
@@ -207,6 +207,15 @@ const proofs: ProofDef[] = [
         ins = { label: "inventory_items (insert)", ok: errCode(e) === "42501" && /row-level security/i.test(msg), detail: `rejected: ${msg}` };
       }
       cells.push(ins);
+      let mk: ProofCell;
+      try {
+        await dryRun(db, (tx) => tx.insert(s.sites).values({ id: randomUUID(), slug: `proof-${randomUUID().slice(0, 8)}`, name: "non-admin site creation attempt" }));
+        mk = { label: "sites (create as non-admin)", ok: false, detail: "a non-admin user created a site" };
+      } catch (e) {
+        const msg = errText(e);
+        mk = { label: "sites (create as non-admin)", ok: errCode(e) === "42501" && /row-level security/i.test(msg), detail: `rejected: ${msg}` };
+      }
+      cells.push(mk);
       return { cells, evidence: { tablesChecked: tables.length } };
     },
   },

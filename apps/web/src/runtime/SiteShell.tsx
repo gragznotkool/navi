@@ -1,4 +1,4 @@
-import { Boxes, ClipboardCheck, ClipboardList, FileSpreadsheet, GitBranch, History, LayoutDashboard, LogOut, PackageCheck, RotateCcw, Users, Wrench, BarChart3, ChevronRight, type LucideIcon } from "lucide-react";
+import { Boxes, ClipboardCheck, ClipboardList, FileSpreadsheet, GitBranch, History, Rewind, LayoutDashboard, LogOut, PackageCheck, RotateCcw, Users, Wrench, BarChart3, ChevronRight, type LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import type { ModuleType } from "@opshub/contracts";
@@ -41,6 +41,7 @@ function useNav(): { main: NavEntry[]; platform: NavEntry[] } {
   if (permissions.has("config:manage")) {
     platform.push({ to: `${basePath}/admin/builder`, label: "Configuration builder", icon: GitBranch });
     platform.push({ to: `${basePath}/admin/releases`, label: "Releases", icon: History });
+    platform.push({ to: `${basePath}/admin/rewind`, label: "Rewind", icon: Rewind });
   }
   return { main, platform };
 }

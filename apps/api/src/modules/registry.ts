@@ -118,7 +118,7 @@ export const moduleDefinitions: readonly ModuleDefinition[] = [
       { id: "approved-out", label: "Approved requests", direction: "output", dataType: "approved-request" },
     ],
     dependencies: ["request"],
-    configFields: [],
+    configFields: [{ key: "slaSeconds", label: "Approval deadline (seconds)", type: "number", required: false }],
     permissions: ["approval:view", "approval:decide"],
     defaults: {},
     platformModule: false,

@@ -31,10 +31,12 @@ export async function listReleases(tx: Tx, siteId: string) {
       version: s.siteReleases.version,
       note: s.siteReleases.note,
       publishedBy: s.siteReleases.publishedBy,
+      publishedByName: s.users.displayName,
       publishedAt: s.siteReleases.publishedAt,
       rolledBackToVersion: s.siteReleases.rolledBackToVersion,
     })
     .from(s.siteReleases)
+    .leftJoin(s.users, eq(s.users.id, s.siteReleases.publishedBy))
     .where(eq(s.siteReleases.siteId, siteId))
     .orderBy(desc(s.siteReleases.version));
   return rows.map((r) => ({ ...r, publishedAt: r.publishedAt.toISOString(), isActive: r.id === activeId }));

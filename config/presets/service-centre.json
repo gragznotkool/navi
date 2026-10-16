@@ -1,0 +1,351 @@
+{
+  "id": "service-centre",
+  "label": "Service centre",
+  "description": "Workbench layout with requests, approvals and kanban views for repair work.",
+  "template": {
+    "schemaVersion": 2,
+    "theme": {
+      "primary": "#1D4ED8",
+      "secondary": "#EA580C"
+    },
+    "shell": "topbar",
+    "layouts": [
+      {
+        "id": "kanban",
+        "type": "kanban"
+      },
+      {
+        "id": "data-table",
+        "type": "data-table"
+      },
+      {
+        "id": "dashboard",
+        "type": "dashboard"
+      }
+    ],
+    "modules": {
+      "nodes": [
+        {
+          "id": "auth-rbac",
+          "moduleType": "auth-rbac",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "config": {}
+        },
+        {
+          "id": "user-management",
+          "moduleType": "user-management",
+          "position": {
+            "x": 280,
+            "y": 0
+          },
+          "config": {}
+        },
+        {
+          "id": "dashboard-shell",
+          "moduleType": "dashboard-shell",
+          "position": {
+            "x": 560,
+            "y": 0
+          },
+          "config": {}
+        },
+        {
+          "id": "request",
+          "moduleType": "request",
+          "position": {
+            "x": 840,
+            "y": 0
+          },
+          "config": {}
+        },
+        {
+          "id": "approval",
+          "moduleType": "approval",
+          "position": {
+            "x": 0,
+            "y": 160
+          },
+          "config": {}
+        },
+        {
+          "id": "pcb-repair",
+          "moduleType": "pcb-repair",
+          "position": {
+            "x": 280,
+            "y": 160
+          },
+          "config": {}
+        },
+        {
+          "id": "return-management",
+          "moduleType": "return-management",
+          "position": {
+            "x": 560,
+            "y": 160
+          },
+          "config": {}
+        },
+        {
+          "id": "analytics-dashboard",
+          "moduleType": "analytics-dashboard",
+          "position": {
+            "x": 840,
+            "y": 160
+          },
+          "config": {}
+        }
+      ],
+      "edges": [
+        {
+          "id": "auth-rbac.identity-out->dashboard-shell.identity-in",
+          "sourceNodeId": "auth-rbac",
+          "sourcePortId": "identity-out",
+          "targetNodeId": "dashboard-shell",
+          "targetPortId": "identity-in"
+        },
+        {
+          "id": "auth-rbac.identity-out->user-management.identity-in",
+          "sourceNodeId": "auth-rbac",
+          "sourcePortId": "identity-out",
+          "targetNodeId": "user-management",
+          "targetPortId": "identity-in"
+        },
+        {
+          "id": "request.request-out->approval.request-in",
+          "sourceNodeId": "request",
+          "sourcePortId": "request-out",
+          "targetNodeId": "approval",
+          "targetPortId": "request-in"
+        }
+      ]
+    },
+    "pages": [
+      {
+        "id": "home",
+        "title": "Dashboard",
+        "path": "dashboard",
+        "nodeId": "dashboard-shell",
+        "layoutId": "dashboard",
+        "requiredPermission": "dashboard:view"
+      },
+      {
+        "id": "users",
+        "title": "Users",
+        "path": "users",
+        "nodeId": "user-management",
+        "layoutId": "data-table",
+        "requiredPermission": "users:view"
+      },
+      {
+        "id": "requests",
+        "title": "Requests",
+        "path": "requests",
+        "nodeId": "request",
+        "layoutId": "kanban",
+        "requiredPermission": "request:view"
+      },
+      {
+        "id": "approvals",
+        "title": "Approvals",
+        "path": "approvals",
+        "nodeId": "approval",
+        "layoutId": "data-table",
+        "requiredPermission": "approval:view"
+      },
+      {
+        "id": "pcb-repair",
+        "title": "PCB Repair",
+        "path": "pcb-repair",
+        "nodeId": "pcb-repair",
+        "layoutId": "kanban",
+        "requiredPermission": "repair:view"
+      },
+      {
+        "id": "returns",
+        "title": "Returns",
+        "path": "returns",
+        "nodeId": "return-management",
+        "layoutId": "data-table",
+        "requiredPermission": "return:view"
+      },
+      {
+        "id": "analytics",
+        "title": "Analytics",
+        "path": "analytics",
+        "nodeId": "analytics-dashboard",
+        "layoutId": "dashboard",
+        "requiredPermission": "analytics:view"
+      }
+    ],
+    "roles": [
+      {
+        "id": "admin",
+        "name": "Administrator",
+        "permissions": [
+          "auth:manage",
+          "users:view",
+          "users:manage",
+          "dashboard:view",
+          "request:view",
+          "request:create",
+          "approval:view",
+          "approval:decide",
+          "repair:view",
+          "repair:update",
+          "return:view",
+          "return:process",
+          "analytics:view"
+        ]
+      },
+      {
+        "id": "technician",
+        "name": "Technician",
+        "permissions": [
+          "dashboard:view",
+          "request:view",
+          "request:create",
+          "repair:view",
+          "repair:update",
+          "return:view"
+        ]
+      },
+      {
+        "id": "approver",
+        "name": "Approver",
+        "permissions": [
+          "dashboard:view",
+          "request:view",
+          "approval:view",
+          "approval:decide",
+          "analytics:view"
+        ]
+      }
+    ],
+    "navigation": [
+      {
+        "pageId": "home",
+        "label": "Dashboard"
+      },
+      {
+        "pageId": "users",
+        "label": "Users"
+      },
+      {
+        "pageId": "requests",
+        "label": "Requests"
+      },
+      {
+        "pageId": "approvals",
+        "label": "Approvals"
+      },
+      {
+        "pageId": "pcb-repair",
+        "label": "PCB Repair"
+      },
+      {
+        "pageId": "returns",
+        "label": "Returns"
+      },
+      {
+        "pageId": "analytics",
+        "label": "Analytics"
+      }
+    ],
+    "workflowDefinitions": [
+      {
+        "id": "request-flow",
+        "initial": "draft",
+        "states": [
+          "draft",
+          "submitted",
+          "approved",
+          "rejected",
+          "assigned",
+          "fulfilled",
+          "cancelled"
+        ],
+        "transitions": [
+          {
+            "from": "draft",
+            "to": "submitted",
+            "permission": "request:create"
+          },
+          {
+            "from": "submitted",
+            "to": "approved",
+            "permission": "approval:decide"
+          },
+          {
+            "from": "submitted",
+            "to": "rejected",
+            "permission": "approval:decide"
+          },
+          {
+            "from": "assigned",
+            "to": "fulfilled"
+          },
+          {
+            "from": "draft",
+            "to": "cancelled"
+          },
+          {
+            "from": "submitted",
+            "to": "cancelled"
+          }
+        ]
+      },
+      {
+        "id": "repair-flow",
+        "initial": "received",
+        "states": [
+          "received",
+          "diagnosing",
+          "repairing",
+          "testing",
+          "completed",
+          "scrapped"
+        ],
+        "transitions": [
+          {
+            "from": "received",
+            "to": "diagnosing",
+            "permission": "repair:update"
+          },
+          {
+            "from": "diagnosing",
+            "to": "repairing",
+            "permission": "repair:update"
+          },
+          {
+            "from": "diagnosing",
+            "to": "scrapped",
+            "permission": "repair:update"
+          },
+          {
+            "from": "repairing",
+            "to": "testing",
+            "permission": "repair:update"
+          },
+          {
+            "from": "testing",
+            "to": "completed",
+            "permission": "repair:update"
+          },
+          {
+            "from": "testing",
+            "to": "repairing",
+            "permission": "repair:update"
+          }
+        ]
+      }
+    ],
+    "calculatedFieldDefinitions": [],
+    "fields": [],
+    "metadata": {
+      "description": "Service Centre seed configuration (development demo)"
+    }
+  }
+}

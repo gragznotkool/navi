@@ -9,6 +9,10 @@ import type {
   ImpactRequest,
   ModuleDefinition,
   PaginatedResponse,
+  PresetSummary,
+  ProvisionSiteRequest,
+  ProvisioningJob,
+  ProvisioningSnapshot,
   ProofList,
   ProofResult,
   PublishRequest,
@@ -74,6 +78,7 @@ export const releasesApi = {
   publish: (siteId: string, body: PublishRequest) => call<ReleaseSummary>(http.post(`/sites/${siteId}/releases/publish`, body)),
   rollback: (siteId: string, body: RollbackRequest) => call<ReleaseSummary>(http.post(`/sites/${siteId}/releases/rollback`, body)),
   impact: (siteId: string, body: ImpactRequest) => call<ImpactReport>(http.post(`/sites/${siteId}/releases/impact`, body)),
+  get: (siteId: string, releaseId: string) => call<{ release: ReleaseSummary; configuration: SiteConfiguration }>(http.get(`/sites/${siteId}/releases/${releaseId}`)),
   summary: (siteId: string, releaseId: string) => call<{ version: number; sentences: string[] }>(http.get(`/sites/${siteId}/releases/${releaseId}/summary`)),
   diff: (siteId: string, releaseId: string) => call<ReleaseDiff>(http.get(`/sites/${siteId}/releases/${releaseId}/diff`)),
   audit: (siteId: string) => call<AuditEvent[]>(http.get(`/sites/${siteId}/audit-events`)),
@@ -83,4 +88,10 @@ export const trustApi = {
   checks: () => call<{ generatedAt: string | null; checks: TrustCheckResult[] }>(http.get("/trust/checks")),
   proofs: () => call<ProofList>(http.get("/trust/proofs")),
   runProof: (id: string) => call<ProofResult>(http.post(`/trust/proofs/${id}/run`)),
+};
+
+export const provisioningApi = {
+  presets: () => call<PresetSummary[]>(http.get("/provisioning/presets")),
+  start: (body: ProvisionSiteRequest) => call<ProvisioningJob>(http.post("/sites", body)),
+  snapshot: (jobId: string, after = 0) => call<ProvisioningSnapshot>(http.get(`/provisioning/${jobId}/events`, { params: { after } })),
 };

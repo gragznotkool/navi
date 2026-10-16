@@ -15,9 +15,9 @@ let db: Database;
 beforeAll(async () => {
   await freshDatabase();
   db = appDb();
-  // Access tokens live 1 second here so expiry can be exercised for real.
+  // Access tokens live 3 seconds here so expiry can be exercised for real.
   const base = loadEnv({ NODE_ENV: "test", DATABASE_URL: appUrl(), JWT_SECRET: "x".repeat(40), WEB_ORIGIN: "http://localhost:5173" } as NodeJS.ProcessEnv);
-  app = createApp({ db, env: { ...base, JWT_EXPIRES_IN_SECONDS: 1 }, loginRateLimit: 1000 });
+  app = createApp({ db, env: { ...base, JWT_EXPIRES_IN_SECONDS: 3 }, loginRateLimit: 1000 });
 });
 afterAll(async () => {
   await db.close();
@@ -63,7 +63,7 @@ describe("expiry → refresh → retry", () => {
   it("an expired access token is rejected, a refresh restores access, and the rotated cookie keeps working", async () => {
     const { agent } = await login();
     expect((await agent.get("/api/v1/auth/me")).status).toBe(200);
-    await sleep(2200); // access token (1 s) has expired
+    await sleep(4200); // access token (3 s) has expired
     const expired = await agent.get("/api/v1/auth/me");
     expect(expired.status).toBe(401);
 

@@ -1,0 +1,235 @@
+{
+  "id": "stores",
+  "label": "Stores and inventory",
+  "description": "Central stores with approvals, assignments and a configurable item price field.",
+  "template": {
+    "schemaVersion": 2,
+    "theme": {
+      "primary": "#0F766E",
+      "secondary": "#0D9488"
+    },
+    "shell": "sidebar",
+    "layouts": [
+      {
+        "id": "dashboard",
+        "type": "dashboard"
+      },
+      {
+        "id": "data-table",
+        "type": "data-table"
+      }
+    ],
+    "modules": {
+      "nodes": [
+        {
+          "id": "auth-rbac",
+          "moduleType": "auth-rbac",
+          "position": {
+            "x": 0,
+            "y": 0
+          },
+          "config": {}
+        },
+        {
+          "id": "user-management",
+          "moduleType": "user-management",
+          "position": {
+            "x": 280,
+            "y": 0
+          },
+          "config": {}
+        },
+        {
+          "id": "inventory",
+          "moduleType": "inventory",
+          "position": {
+            "x": 560,
+            "y": 0
+          },
+          "config": {
+            "lowStockThreshold": 10
+          }
+        },
+        {
+          "id": "dashboard-shell",
+          "moduleType": "dashboard-shell",
+          "position": {
+            "x": 840,
+            "y": 0
+          },
+          "config": {}
+        },
+        {
+          "id": "analytics-dashboard",
+          "moduleType": "analytics-dashboard",
+          "position": {
+            "x": 0,
+            "y": 160
+          },
+          "config": {}
+        },
+        {
+          "id": "reports-excel",
+          "moduleType": "reports-excel",
+          "position": {
+            "x": 280,
+            "y": 160
+          },
+          "config": {}
+        }
+      ],
+      "edges": [
+        {
+          "id": "auth-rbac.identity-out->dashboard-shell.identity-in",
+          "sourceNodeId": "auth-rbac",
+          "sourcePortId": "identity-out",
+          "targetNodeId": "dashboard-shell",
+          "targetPortId": "identity-in"
+        },
+        {
+          "id": "auth-rbac.identity-out->user-management.identity-in",
+          "sourceNodeId": "auth-rbac",
+          "sourcePortId": "identity-out",
+          "targetNodeId": "user-management",
+          "targetPortId": "identity-in"
+        },
+        {
+          "id": "inventory.stock-out->reports-excel.stock-in",
+          "sourceNodeId": "inventory",
+          "sourcePortId": "stock-out",
+          "targetNodeId": "reports-excel",
+          "targetPortId": "stock-in"
+        }
+      ]
+    },
+    "pages": [
+      {
+        "id": "home",
+        "title": "Dashboard",
+        "path": "dashboard",
+        "nodeId": "dashboard-shell",
+        "layoutId": "dashboard",
+        "requiredPermission": "dashboard:view"
+      },
+      {
+        "id": "users",
+        "title": "Users",
+        "path": "users",
+        "nodeId": "user-management",
+        "layoutId": "data-table",
+        "requiredPermission": "users:view"
+      },
+      {
+        "id": "inventory",
+        "title": "Inventory",
+        "path": "inventory",
+        "nodeId": "inventory",
+        "layoutId": "data-table",
+        "requiredPermission": "inventory:view"
+      },
+      {
+        "id": "analytics",
+        "title": "Analytics",
+        "path": "analytics",
+        "nodeId": "analytics-dashboard",
+        "layoutId": "dashboard",
+        "requiredPermission": "analytics:view"
+      },
+      {
+        "id": "reports",
+        "title": "Reports",
+        "path": "reports",
+        "nodeId": "reports-excel",
+        "layoutId": "data-table",
+        "requiredPermission": "reports:view"
+      }
+    ],
+    "roles": [
+      {
+        "id": "admin",
+        "name": "Administrator",
+        "permissions": [
+          "auth:manage",
+          "users:view",
+          "users:manage",
+          "inventory:view",
+          "inventory:manage",
+          "dashboard:view",
+          "analytics:view",
+          "reports:view",
+          "reports:export"
+        ]
+      },
+      {
+        "id": "storekeeper",
+        "name": "Storekeeper",
+        "permissions": [
+          "dashboard:view",
+          "inventory:view",
+          "inventory:manage",
+          "reports:view",
+          "reports:export",
+          "analytics:view"
+        ]
+      },
+      {
+        "id": "viewer",
+        "name": "Viewer",
+        "permissions": [
+          "dashboard:view",
+          "inventory:view",
+          "analytics:view"
+        ]
+      }
+    ],
+    "navigation": [
+      {
+        "pageId": "home",
+        "label": "Dashboard"
+      },
+      {
+        "pageId": "users",
+        "label": "Users"
+      },
+      {
+        "pageId": "inventory",
+        "label": "Inventory"
+      },
+      {
+        "pageId": "analytics",
+        "label": "Analytics"
+      },
+      {
+        "pageId": "reports",
+        "label": "Reports"
+      }
+    ],
+    "workflowDefinitions": [],
+    "calculatedFieldDefinitions": [
+      {
+        "id": "stock-shortfall",
+        "label": "Shortfall vs reorder level",
+        "expression": "max(reorderLevel - onHand, 0)",
+        "inputs": {
+          "reorderLevel": "number",
+          "onHand": "number"
+        },
+        "resultType": "number"
+      }
+    ],
+    "fields": [
+      {
+        "id": "item-price",
+        "entity": "inventory_item",
+        "key": "price",
+        "label": "Unit price",
+        "type": "number",
+        "required": false,
+        "hidden": false
+      }
+    ],
+    "metadata": {
+      "description": "Central Stores seed configuration (development demo)"
+    }
+  }
+}

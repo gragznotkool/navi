@@ -188,6 +188,16 @@ export async function previewImpact(db: Database, actor: { siteId: string; userI
   });
 }
 
+/** One historical release with its full configuration, read-only (for previews and Rewind). */
+export async function getRelease(db: Database, actor: { siteId: string; userId: string }, releaseId: string): Promise<{ release: ReleaseSummary; configuration: SiteConfiguration }> {
+  return db.withTenant(actor, async (tx) => {
+    const row = await getReleaseById(tx, actor.siteId, releaseId);
+    if (!row) throw notFound("Release not found");
+    const active = await getActiveRelease(tx, actor.siteId);
+    return { release: toSummary(row, active?.id === row.id), configuration: loadStored(row.configuration) };
+  });
+}
+
 /** Plain-English summary of one release compared with the one before it. */
 export async function summary(db: Database, actor: { siteId: string; userId: string }, releaseId: string): Promise<{ version: number; sentences: string[] }> {
   return db.withTenant(actor, async (tx) => {

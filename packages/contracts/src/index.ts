@@ -8,3 +8,4 @@ export * from "./inventory/index.js";
 export * from "./workflows/index.js";
 export * from "./analytics/index.js";
 export * from "./api/index.js";
+export * from "./provisioning/index.js";

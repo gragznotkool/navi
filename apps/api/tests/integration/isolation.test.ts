@@ -81,4 +81,15 @@ describe("every /sites/:siteId route enforces membership", () => {
     }
     expect(failures).toEqual([]);
   });
+
+  it("answers 404, never 500, for malformed ids on every route that takes one", async () => {
+    const admin = await loginAs("admin@opshub.local");
+    const failures: string[] = [];
+    for (const r of SITE_ROUTES().filter((x) => /:(itemId|requestId|releaseId)/.test(x.path))) {
+      const path = r.path.replace(":siteId", SITES.distribution).replace(/:[A-Za-z]+/g, "not-a-uuid");
+      const res = await admin[verb(r.method)](path).set(H).set("Idempotency-Key", "isolation-probe-0002").send({});
+      if (res.status !== 404) failures.push(`${r.method} ${r.path} → ${res.status}`);
+    }
+    expect(failures).toEqual([]);
+  });
 });

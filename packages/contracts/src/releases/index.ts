@@ -7,6 +7,8 @@ export const releaseSummarySchema = z.object({
   version: z.number().int().min(1),
   note: z.string().nullable(),
   publishedBy: uuid,
+  /** Display name of the publisher, when known. */
+  publishedByName: z.string().nullable().optional(),
   publishedAt: isoTimestamp,
   /** Set when this release was created by rolling back to an earlier version. */
   rolledBackToVersion: z.number().int().nullable(),

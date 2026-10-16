@@ -4,6 +4,7 @@ import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { useAsync } from "../hooks/useAsync";
 import { BuilderPage } from "../features/builder/BuilderPage";
 import { ReleasesPage } from "../features/releases/ReleasesPage";
+import { RewindPage } from "../features/releases/RewindPage";
 import { sitesApi } from "../services";
 import { setLastSite } from "../stores/lastSite";
 import { useSession } from "../stores/session";
@@ -59,6 +60,7 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
       <Routes>
         <Route index element={<FirstPage />} />
         {!preview && <Route path="admin/builder" element={<SiteShell title="Configuration builder"><BuilderPage activeVersion={active.data.version} activeConfig={active.data.configuration} /></SiteShell>} />}
+        {!preview && <Route path="admin/rewind" element={<SiteShell title="Rewind"><RewindPage /></SiteShell>} />}
         {!preview && <Route path="admin/releases" element={<SiteShell title="Releases"><ReleasesPage /></SiteShell>} />}
         <Route path=":pagePath" element={<PageRoute />} />
       </Routes>

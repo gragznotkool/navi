@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 import { LoadingState, Toaster } from "../components/feedback";
 import { LoginPage } from "../features/auth/LoginPage";
 import { HubPage } from "../features/hub/HubPage";
+import { NewSitePage } from "../features/provisioning/NewSitePage";
 import { TrustConsolePage } from "../features/security-console/TrustConsolePage";
 import { SiteRoute } from "../runtime/SiteRoutes";
 import { useSession } from "../stores/session";
@@ -22,6 +23,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<RequireAuth><HubPage /></RequireAuth>} />
+      <Route path="/sites/new" element={<RequireAuth><NewSitePage /></RequireAuth>} />
       <Route path="/trust" element={<RequireAuth><TrustConsolePage /></RequireAuth>} />
       <Route path="/s/:slug/*" element={<RequireAuth><SiteRoute /></RequireAuth>} />
       <Route path="/preview/:slug/*" element={<RequireAuth><SiteRoute preview /></RequireAuth>} />

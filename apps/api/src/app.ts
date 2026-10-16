@@ -2,6 +2,7 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 import express, { Router, type Express, type RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
+import { z } from "zod";
 import helmet from "helmet";
 import { eq, sql } from "drizzle-orm";
 import {
@@ -13,6 +14,7 @@ import {
   paginationRequestSchema,
   publishRequestSchema,
   impactRequestSchema,
+  provisionSiteRequestSchema,
   updateItemFieldsPayloadSchema,
   recordConsumptionPayloadSchema,
   rollbackRequestSchema,
@@ -39,6 +41,8 @@ import {
   validateQuery,
 } from "./middleware/core.js";
 import { dataTypes, moduleDefinitions } from "./modules/registry.js";
+import { loadPresets, summarize } from "./provisioning/presets.js";
+import { getSnapshot, requestProvisioning } from "./provisioning/service.js";
 import { readChecks } from "./trust/checks.js";
 import { lastResult, ProofBusy, proofDefinitions, runProof, UnknownProof } from "./trust/proofs.js";
 import * as releases from "./releases/service.js";
@@ -68,6 +72,10 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   app.use(cookieParser());
 
   const api = Router();
+  // A malformed id can never match a row: answer 404 instead of letting the database reject it (500).
+  for (const name of ["itemId", "requestId", "releaseId", "jobId"]) {
+    api.param(name, (_req, _res, next, value: string) => (z.string().uuid().safeParse(value).success ? next() : next(notFound("Not found"))));
+  }
   const auth = authenticate(db, env.JWT_SECRET);
   const secureCookie = env.NODE_ENV === "production";
 
@@ -166,8 +174,59 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
     }
   });
 
+  // ---------- one-save provisioning (platform admins)
+  const prov = mount(api, "/provisioning");
+  const provDeps = { db, stepDelayMs: env.PROVISIONING_STEP_DELAY_MS, log };
+  prov.get("/presets", auth, adminOnly, (_req, res) => {
+    res.json({ data: loadPresets().map(summarize) });
+  });
+  prov.get("/:jobId/events", auth, adminOnly, async (req, res) => {
+    const jobId = z.string().uuid().safeParse(req.params.jobId);
+    if (!jobId.success) throw notFound("Provisioning job not found");
+    const after = Math.max(0, Number(req.query.after ?? req.header("last-event-id") ?? 0) || 0);
+    if (!req.header("accept")?.includes("text/event-stream")) {
+      // Polling fallback: same data as one JSON snapshot.
+      res.json({ data: await getSnapshot(db, jobId.data, after) });
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache, no-transform", connection: "keep-alive", "x-accel-buffering": "no" });
+    let closed = false;
+    req.on("close", () => (closed = true));
+    let last = after;
+    let beat = 0;
+    const deadline = Date.now() + 5 * 60_000;
+    try {
+      while (!closed && Date.now() < deadline) {
+        const snap = await getSnapshot(db, jobId.data, last);
+        for (const e of snap.events) {
+          res.write(`id: ${e.seq}
+event: log
+data: ${JSON.stringify(e)}
+
+`);
+          last = e.seq;
+        }
+        if (snap.job.status !== "running" && snap.events.length === 0) {
+          res.write(`event: done
+data: ${JSON.stringify(snap.job)}
+
+`);
+          break;
+        }
+        if (++beat % 60 === 0) res.write(`: keep-alive\n\n`);
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    } finally {
+      res.end();
+    }
+  });
+
   // ---------- sites
   const st = mount(api, "/sites");
+  st.post("", auth, adminOnly, validateBody(provisionSiteRequestSchema), async (req, res) => {
+    const { job, created } = await requestProvisioning(provDeps, { userId: req.user!.id, requestId: req.requestId }, req.body);
+    res.status(created ? 202 : 200).json({ data: job });
+  });
   st.get("", auth, async (req, res) => {
     const rows = await authSvc.currentSession(db, req.user!, req.sessionExpiresAt!);
     const summaries: SiteSummary[] = [];
@@ -212,6 +271,9 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   });
   st.post("/:siteId/releases/impact", auth, requireSite(db, "release:publish"), validateBody(impactRequestSchema), async (req, res) => {
     res.json({ data: await releases.previewImpact(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, req.body) });
+  });
+  st.get("/:siteId/releases/:releaseId", auth, requireSite(db, "config:manage"), async (req, res) => {
+    res.json({ data: await releases.getRelease(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, String(req.params.releaseId)) });
   });
   st.get("/:siteId/releases/:releaseId/summary", auth, requireSite(db), async (req, res) => {
     res.json({ data: await releases.summary(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, String(req.params.releaseId)) });

@@ -15,6 +15,8 @@ const envSchema = z.object({
   JWT_SECRET: z.string().min(32, "JWT_SECRET must be at least 32 characters"),
   /** Access token lifetime. Short on purpose: the refresh token keeps the user signed in. */
   JWT_EXPIRES_IN_SECONDS: z.coerce.number().int().min(60).default(600),
+  /** Pause between provisioning steps so the live log can be watched (0 = as fast as possible). */
+  PROVISIONING_STEP_DELAY_MS: z.coerce.number().int().min(0).max(5000).default(0),
   /** Refresh token lifetime (sliding: each rotation issues a fresh window). */
   REFRESH_EXPIRES_IN_SECONDS: z.coerce.number().int().min(300).default(7 * 24 * 3600),
 });
