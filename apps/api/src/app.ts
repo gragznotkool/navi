@@ -3,7 +3,8 @@ import cors from "cors";
 import express, { Router, type Express, type RequestHandler } from "express";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
+import { z } from "zod";
 import {
   configurationPayloadSchema,
   createAssignmentPayloadSchema,
@@ -11,11 +12,14 @@ import {
   createRequestPayloadSchema,
   createReturnPayloadSchema,
   decideRequestPayloadSchema,
+  impactRequestSchema,
   loginRequestSchema,
   paginationRequestSchema,
+  provisionSiteRequestSchema,
   publishRequestSchema,
   recordConsumptionPayloadSchema,
   rollbackRequestSchema,
+  updateItemFieldsPayloadSchema,
   updateRepairStatusPayloadSchema,
   updateReturnStatusPayloadSchema,
   configurationDraftSchema,
@@ -33,6 +37,8 @@ import {
   authenticate,
   errorHandler,
   notFoundHandler,
+  REFRESH_COOKIE,
+  REFRESH_COOKIE_PATH,
   requestId,
   requireCsrfHeader,
   requireSite,
@@ -43,6 +49,9 @@ import {
 } from "./middleware/core.js";
 import { dataTypes, moduleDefinitions } from "./modules/registry.js";
 import { readChecks } from "./trust/checks.js";
+import { lastResult, proofDefinitions, ProofBusy, runProof, UnknownProof } from "./trust/proofs.js";
+import { getSnapshot, requestProvisioning } from "./provisioning/service.js";
+import { loadPresets, summarize } from "./provisioning/presets.js";
 import * as releases from "./releases/service.js";
 import { ValidationFailed } from "./releases/service.js";
 import { getActiveRelease, parseStoredConfig } from "./repositories/releases.js";
@@ -51,7 +60,7 @@ import * as authSvc from "./services/auth.js";
 import * as reportSvc from "./reports/service.js";
 import { XLSX_MIME } from "./reports/excel.js";
 import * as ops from "./services/operations.js";
-import { AppError, badRequest, forbidden } from "./utils/errors.js";
+import { AppError, badRequest, forbidden, notFound, unauthorized } from "./utils/errors.js";
 
 export interface AppDeps {
   db: Database;
@@ -72,6 +81,10 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   app.use(cookieParser());
 
   const api = Router();
+  // A malformed id can never match a row: answer 404 instead of letting the database reject it (500).
+  for (const name of ["itemId", "requestId", "releaseId", "jobId"]) {
+    api.param(name, (_req, _res, next, value: string) => (z.string().uuid().safeParse(value).success ? next() : next(notFound("Not found"))));
+  }
   const auth = authenticate(db, env.JWT_SECRET);
   const secureCookie = env.NODE_ENV === "production";
 
@@ -86,17 +99,42 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   });
 
   // ---------- authentication
-  const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: loginRateLimit, standardHeaders: true, legacyHeaders: false, message: { error: { code: "rate_limited", message: "Too many login attempts. Try again later." } } });
+  const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: loginRateLimit, skipSuccessfulRequests: true, standardHeaders: true, legacyHeaders: false, message: { error: { code: "rate_limited", message: "Too many login attempts. Try again later." } } });
+  const refreshLimiter = rateLimit({ windowMs: 15 * 60_000, limit: loginRateLimit * 12, standardHeaders: true, legacyHeaders: false, message: { error: { code: "rate_limited", message: "Too many refresh attempts. Try again later." } } });
+  const authDeps = { db, jwtSecret: env.JWT_SECRET, expiresInSeconds: env.JWT_EXPIRES_IN_SECONDS, refreshExpiresInSeconds: env.REFRESH_EXPIRES_IN_SECONDS };
+  const setAuthCookies = (res: express.Response, issued: authSvc.IssuedSession) => {
+    res.cookie(SESSION_COOKIE, issued.token, { httpOnly: true, sameSite: "lax", secure: secureCookie, path: "/", maxAge: env.JWT_EXPIRES_IN_SECONDS * 1000 });
+    res.cookie(REFRESH_COOKIE, issued.refreshToken, { httpOnly: true, sameSite: "strict", secure: secureCookie, path: REFRESH_COOKIE_PATH, expires: issued.refreshExpiresAt });
+  };
+  const clearAuthCookies = (res: express.Response) => {
+    res.clearCookie(SESSION_COOKIE, { path: "/" });
+    res.clearCookie(REFRESH_COOKIE, { path: REFRESH_COOKIE_PATH });
+  };
   const a = mount(api, "/auth");
   api.use(requireCsrfHeader);
   a.post("/login", authLimiter, validateBody(loginRequestSchema), async (req, res) => {
-    const { session, token } = await authSvc.login({ db, jwtSecret: env.JWT_SECRET, expiresInSeconds: env.JWT_EXPIRES_IN_SECONDS }, req.body, req.requestId);
-    res.cookie(SESSION_COOKIE, token, { httpOnly: true, sameSite: "lax", secure: secureCookie, path: "/", maxAge: env.JWT_EXPIRES_IN_SECONDS * 1000 });
-    res.json({ data: session });
+    const issued = await authSvc.login(authDeps, req.body, req.requestId);
+    setAuthCookies(res, issued);
+    res.json({ data: issued.session });
+  });
+  a.post("/refresh", refreshLimiter, async (req, res) => {
+    const raw = (req.cookies as Record<string, string | undefined> | undefined)?.[REFRESH_COOKIE];
+    if (!raw || raw.length > 200) {
+      clearAuthCookies(res);
+      throw unauthorized("Session expired. Sign in again.");
+    }
+    try {
+      const issued = await authSvc.refresh(authDeps, raw, req.requestId);
+      setAuthCookies(res, issued);
+      res.json({ data: issued.session });
+    } catch (e) {
+      clearAuthCookies(res);
+      throw e;
+    }
   });
   a.post("/logout", auth, async (req, res) => {
     await authSvc.logout(db, req.user!.id, req.requestId);
-    res.clearCookie(SESSION_COOKIE, { path: "/" });
+    clearAuthCookies(res);
     res.status(204).end();
   });
   a.get("/me", auth, async (req, res) => {
@@ -112,11 +150,77 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
     res.json({ data: dataTypes });
   });
 
-  // ---------- trust console (platform admins; results come from recorded test runs only)
+  // ---------- trust console (platform admins)
   const trust = mount(api, "/trust");
   trust.get("/checks", auth, (req, res) => {
     if (!req.user!.isPlatformAdmin) throw forbidden();
     res.json({ data: readChecks() });
+  });
+  const adminOnly: RequestHandler = (req, _res, next) => (req.user?.isPlatformAdmin ? next() : next(forbidden()));
+  trust.get("/proofs", auth, adminOnly, async (_req, res) => {
+    const url = new URL(env.DATABASE_URL);
+    const role = await db.withoutTenant(async (tx) => (await tx.execute<{ who: string }>(sql`select current_user as who`)).rows[0]!.who);
+    res.json({
+      data: {
+        environment: {
+          nodeEnv: env.NODE_ENV,
+          database: `${url.hostname}:${url.port || "5432"}${url.pathname}`,
+          databaseRole: role,
+          labSite: "trust-lab (reserved system site)",
+          note: "Proofs run live in THIS API's environment against the reserved lab site, using the same database role the API uses. They show these controls working right now; they are not production monitoring.",
+        },
+        proofs: proofDefinitions.map((definition) => ({ definition, last: lastResult(definition.id) })),
+      },
+    });
+  });
+  trust.post("/proofs/:id/run", auth, adminOnly, async (req, res) => {
+    try {
+      res.json({ data: await runProof(String(req.params.id), { db, connectionString: env.DATABASE_URL, actorId: req.user!.id }) });
+    } catch (e) {
+      if (e instanceof UnknownProof) throw notFound("Unknown proof");
+      if (e instanceof ProofBusy) throw new AppError(409, "proof_running", "This proof is already running");
+      throw e;
+    }
+  });
+
+  // ---------- one-save provisioning (platform admins)
+  const prov = mount(api, "/provisioning");
+  const provDeps = { db, stepDelayMs: env.PROVISIONING_STEP_DELAY_MS, log };
+  prov.get("/presets", auth, adminOnly, (_req, res) => {
+    res.json({ data: loadPresets().map(summarize) });
+  });
+  prov.get("/:jobId/events", auth, adminOnly, async (req, res) => {
+    const jobId = z.string().uuid().safeParse(req.params.jobId);
+    if (!jobId.success) throw notFound("Provisioning job not found");
+    const after = Math.max(0, Number(req.query.after ?? req.header("last-event-id") ?? 0) || 0);
+    if (!req.header("accept")?.includes("text/event-stream")) {
+      // Polling fallback: same data as one JSON snapshot.
+      res.json({ data: await getSnapshot(db, jobId.data, after) });
+      return;
+    }
+    res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache, no-transform", connection: "keep-alive", "x-accel-buffering": "no" });
+    let closed = false;
+    req.on("close", () => (closed = true));
+    let last = after;
+    let beat = 0;
+    const deadline = Date.now() + 5 * 60_000;
+    try {
+      while (!closed && Date.now() < deadline) {
+        const snap = await getSnapshot(db, jobId.data, last);
+        for (const e of snap.events) {
+          res.write(`id: ${e.seq}\nevent: log\ndata: ${JSON.stringify(e)}\n\n`);
+          last = e.seq;
+        }
+        if (snap.job.status !== "running" && snap.events.length === 0) {
+          res.write(`event: done\ndata: ${JSON.stringify(snap.job)}\n\n`);
+          break;
+        }
+        if (++beat % 60 === 0) res.write(`: keep-alive\n\n`);
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    } finally {
+      res.end();
+    }
   });
 
   // ---------- hub administration (platform admins only)
@@ -134,6 +238,10 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
 
   // ---------- sites
   const st = mount(api, "/sites");
+  st.post("", auth, adminOnly, validateBody(provisionSiteRequestSchema), async (req, res) => {
+    const { job, created } = await requestProvisioning(provDeps, { userId: req.user!.id, requestId: req.requestId }, req.body);
+    res.status(created ? 202 : 200).json({ data: job });
+  });
   st.get("", auth, async (req, res) => {
     const rows = await authSvc.currentSession(db, req.user!, req.sessionExpiresAt!);
     const summaries: SiteSummary[] = [];
@@ -141,7 +249,7 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
       const site = await db.withTenant({ siteId: mem.siteId, userId: req.user!.id }, async (tx) => {
         const active = await getActiveRelease(tx, mem.siteId);
         const [row] = await tx.select().from(s.sites).where(eq(s.sites.id, mem.siteId));
-        return active && row ? { row, cfg: parseStoredConfig(active.configuration), version: active.version } : null;
+        return active && row && !row.isSystem ? { row, cfg: parseStoredConfig(active.configuration), version: active.version } : null;
       });
       if (site) summaries.push({ id: site.row.id, slug: site.row.slug, name: site.row.name, accent: site.cfg.theme.primary, shell: site.cfg.shell, activeReleaseVersion: site.version });
     }
@@ -176,6 +284,15 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   st.get("/:siteId/releases", auth, requireSite(db), async (req, res) => {
     res.json({ data: await releases.history(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }) });
   });
+  st.post("/:siteId/releases/impact", auth, requireSite(db, "release:publish"), validateBody(impactRequestSchema), async (req, res) => {
+    res.json({ data: await releases.previewImpact(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, req.body) });
+  });
+  st.get("/:siteId/releases/:releaseId", auth, requireSite(db, "config:manage"), async (req, res) => {
+    res.json({ data: await releases.getRelease(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, String(req.params.releaseId)) });
+  });
+  st.get("/:siteId/releases/:releaseId/summary", auth, requireSite(db), async (req, res) => {
+    res.json({ data: await releases.summary(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, String(req.params.releaseId)) });
+  });
   st.post("/:siteId/releases/publish", auth, requireSite(db, "release:publish"), validateBody(publishRequestSchema), async (req, res) => {
     res.status(201).json({ data: await releases.publish(db, actor(req), req.body) });
   });
@@ -202,6 +319,9 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   });
   st.get("/:siteId/inventory/:itemId", auth, requireSite(db, "inventory:view"), async (req, res) => {
     res.json({ data: await ops.getItem(db, opActor(req), String(req.params.itemId)) });
+  });
+  st.patch("/:siteId/inventory/:itemId", auth, requireSite(db, "inventory:manage"), validateBody(updateItemFieldsPayloadSchema), async (req, res) => {
+    res.json({ data: await ops.updateItemExtras(db, opActor(req), String(req.params.itemId), req.body.extras) });
   });
   st.get("/:siteId/requests", auth, requireSite(db, "request:view"), paging, async (req, res) => {
     const p = validatedQuery<PaginationRequest>(res);

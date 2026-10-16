@@ -1,15 +1,17 @@
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useParams, Link } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { useAsync } from "../hooks/useAsync";
 import { BuilderPage } from "../features/builder/BuilderPage";
 import { ReleasesPage } from "../features/releases/ReleasesPage";
+import { RewindPage } from "../features/releases/RewindPage";
 import { sitesApi } from "../services";
+import { setLastSite } from "../stores/lastSite";
 import { useSession } from "../stores/session";
 import { SiteRuntimeProvider } from "./context";
 import { SiteShell } from "./SiteShell";
 import { UniversalRenderer } from "./UniversalRenderer";
 import { useSiteRuntime } from "./context";
-import { Link } from "react-router-dom";
 import { usePreviewStore } from "../features/builder/previewStore";
 
 /** Loads the ACTIVE release for the site named in the URL and provides it to the runtime. */
@@ -18,6 +20,11 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
   const session = useSession((s) => s.session);
   const membership = session?.memberships.find((m) => m.siteSlug === slug);
   const draft = usePreviewStore((s) => s.getDraft(slug));
+
+  useEffect(() => {
+    if (slug && !preview) setLastSite(slug);
+  }, [preview, slug]);
+
   // Permissions are re-read with the config: they derive from the ACTIVE release's roles, so a
   // publish/rollback changes them and the login-time session snapshot would be stale.
   const active = useAsync(async () => {
@@ -61,6 +68,7 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
       <Routes>
         <Route index element={<FirstPage />} />
         {!preview && <Route path="admin/builder" element={<SiteShell title="Configuration builder"><BuilderPage activeVersion={active.data.version} activeConfig={active.data.configuration} /></SiteShell>} />}
+        {!preview && <Route path="admin/rewind" element={<SiteShell title="Rewind"><RewindPage /></SiteShell>} />}
         {!preview && <Route path="admin/releases" element={<SiteShell title="Releases"><ReleasesPage /></SiteShell>} />}
         <Route path=":pagePath" element={<PageRoute />} />
       </Routes>

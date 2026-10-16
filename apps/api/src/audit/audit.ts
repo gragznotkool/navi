@@ -9,6 +9,7 @@ export interface AuditInput {
   entityId?: string | null;
   metadata?: Record<string, unknown>;
   requestId?: string;
+  configVersion?: number | null | undefined;
 }
 
 /** Writes inside the caller's transaction so the audit record commits or rolls back with the change. */
@@ -21,5 +22,6 @@ export async function recordAudit(tx: Tx, e: AuditInput): Promise<void> {
     entityId: e.entityId ?? null,
     metadata: e.metadata ?? null,
     requestId: e.requestId ?? null,
+    configVersion: e.configVersion ?? null,
   });
 }

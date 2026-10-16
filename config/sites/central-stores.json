@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "siteId": "00000000-0000-4000-8000-000000000001",
   "slug": "central-stores",
   "name": "Central Stores",
@@ -215,6 +215,9 @@
       },
       "resultType": "number"
     }
+  ],
+  "fields": [
+    { "id": "item-price", "entity": "inventory_item", "key": "price", "label": "Unit price", "type": "number", "required": false, "hidden": false }
   ],
   "customFields": [],
   "reports": {

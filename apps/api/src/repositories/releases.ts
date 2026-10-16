@@ -1,5 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { siteConfigurationSchema, type SiteConfiguration } from "@opshub/contracts";
+import { migrateConfiguration } from "../compiler/migrate.js";
 import * as s from "../db/schema/index.js";
 import type { Tx } from "../db/scoped.js";
 
@@ -16,7 +17,8 @@ export async function getActiveRelease(tx: Tx, siteId: string) {
 
 /** Releases are validated on publish, but we re-parse on read: stored data is not blindly trusted. */
 export function parseStoredConfig(value: unknown): SiteConfiguration {
-  return siteConfigurationSchema.parse(value);
+  const migrated = migrateConfiguration(value);
+  return siteConfigurationSchema.parse(migrated.ok ? migrated.configuration : value);
 }
 
 export async function listReleases(tx: Tx, siteId: string) {
@@ -29,10 +31,12 @@ export async function listReleases(tx: Tx, siteId: string) {
       version: s.siteReleases.version,
       note: s.siteReleases.note,
       publishedBy: s.siteReleases.publishedBy,
+      publishedByName: s.users.displayName,
       publishedAt: s.siteReleases.publishedAt,
       rolledBackToVersion: s.siteReleases.rolledBackToVersion,
     })
     .from(s.siteReleases)
+    .leftJoin(s.users, eq(s.users.id, s.siteReleases.publishedBy))
     .where(eq(s.siteReleases.siteId, siteId))
     .orderBy(desc(s.siteReleases.version));
   return rows.map((r) => ({ ...r, publishedAt: r.publishedAt.toISOString(), isActive: r.id === activeId }));

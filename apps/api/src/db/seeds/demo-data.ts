@@ -119,12 +119,13 @@ export async function seedDemoData(tx: Tx): Promise<DemoSummary | null> {
   const items: Row<typeof s.inventoryItems>[] = [];
   const ledger: Row<typeof s.stockLedger>[] = [];
   const requests: Row<typeof s.requests>[] = [];
+  const requestLines: Row<typeof s.requestLines>[] = [];
   const approvals: Row<typeof s.approvals>[] = [];
   const assignments: Row<typeof s.assignments>[] = [];
   const consumption: Row<typeof s.consumptionRecords>[] = [];
   const audit: Row<typeof s.auditEvents>[] = [];
-  const counters = { item: 0, request: 0, approval: 0, assignment: 0, consumption: 0, ledger: 0, audit: 0 };
-  const next = (k: keyof typeof counters) => uid(NS[k], ++counters[k]);
+  const counters = { item: 0, request: 0, line: 0, approval: 0, assignment: 0, consumption: 0, ledger: 0, audit: 0 };
+  const next = (k: keyof typeof counters) => uid(NS[k as keyof typeof NS] ?? 2, ++counters[k]);
 
   const stock = new Map<string, { id: string; sku: DemoSku; balance: number }>();
   for (const sku of DEMO_SKUS) {
@@ -179,7 +180,8 @@ export async function seedDemoData(tx: Tx): Promise<DemoSummary | null> {
     const requestId = next("request");
     const note = `${plan.notes[(seq + p.n) % plan.notes.length]} (#${p.n + 1})`;
     const lastTouch = status === "submitted" ? created : status === "approved" || status === "rejected" ? decided : status === "assigned" ? assigned : consumed;
-    requests.push({ id: requestId, siteId, itemId: entry.id, quantity: qty, status, requestedBy: plan.requester, releaseVersion: 1, note, createdAt: new Date(created), updatedAt: new Date(lastTouch) });
+    requests.push({ id: requestId, siteId, status, statusChangedAt: new Date(lastTouch), requestedBy: plan.requester, releaseVersion: 1, note, createdAt: new Date(created), updatedAt: new Date(lastTouch) });
+    requestLines.push({ id: next("line"), siteId, requestId, itemId: entry.id, quantity: qty, extras: {} });
     addAudit(siteId, plan.requester, "request.submitted", "request", requestId, created);
     if (status === "submitted") return;
 
@@ -190,7 +192,7 @@ export async function seedDemoData(tx: Tx): Promise<DemoSummary | null> {
 
     const assignmentId = next("assignment");
     entry.balance -= qty;
-    assignments.push({ id: assignmentId, siteId, requestId, itemId: entry.id, quantity: qty, assignedBy: plan.assigner, createdAt: new Date(assigned) });
+    assignments.push({ id: assignmentId, siteId, requestId, quantity: qty, assignedBy: plan.assigner, createdAt: new Date(assigned) });
     ledger.push({ id: next("ledger"), siteId, itemId: entry.id, delta: -qty, balanceAfter: entry.balance, reason: "assignment", refType: "assignment", refId: assignmentId, actorId: plan.assigner, createdAt: new Date(assigned) });
     addAudit(siteId, plan.assigner, "assignment.created", "assignment", assignmentId, assigned, { requestId, quantity: qty, technicianId: p.site === "service-centre" ? USER.technician : null });
     if (status === "assigned") return;
@@ -216,6 +218,7 @@ export async function seedDemoData(tx: Tx): Promise<DemoSummary | null> {
       reorderLevel: e.sku.reorder,
       unitCost: e.sku.cost.toFixed(2),
       vendorMargin: e.sku.margin.toFixed(2),
+      extras: {},
       createdAt: new Date(EPOCH - 48 * 60 * MIN),
       updatedAt: new Date(EPOCH),
     });
@@ -224,6 +227,7 @@ export async function seedDemoData(tx: Tx): Promise<DemoSummary | null> {
   // Parents before children (composite same-site FKs).
   await insertChunked(items, (c) => tx.insert(s.inventoryItems).values(c));
   await insertChunked(requests, (c) => tx.insert(s.requests).values(c));
+  await insertChunked(requestLines, (c) => tx.insert(s.requestLines).values(c));
   await insertChunked(approvals, (c) => tx.insert(s.approvals).values(c));
   await insertChunked(assignments, (c) => tx.insert(s.assignments).values(c));
   await insertChunked(consumption, (c) => tx.insert(s.consumptionRecords).values(c));

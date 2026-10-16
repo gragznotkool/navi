@@ -16,6 +16,8 @@ import { checkpoint, commit, createHistory, redo, replace, undo } from "./histor
 import { Inspector } from "./Inspector";
 import { PRESETS, applyPreset, type Preset } from "./presets";
 import { usePreviewStore } from "./previewStore";
+import { ImpactDialog } from "../releases/ImpactDialog";
+import { FieldsPanel } from "./FieldsPanel";
 
 type ModuleNodeData = { def: ModuleDefinition | undefined; moduleType: string; shake: boolean; problem: string | null };
 
@@ -72,6 +74,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<"validate" | "draft" | "preview" | "publish" | null>(null);
   const [stale, setStale] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const dirty = useMemo(() => JSON.stringify(config) !== JSON.stringify(activeConfig), [config, activeConfig]);
 
   // Visual feedback state: valid-edge pulses, rejected "ghost" edges and shaking nodes.
@@ -225,9 +228,15 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
       setPreview(slug, r.configuration);
       navigate(`/preview/${slug}`);
     });
-  const publish = () =>
+  const publish = (confirmDestructive: boolean) =>
     run("publish", async () => {
-      const r = await releasesApi.publish(siteId, { baseVersion: activeVersion, configuration: config, note: note || undefined });
+      const r = await releasesApi.publish(siteId, {
+        baseVersion: activeVersion,
+        configuration: config,
+        note: note || undefined,
+        ...(confirmDestructive ? { confirmDestructive: true } : {}),
+      });
+      setReviewing(false);
       notify.success(`Published release v${r.version}`);
       reload();
       navigate(`/s/${slug}/admin/releases`);
@@ -273,7 +282,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           <Button onClick={validate} loading={busy === "validate"}>Validate</Button>
           <Button onClick={saveDraft} loading={busy === "draft"} disabled={!dirty}>Save draft</Button>
           <Button onClick={preview} loading={busy === "preview"}>Preview</Button>
-          <Button variant="primary" onClick={publish} loading={busy === "publish"} disabled={!validation?.valid || !dirty || stale}>Publish</Button>
+          <Button variant="primary" onClick={() => setReviewing(true)} loading={busy === "publish"} disabled={!validation?.valid || !dirty || stale}>Review & publish</Button>
         </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
@@ -297,6 +306,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
         </div>
         <div className="flex flex-col gap-4">
           <Inspector config={config} node={selectedNode} def={selectedDef} defs={defs} onEdit={edit} onRemoved={() => setSelected(null)} />
+          <FieldsPanel config={config} onChange={edit} />
           <Panel title="Release note">
             <TextField label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
           </Panel>
@@ -320,6 +330,17 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           )}
         </Panel>
       </div>
+      {reviewing && (
+        <ImpactDialog
+          siteId={siteId}
+          request={{ baseVersion: activeVersion, configuration: config }}
+          title={`Publish release v${activeVersion + 1}`}
+          confirmLabel="Publish release"
+          busy={busy === "publish"}
+          onConfirm={(confirmDestructive) => publish(confirmDestructive)}
+          onClose={() => setReviewing(false)}
+        />
+      )}
     </>
   );
 }

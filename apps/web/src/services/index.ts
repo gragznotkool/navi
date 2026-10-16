@@ -9,10 +9,18 @@ import type {
   CreateReturnPayload,
   DataTypeDefinition,
   HubOverviewResponse,
+  ImpactReport,
+  ImpactRequest,
   ImportResult,
   LoginRequest,
   ModuleDefinition,
   PaginatedResponse,
+  PresetSummary,
+  ProofList,
+  ProofResult,
+  ProvisionSiteRequest,
+  ProvisioningJob,
+  ProvisioningSnapshot,
   PublishRequest,
   RecordConsumptionPayload,
   ReleaseDiff,
@@ -29,6 +37,7 @@ import type {
   StockItem,
   StockSummary,
   TrustCheckResult,
+  UpdateItemFieldsPayload,
 } from "@opshub/contracts";
 import { call, http, toRequestErrorFromBlob } from "../lib/api";
 
@@ -38,14 +47,15 @@ export const authApi = {
   me: () => call<AuthSession>(http.get("/auth/me")),
 };
 
-export interface ActiveConfig {
-  version: number;
-  configuration: SiteConfiguration;
-}
+export const modulesApi = {
+  list: () => call<ModuleDefinition[]>(http.get("/modules")),
+  dataTypes: () => call<DataTypeDefinition[]>(http.get("/modules/data-types")),
+};
 
 export const sitesApi = {
   list: () => call<SiteSummary[]>(http.get("/sites")),
-  config: (siteId: string) => call<ActiveConfig>(http.get(`/sites/${siteId}/config`)),
+  get: (siteId: string) => call<SiteSummary>(http.get(`/sites/${siteId}`)),
+  config: (siteId: string) => call<{ version: number; configuration: SiteConfiguration }>(http.get(`/sites/${siteId}/config`)),
   access: (siteId: string) => call<{ id: string; slug: string; roles: string[]; permissions: string[]; activeReleaseVersion: number | null }>(http.get(`/sites/${siteId}`)),
   modules: () => call<ModuleDefinition[]>(http.get("/modules")),
   dataTypes: () => call<DataTypeDefinition[]>(http.get("/modules/data-types")),
@@ -53,12 +63,13 @@ export const sitesApi = {
 
 export interface ItemDetail {
   item: StockItem;
-  ledger: { id: string; delta: number; balanceAfter: number; reason: string; createdAt: string }[];
+  ledger: { id: string; delta: number; balanceAfter: number; reason: string; refType: string | null; refId: string | null; createdAt: string }[];
 }
 
 export const opsApi = {
   items: (siteId: string, page = 1) => call<PaginatedResponse<StockItem>>(http.get(`/sites/${siteId}/inventory`, { params: { page, pageSize: 50 } })),
   item: (siteId: string, id: string) => call<ItemDetail>(http.get(`/sites/${siteId}/inventory/${id}`)),
+  updateItemFields: (siteId: string, id: string, body: UpdateItemFieldsPayload) => call<StockItem>(http.patch(`/sites/${siteId}/inventory/${id}`, body)),
   requests: (siteId: string, page = 1) => call<PaginatedResponse<RequestRecord>>(http.get(`/sites/${siteId}/requests`, { params: { page, pageSize: 100 } })),
   createRequest: (siteId: string, body: CreateRequestPayload) => call<RequestRecord>(http.post(`/sites/${siteId}/requests`, body)),
   decide: (siteId: string, id: string, decision: "approved" | "rejected", comment?: string) =>
@@ -91,9 +102,11 @@ export const opsApi = {
 };
 
 export const configApi = {
-  validate: (siteId: string, configuration: unknown) => call<ConfigurationValidationResult>(http.post(`/sites/${siteId}/config/validate`, { configuration })),
-  preview: (siteId: string, configuration: unknown) => call<{ validation: ConfigurationValidationResult; configuration: SiteConfiguration }>(http.post(`/sites/${siteId}/config/preview`, { configuration })),
-  saveDraft: (siteId: string, baseVersion: number | null, configuration: unknown) =>
+  validate: (siteId: string, configuration: SiteConfiguration) =>
+    call<ConfigurationValidationResult>(http.post(`/sites/${siteId}/config/validate`, { configuration })),
+  preview: (siteId: string, configuration: SiteConfiguration) =>
+    call<{ validation: ConfigurationValidationResult; configuration: SiteConfiguration }>(http.post(`/sites/${siteId}/config/preview`, { configuration })),
+  saveDraft: (siteId: string, baseVersion: number | null, configuration: SiteConfiguration) =>
     call<{ savedAt: string; validation: ConfigurationValidationResult }>(http.put(`/sites/${siteId}/config/draft`, { baseVersion, configuration })),
 };
 
@@ -101,12 +114,17 @@ export const releasesApi = {
   list: (siteId: string) => call<ReleaseSummary[]>(http.get(`/sites/${siteId}/releases`)),
   publish: (siteId: string, body: PublishRequest) => call<ReleaseSummary>(http.post(`/sites/${siteId}/releases/publish`, body)),
   rollback: (siteId: string, body: RollbackRequest) => call<ReleaseSummary>(http.post(`/sites/${siteId}/releases/rollback`, body)),
+  impact: (siteId: string, body: ImpactRequest) => call<ImpactReport>(http.post(`/sites/${siteId}/releases/impact`, body)),
+  get: (siteId: string, releaseId: string) => call<{ release: ReleaseSummary; configuration: SiteConfiguration }>(http.get(`/sites/${siteId}/releases/${releaseId}`)),
+  summary: (siteId: string, releaseId: string) => call<{ version: number; sentences: string[] }>(http.get(`/sites/${siteId}/releases/${releaseId}/summary`)),
   diff: (siteId: string, releaseId: string) => call<ReleaseDiff>(http.get(`/sites/${siteId}/releases/${releaseId}/diff`)),
   audit: (siteId: string) => call<AuditEvent[]>(http.get(`/sites/${siteId}/audit-events`)),
 };
 
 export const trustApi = {
   checks: () => call<{ generatedAt: string | null; checks: TrustCheckResult[] }>(http.get("/trust/checks")),
+  proofs: () => call<ProofList>(http.get("/trust/proofs")),
+  runProof: (id: string) => call<ProofResult>(http.post(`/trust/proofs/${id}/run`)),
 };
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -142,4 +160,10 @@ export const hubApi = {
       throw await toRequestErrorFromBlob(e);
     }
   },
+};
+
+export const provisioningApi = {
+  presets: () => call<PresetSummary[]>(http.get("/provisioning/presets")),
+  start: (body: ProvisionSiteRequest) => call<ProvisioningJob>(http.post("/sites", body)),
+  snapshot: (jobId: string, after = 0) => call<ProvisioningSnapshot>(http.get(`/provisioning/${jobId}/events`, { params: { after } })),
 };

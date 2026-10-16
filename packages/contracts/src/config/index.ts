@@ -2,7 +2,7 @@ import { z } from "zod";
 import { moduleTypeSchema } from "../modules/index.js";
 import { permissionSchema } from "../auth/index.js";
 
-export const CURRENT_SCHEMA_VERSION = 1;
+export const CURRENT_SCHEMA_VERSION = 2;
 
 export const hexColor = z.string().regex(/^#[0-9A-Fa-f]{6}$/, "must be a #RRGGBB color");
 
@@ -113,6 +113,21 @@ export const reportDefinitionSchema = z.object({
 });
 export type ReportDefinition = z.infer<typeof reportDefinitionSchema>;
 
+export const fieldEntitySchema = z.enum(["inventory_item", "request_line"]);
+export type FieldEntity = z.infer<typeof fieldEntitySchema>;
+
+/** A configurable field on a domain entity. Hidden fields keep their stored values (soft-hide). */
+export const fieldDefinitionSchema = z.object({
+  id: z.string().min(1),
+  entity: fieldEntitySchema,
+  key: z.string().regex(/^[a-z][a-z0-9_]{0,39}$/, "key must be lowercase letters, digits and underscores"),
+  label: z.string().min(1).max(80),
+  type: z.enum(["text", "number", "boolean", "date"]),
+  required: z.boolean().default(false),
+  hidden: z.boolean().default(false),
+});
+export type FieldDefinition = z.infer<typeof fieldDefinitionSchema>;
+
 export const siteConfigurationSchema = z.object({
   schemaVersion: z.number().int(),
   siteId: z.string().min(1),
@@ -127,6 +142,8 @@ export const siteConfigurationSchema = z.object({
   navigation: z.array(navigationItemSchema),
   workflowDefinitions: z.array(workflowDefinitionSchema),
   calculatedFieldDefinitions: z.array(calculatedFieldDefinitionSchema),
+  /** Configurable fields on domain entities (Schema v2). */
+  fields: z.array(fieldDefinitionSchema).default([]),
   /** Extra per-module fields configured in the builder inspector. Absent in older releases. */
   customFields: z.array(customFieldDefinitionSchema).default([]),
   /** Keyed by report key (e.g. "inventory"). Absent in older releases, which therefore expose no reports. */

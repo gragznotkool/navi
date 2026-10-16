@@ -1,4 +1,4 @@
-import type { CalculatedFieldDefinition, CustomFieldDefinition, ModuleDefinition, ModuleEdge, SiteConfiguration } from "@opshub/contracts";
+import type { CalculatedFieldDefinition, CustomFieldDefinition, FieldDefinition, ModuleDefinition, ModuleEdge, SiteConfiguration } from "@opshub/contracts";
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
@@ -180,5 +180,28 @@ export function updateCalculatedField(config: SiteConfiguration, id: string, pat
 export function removeCalculatedField(config: SiteConfiguration, id: string): SiteConfiguration {
   const next = clone(config);
   next.calculatedFieldDefinitions = next.calculatedFieldDefinitions.filter((f) => f.id !== id);
+  return next;
+}
+
+/** Adds a field, or returns the config unchanged when the entity already has that key. */
+export function addField(config: SiteConfiguration, field: Omit<FieldDefinition, "id">): SiteConfiguration {
+  if (config.fields.some((f) => f.entity === field.entity && f.key === field.key)) return config;
+  const next = clone(config);
+  let id = `${field.entity}-${field.key}`.replace(/_/g, "-");
+  while (next.fields.some((f) => f.id === id)) id += "-2";
+  next.fields.push({ id, ...field });
+  return next;
+}
+
+export function updateField(config: SiteConfiguration, id: string, patch: Partial<Pick<FieldDefinition, "label" | "type" | "required" | "hidden">>): SiteConfiguration {
+  const next = clone(config);
+  const f = next.fields.find((x) => x.id === id);
+  if (f) Object.assign(f, patch);
+  return next;
+}
+
+export function removeField(config: SiteConfiguration, id: string): SiteConfiguration {
+  const next = clone(config);
+  next.fields = next.fields.filter((f) => f.id !== id);
   return next;
 }

@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { LoadingState, Toaster } from "../components/feedback";
 import { LoginPage } from "../features/auth/LoginPage";
 import { HubPage } from "../features/hub/HubPage";
@@ -8,10 +8,13 @@ import { SiteRoute } from "../runtime/SiteRoutes";
 import { useSession } from "../stores/session";
 import { EmptyState } from "../components/feedback";
 
+import { NewSitePage } from "../features/provisioning/NewSitePage";
+
 export function RequireAuth({ children }: { children: ReactNode }) {
   const status = useSession((s) => s.status);
+  const location = useLocation();
   if (status === "unknown") return <div className="p-8"><LoadingState label="Restoring session…" /></div>;
-  if (status === "anonymous") return <Navigate to="/login" replace />;
+  if (status === "anonymous") return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
   return <>{children}</>;
 }
 
@@ -20,6 +23,8 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<RequireAuth><HubPage /></RequireAuth>} />
+      <Route path="/sites/new" element={<RequireAuth><NewSitePage /></RequireAuth>} />
+      <Route path="/admin/provision" element={<RequireAuth><NewSitePage /></RequireAuth>} />
       <Route path="/trust" element={<RequireAuth><TrustConsolePage /></RequireAuth>} />
       <Route path="/s/:slug/*" element={<RequireAuth><SiteRoute /></RequireAuth>} />
       <Route path="/preview/:slug/*" element={<RequireAuth><SiteRoute preview /></RequireAuth>} />

@@ -6,6 +6,7 @@ import {
   Layers,
   LogOut,
   PackageCheck,
+  Plus,
   ShieldCheck,
 } from "lucide-react";
 import { useState } from "react";
@@ -15,6 +16,7 @@ import { Badge, Button, Panel } from "../../components/ui";
 import { saveBlob, toRequestError } from "../../lib/api";
 import { useAsync } from "../../hooks/useAsync";
 import { hubApi, opsApi, sitesApi } from "../../services";
+import { getLastSite } from "../../stores/lastSite";
 import { useSession } from "../../stores/session";
 import { notify } from "../../stores/toast";
 
@@ -52,6 +54,8 @@ export function HubPage() {
   const navigate = useNavigate();
   const sites = useAsync(() => sitesApi.list(), []);
   const overview = useAsync(() => opsApi.hubOverview(), []);
+  const lastSlug = getLastSite();
+  const last = sites.data?.find((s) => s.slug === lastSlug);
 
   return (
     <div className="flex min-h-full flex-col bg-slate-50">
@@ -64,6 +68,14 @@ export function HubPage() {
           <span className="text-sm font-semibold tracking-tight text-ink">OpsHub Enterprise</span>
         </div>
         <div className="flex items-center gap-4">
+          {session?.user.isPlatformAdmin && (
+            <Link
+              to="/sites/new"
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-ink hover:text-accent"
+            >
+              <Plus className="h-3.5 w-3.5 text-accent" aria-hidden /> New site
+            </Link>
+          )}
           {session?.user.isPlatformAdmin && (
             <Link
               to="/trust"
@@ -179,6 +191,13 @@ export function HubPage() {
               </div>
             )}
           </section>
+        )}
+
+        {last && (
+          <Link to={`/s/${last.slug}`} className="mb-6 flex items-center justify-between rounded-ui border border-line bg-surface px-4 py-3 text-sm shadow-xs hover:border-slate-400">
+            <span>Continue where you left off: <strong className="text-ink">{last.name}</strong></span>
+            <span aria-hidden className="text-muted">Open site workspace →</span>
+          </Link>
         )}
 
         {/* Sites List Section */}

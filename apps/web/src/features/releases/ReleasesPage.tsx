@@ -9,6 +9,7 @@ import { formatDateTime } from "../../lib/format";
 import { useSiteRuntime } from "../../runtime/context";
 import { releasesApi } from "../../services";
 import { notify } from "../../stores/toast";
+import { ImpactDialog } from "./ImpactDialog";
 
 export function ReleasesPage() {
   const { siteId, reload } = useSiteRuntime();
@@ -16,6 +17,8 @@ export function ReleasesPage() {
   const audit = useAsync(() => releasesApi.audit(siteId), [siteId]);
   const [diff, setDiff] = useState<ReleaseDiff | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
+  const [target, setTarget] = useState<ReleaseSummary | null>(null);
+  const [summary, setSummary] = useState<{ version: number; sentences: string[] } | null>(null);
   const active = releases.data?.find((r) => r.isActive);
 
   const showDiff = async (r: ReleaseSummary) => {
@@ -25,11 +28,19 @@ export function ReleasesPage() {
       notify.error(toRequestError(e).message);
     }
   };
-  const rollback = async (r: ReleaseSummary) => {
+  const showSummary = async (r: ReleaseSummary) => {
+    try {
+      setSummary(await releasesApi.summary(siteId, r.id));
+    } catch (e) {
+      notify.error(toRequestError(e).message);
+    }
+  };
+  const rollback = async (r: ReleaseSummary, confirmDestructive: boolean) => {
     if (!active) return;
     setBusy(r.version);
     try {
-      const created = await releasesApi.rollback(siteId, { targetVersion: r.version, baseVersion: active.version });
+      const created = await releasesApi.rollback(siteId, { targetVersion: r.version, baseVersion: active.version, ...(confirmDestructive ? { confirmDestructive: true } : {}) });
+      setTarget(null);
       notify.success(`Rolled back to v${r.version} as new release v${created.version}`);
       releases.reload();
       audit.reload();
@@ -62,13 +73,34 @@ export function ReleasesPage() {
               header: "",
               render: (r) => (
                 <div className="flex gap-2">
-                  <Button onClick={() => showDiff(r)} aria-label={`Show changes in version ${r.version}`}>Changes</Button>
-                  <Button disabled={r.isActive} loading={busy === r.version} onClick={() => rollback(r)} aria-label={`Roll back to version ${r.version}`}>Roll back to this</Button>
+                  <Button onClick={() => showSummary(r)} aria-label={`Explain version ${r.version} in plain English`}>What changed</Button>
+                  <Button onClick={() => showDiff(r)} aria-label={`Show changes in version ${r.version}`}>Technical diff</Button>
+                  <Button disabled={r.isActive} loading={busy === r.version} onClick={() => setTarget(r)} aria-label={`Roll back to version ${r.version}`}>Roll back to this</Button>
                 </div>
               ),
             },
           ]}
         />
+      )}
+      {target && active && (
+        <ImpactDialog
+          siteId={siteId}
+          title={`Roll back to v${target.version}?`}
+          confirmLabel="Roll back"
+          busy={busy === target.version}
+          request={{ baseVersion: active.version, targetVersion: target.version }}
+          onConfirm={(confirm) => void rollback(target, confirm)}
+          onClose={() => setTarget(null)}
+        />
+      )}
+      {summary && (
+        <div className="mt-4">
+          <Panel title={`What changed in v${summary.version}`} actions={<Button variant="ghost" onClick={() => setSummary(null)}>Close</Button>}>
+            <ul className="list-disc space-y-1 pl-5 text-sm">
+              {summary.sentences.map((s) => <li key={s}>{s}</li>)}
+            </ul>
+          </Panel>
+        </div>
       )}
       {diff && (
         <div className="mt-4">

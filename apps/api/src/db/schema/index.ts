@@ -72,6 +72,8 @@ export const sites = pgTable("sites", {
   id: uuid("id").primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
+  /** Reserved sites (e.g. the Trust Console lab) are excluded from site lists. */
+  isSystem: boolean("is_system").notNull().default(false),
   createdAt: createdAt(),
 });
 
@@ -170,6 +172,8 @@ export const inventoryItems = pgTable(
     /** Confidential commercial fields. Exposed only through role-masked reports, never the plain inventory API. */
     unitCost: numeric("unit_cost", { precision: 12, scale: 2 }).notNull().default("0"),
     vendorMargin: numeric("vendor_margin", { precision: 5, scale: 2 }).notNull().default("0"),
+    /** Values of configurable fields. Hidden fields stay here (soft-hide). */
+    extras: jsonb("extras").notNull().default(sql`'{}'::jsonb`),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -196,6 +200,8 @@ export const stockLedger = pgTable(
     refType: text("ref_type"),
     refId: uuid("ref_id"),
     actorId: uuid("actor_id").references(() => users.id, { onDelete: "restrict" }),
+    /** Active release version when this movement was written. */
+    configVersion: integer("config_version"),
     createdAt: createdAt(),
   },
   (t) => [
@@ -219,9 +225,9 @@ export const requests = pgTable(
     siteId: uuid("site_id")
       .notNull()
       .references(() => sites.id, { onDelete: "restrict" }),
-    itemId: uuid("item_id").notNull(),
-    quantity: integer("quantity").notNull(),
     status: requestStatus("status").notNull().default("draft"),
+    /** Set on every status transition; drives Aging SLA. */
+    statusChangedAt: timestamp("status_changed_at", { withTimezone: true }).notNull().defaultNow(),
     requestedBy: uuid("requested_by")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
@@ -233,13 +239,36 @@ export const requests = pgTable(
   },
   (t) => [
     unique("requests_site_id_uq").on(t.siteId, t.id),
+    index("requests_site_status_idx").on(t.siteId, t.status, t.createdAt),
+  ],
+);
+
+/** One row per requested item. A request has one or more lines. */
+export const requestLines = pgTable(
+  "request_lines",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id").notNull(),
+    requestId: uuid("request_id").notNull(),
+    itemId: uuid("item_id").notNull(),
+    quantity: integer("quantity").notNull(),
+    extras: jsonb("extras").notNull().default(sql`'{}'::jsonb`),
+  },
+  (t) => [
+    unique("request_lines_site_id_uq").on(t.siteId, t.id),
+    unique("request_lines_request_item_uq").on(t.requestId, t.itemId),
+    foreignKey({
+      columns: [t.siteId, t.requestId],
+      foreignColumns: [requests.siteId, requests.id],
+      name: "request_lines_request_same_site_fk",
+    }),
     foreignKey({
       columns: [t.siteId, t.itemId],
       foreignColumns: [inventoryItems.siteId, inventoryItems.id],
-      name: "requests_item_same_site_fk",
+      name: "request_lines_item_same_site_fk",
     }),
-    check("requests_quantity_positive", sql`${t.quantity} > 0`),
-    index("requests_site_status_idx").on(t.siteId, t.status, t.createdAt),
+    check("request_lines_quantity_positive", sql`${t.quantity} > 0`),
+    index("request_lines_request_idx").on(t.requestId),
   ],
 );
 
@@ -274,8 +303,10 @@ export const assignments = pgTable(
     id: uuid("id").primaryKey().defaultRandom(),
     siteId: uuid("site_id").notNull(),
     requestId: uuid("request_id").notNull(),
-    itemId: uuid("item_id").notNull(),
+    /** Total units across all lines of the request. */
     quantity: integer("quantity").notNull(),
+    /** Active release version when assigned. */
+    configVersion: integer("config_version"),
     /** Denormalised from the approved request so a row can't exist without an approval (composite FK below). */
     approvedDecision: approvalDecision("approved_decision").notNull().default("approved"),
     assignedBy: uuid("assigned_by")
@@ -291,11 +322,6 @@ export const assignments = pgTable(
       columns: [t.siteId, t.requestId, t.approvedDecision],
       foreignColumns: [approvals.siteId, approvals.requestId, approvals.decision],
       name: "assignments_requires_approval_fk",
-    }),
-    foreignKey({
-      columns: [t.siteId, t.itemId],
-      foreignColumns: [inventoryItems.siteId, inventoryItems.id],
-      name: "assignments_item_same_site_fk",
     }),
     check("assignments_quantity_positive", sql`${t.quantity} > 0`),
     check("assignments_decision_approved", sql`${t.approvedDecision} = 'approved'`),
@@ -382,6 +408,7 @@ export const auditEvents = pgTable(
     entityId: text("entity_id"),
     metadata: jsonb("metadata"),
     requestId: text("request_id"),
+    configVersion: integer("config_version"),
     createdAt: createdAt(),
   },
   (t) => [index("audit_events_site_created_idx").on(t.siteId, t.createdAt)],
@@ -402,4 +429,55 @@ export const idempotencyKeys = pgTable(
     createdAt: createdAt(),
   },
   (t) => [primaryKey({ columns: [t.siteId, t.key] })],
+);
+
+// ---------------------------------------------------------------------------
+// Global platform tables (no tenant column; access controlled by GRANTs).
+// ---------------------------------------------------------------------------
+
+/** Rotating refresh tokens. Only the SHA-256 hash is stored; `family_id` lets reuse detection revoke a whole chain. */
+export const refreshTokens = pgTable(
+  "refresh_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    familyId: uuid("family_id").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    replacedBy: uuid("replaced_by"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("refresh_tokens_user_idx").on(t.userId), index("refresh_tokens_family_idx").on(t.familyId)],
+);
+
+export const provisioningStatus = pgEnum("provisioning_status", ["running", "succeeded", "failed"]);
+
+export const provisioningJobs = pgTable("provisioning_jobs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").notNull().unique(),
+  status: provisioningStatus("status").notNull().default("running"),
+  input: jsonb("input").notNull(),
+  requestedBy: uuid("requested_by")
+    .notNull()
+    .references(() => users.id, { onDelete: "restrict" }),
+  error: text("error"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const provisioningEvents = pgTable(
+  "provisioning_events",
+  {
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => provisioningJobs.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    level: text("level").notNull(),
+    message: text("message").notNull(),
+    at: timestamp("at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.jobId, t.seq] })],
 );

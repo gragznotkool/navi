@@ -5,7 +5,7 @@ import { DataTable } from "../../components/tables/DataTable";
 import { Button, PageHeader, Panel } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
 import { toRequestError } from "../../lib/api";
-import { formatDateTime, shortId } from "../../lib/format";
+import { formatDateTime, shortId, totalQuantity } from "../../lib/format";
 import { useSiteRuntime } from "../../runtime/context";
 import type { ModuleProps } from "../../runtime/registry";
 import { opsApi } from "../../services";
@@ -57,7 +57,8 @@ export function AssignmentsModule({ page }: ModuleProps) {
               emptyHint="Approved requests appear here."
               columns={[
                 { key: "id", header: "Request", render: (r) => <span className="font-medium">#{shortId(r.id)}</span> },
-                { key: "qty", header: "Qty", align: "right", render: (r) => r.quantity },
+                { key: "items", header: "Items", render: (r) => r.lines.map((l) => `${l.sku} × ${l.quantity}`).join(", ") },
+                { key: "qty", header: "Qty", align: "right", render: (r) => totalQuantity(r) },
                 {
                   key: "a",
                   header: "",
@@ -84,7 +85,9 @@ export function AssignmentsModule({ page }: ModuleProps) {
               columns={[
                 { key: "id", header: "Assignment", render: (a) => <span className="font-medium">#{shortId(a.id)}</span> },
                 { key: "req", header: "Request", render: (a) => `#${shortId(a.requestId)}` },
+                { key: "items", header: "Items", render: (a) => a.lines.map((l) => `${l.sku} × ${l.quantity}`).join(", ") },
                 { key: "qty", header: "Qty", align: "right", render: (a) => a.quantity },
+                { key: "ver", header: "Config v", align: "right", render: (a) => a.configVersion ?? "—" },
                 { key: "at", header: "Assigned", render: (a) => formatDateTime(a.createdAt) },
               ]}
             />
