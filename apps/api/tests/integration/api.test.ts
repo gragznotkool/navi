@@ -274,7 +274,7 @@ describe("request, approval and assignment flow", () => {
     const approver = (await loginAs("approver@opshub.local")).agent;
     const base = `/api/v1/sites/${SITES.distribution}`;
 
-    const created = await dispatcher.post(`${base}/requests`).set(H).send({ itemId: item.id, quantity: 5 });
+    const created = await dispatcher.post(`${base}/requests`).set(H).send({ lines: [{ itemId: item.id, quantity: 5 }] });
     expect(created.status).toBe(201);
     const id = created.body.data.id as string;
     expect(created.body.data.status).toBe("submitted");
@@ -321,7 +321,8 @@ describe("request, approval and assignment flow", () => {
     const dispatcher = (await loginAs("dispatcher@opshub.local")).agent;
     const admin = adminPool();
     const item = (await admin.query("select id from inventory_items where site_id = $1 limit 1", [SITES.centralStores])).rows[0];
-    const req = (await admin.query("insert into requests (site_id, item_id, quantity, status, requested_by, release_version) values ($1,$2,1,'submitted','10000000-0000-4000-8000-000000000002',1) returning id", [SITES.centralStores, item.id])).rows[0];
+    const req = (await admin.query("insert into requests (site_id, status, requested_by, release_version) values ($1,'submitted','10000000-0000-4000-8000-000000000002',1) returning id", [SITES.centralStores])).rows[0];
+    await admin.query("insert into request_lines (site_id, request_id, item_id, quantity) values ($1,$2,$3,1)", [SITES.centralStores, req.id, item.id]);
     await admin.end();
     // dispatcher is a member of distribution only
     expect((await dispatcher.get(`/api/v1/sites/${SITES.distribution}/requests/${req.id}`)).status).toBe(404);

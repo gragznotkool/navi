@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { Assignment, ConsumptionRecord, PaginatedResponse, RequestRecord, StockItem } from "@opshub/contracts";
 import { recordAudit } from "../audit/audit.js";
 import type { Database, Tx } from "../db/scoped.js";
@@ -31,21 +31,30 @@ const toStockItem = (r: typeof s.inventoryItems.$inferSelect): StockItem => ({
   reorderLevel: r.reorderLevel,
   updatedAt: r.updatedAt.toISOString(),
 });
-const toRequest = (r: typeof s.requests.$inferSelect): RequestRecord => ({
+const toRequest = (r: typeof s.requests.$inferSelect, lines: (typeof s.requestLines.$inferSelect)[]): RequestRecord => ({
   id: r.id,
   siteId: r.siteId,
-  itemId: r.itemId,
-  quantity: r.quantity,
+  lines: lines.map((l) => ({ id: l.id, itemId: l.itemId, quantity: l.quantity, extras: (l.extras ?? {}) as Record<string, unknown> })),
   status: r.status,
   requestedBy: r.requestedBy,
   releaseVersion: r.releaseVersion,
   createdAt: r.createdAt.toISOString(),
+  statusChangedAt: r.statusChangedAt.toISOString(),
+  ageSeconds: Math.max(0, Math.floor((Date.now() - r.statusChangedAt.getTime()) / 1000)),
 });
+
+/** Loads lines for the given requests, grouped by request, in a stable (item id) order. */
+async function linesFor(tx: Tx, siteId: string, requestIds: string[]) {
+  const byRequest = new Map<string, (typeof s.requestLines.$inferSelect)[]>();
+  if (requestIds.length === 0) return byRequest;
+  const rows = await tx.select().from(s.requestLines).where(and(eq(s.requestLines.siteId, siteId), inArray(s.requestLines.requestId, requestIds))).orderBy(asc(s.requestLines.itemId));
+  for (const r of rows) byRequest.set(r.requestId, [...(byRequest.get(r.requestId) ?? []), r]);
+  return byRequest;
+}
 const toAssignment = (r: typeof s.assignments.$inferSelect): Assignment => ({
   id: r.id,
   siteId: r.siteId,
   requestId: r.requestId,
-  itemId: r.itemId,
   quantity: r.quantity,
   assignedBy: r.assignedBy,
   createdAt: r.createdAt.toISOString(),
@@ -85,7 +94,8 @@ export async function listRequests(db: Database, a: Actor, page: number, pageSiz
   return db.withTenant(scope(a), async (tx) => {
     const [{ total } = { total: 0 }] = await tx.select({ total: count() }).from(s.requests).where(eq(s.requests.siteId, a.siteId));
     const rows = await tx.select().from(s.requests).where(eq(s.requests.siteId, a.siteId)).orderBy(desc(s.requests.createdAt)).limit(pageSize).offset((page - 1) * pageSize);
-    return { items: rows.map(toRequest), page, pageSize, total };
+    const lines = await linesFor(tx, a.siteId, rows.map((r) => r.id));
+    return { items: rows.map((r) => toRequest(r, lines.get(r.id) ?? [])), page, pageSize, total };
   });
 }
 
@@ -93,7 +103,7 @@ export async function getRequest(db: Database, a: Actor, id: string): Promise<Re
   return db.withTenant(scope(a), async (tx) => {
     const [row] = await tx.select().from(s.requests).where(and(eq(s.requests.siteId, a.siteId), eq(s.requests.id, id)));
     if (!row) throw notFound("Request not found");
-    return toRequest(row);
+    return toRequest(row, (await linesFor(tx, a.siteId, [row.id])).get(row.id) ?? []);
   });
 }
 
@@ -103,18 +113,27 @@ export async function listAssignments(db: Database, a: Actor): Promise<Assignmen
 
 // ---------------------------------------------------------------- writes
 
-export async function createRequest(db: Database, a: Actor, input: { itemId: string; quantity: number; note?: string | undefined }): Promise<RequestRecord> {
+export async function createRequest(
+  db: Database,
+  a: Actor,
+  input: { lines: { itemId: string; quantity: number; extras?: Record<string, unknown> | undefined }[]; note?: string | undefined },
+): Promise<RequestRecord> {
   return db.withTenant(scope(a), async (tx) => {
-    const [item] = await tx.select({ id: s.inventoryItems.id }).from(s.inventoryItems).where(and(eq(s.inventoryItems.siteId, a.siteId), eq(s.inventoryItems.id, input.itemId)));
-    if (!item) throw notFound("Item not found");
+    const itemIds = input.lines.map((l) => l.itemId);
+    const found = await tx.select({ id: s.inventoryItems.id }).from(s.inventoryItems).where(and(eq(s.inventoryItems.siteId, a.siteId), inArray(s.inventoryItems.id, itemIds)));
+    if (found.length !== new Set(itemIds).size) throw notFound("Item not found");
     const active = await getActiveRelease(tx, a.siteId);
     if (!active) throw conflict("no_active_release", "Site has no active configuration release");
     const [row] = await tx
       .insert(s.requests)
-      .values({ siteId: a.siteId, itemId: input.itemId, quantity: input.quantity, status: "submitted", requestedBy: a.userId, releaseVersion: active.version, note: input.note ?? null })
+      .values({ siteId: a.siteId, status: "submitted", requestedBy: a.userId, releaseVersion: active.version, note: input.note ?? null })
       .returning();
-    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "request.submitted", entityType: "request", entityId: row!.id, requestId: a.requestId });
-    return toRequest(row!);
+    const lines = await tx
+      .insert(s.requestLines)
+      .values(input.lines.map((l) => ({ siteId: a.siteId, requestId: row!.id, itemId: l.itemId, quantity: l.quantity, extras: l.extras ?? {} })))
+      .returning();
+    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "request.submitted", entityType: "request", entityId: row!.id, configVersion: active.version, requestId: a.requestId });
+    return toRequest(row!, lines.sort((x, y) => x.itemId.localeCompare(y.itemId)));
   });
 }
 
@@ -131,10 +150,11 @@ export async function decideRequest(db: Database, a: Actor, requestId: string, d
       throw conflict("invalid_transition", `A request in status "${req.status}" cannot become "${decision}"`);
     }
     await tx.insert(s.approvals).values({ siteId: a.siteId, requestId, decision, decidedBy: a.userId, comment: comment ?? null });
-    const [updated] = await tx.update(s.requests).set({ status: decision, updatedAt: new Date() }).where(and(eq(s.requests.id, requestId), eq(s.requests.status, "submitted"))).returning();
+    const [updated] = await tx.update(s.requests).set({ status: decision, updatedAt: new Date(), statusChangedAt: new Date() }).where(and(eq(s.requests.id, requestId), eq(s.requests.status, "submitted"))).returning();
     if (!updated) throw conflict("invalid_transition", "Request changed concurrently");
-    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: `request.${decision}`, entityType: "request", entityId: requestId, requestId: a.requestId });
-    return toRequest(updated);
+    const active = await getActiveRelease(tx, a.siteId);
+    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: `request.${decision}`, entityType: "request", entityId: requestId, configVersion: active?.version, requestId: a.requestId });
+    return toRequest(updated, (await linesFor(tx, a.siteId, [requestId])).get(requestId) ?? []);
   });
 }
 
@@ -167,19 +187,35 @@ export async function assignMaterial(db: Database, a: Actor, requestId: string, 
       if (!canTransition(requestTransitions, req.status, "assigned")) {
         throw conflict("invalid_transition", `Only approved requests can be assigned (current status: ${req.status})`);
       }
-      const [item] = await tx
-        .update(s.inventoryItems)
-        .set({ onHand: sql`${s.inventoryItems.onHand} - ${req.quantity}`, updatedAt: new Date() })
-        .where(and(eq(s.inventoryItems.id, req.itemId), eq(s.inventoryItems.siteId, a.siteId), gte(s.inventoryItems.onHand, req.quantity)))
-        .returning();
-      if (!item) {
-        const [current] = await tx.select({ onHand: s.inventoryItems.onHand }).from(s.inventoryItems).where(eq(s.inventoryItems.id, req.itemId));
-        throw new InsufficientStock(current?.onHand ?? 0, req.quantity);
+      const lines = (await linesFor(tx, a.siteId, [requestId])).get(requestId) ?? [];
+      // Lock inventory rows in ascending item_id order so concurrent multi-line requests cannot deadlock.
+      const itemIds = lines.map((l) => l.itemId);
+      const locked = await tx
+        .select({ id: s.inventoryItems.id, onHand: s.inventoryItems.onHand })
+        .from(s.inventoryItems)
+        .where(and(eq(s.inventoryItems.siteId, a.siteId), inArray(s.inventoryItems.id, itemIds)))
+        .orderBy(asc(s.inventoryItems.id))
+        .for("update");
+      const onHand = new Map(locked.map((r) => [r.id, r.onHand]));
+      for (const l of lines) {
+        const have = onHand.get(l.itemId) ?? 0;
+        if (have < l.quantity) throw new InsufficientStock(have, l.quantity);
       }
-      const [assignment] = await tx.insert(s.assignments).values({ siteId: a.siteId, requestId, itemId: req.itemId, quantity: req.quantity, assignedBy: a.userId }).returning();
-      await tx.insert(s.stockLedger).values({ siteId: a.siteId, itemId: req.itemId, delta: -req.quantity, balanceAfter: item.onHand, reason: "assignment", refType: "assignment", refId: assignment!.id, actorId: a.userId });
-      await tx.update(s.requests).set({ status: "assigned", updatedAt: new Date() }).where(eq(s.requests.id, requestId));
-      await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "assignment.created", entityType: "assignment", entityId: assignment!.id, metadata: { requestId, quantity: req.quantity }, requestId: a.requestId });
+      const active = await getActiveRelease(tx, a.siteId);
+      const configVersion = active?.version ?? null;
+      const total = lines.reduce((n, l) => n + l.quantity, 0);
+      const [assignment] = await tx.insert(s.assignments).values({ siteId: a.siteId, requestId, quantity: total, assignedBy: a.userId, configVersion }).returning();
+      for (const l of lines) {
+        const [item] = await tx
+          .update(s.inventoryItems)
+          .set({ onHand: sql`${s.inventoryItems.onHand} - ${l.quantity}`, updatedAt: new Date() })
+          .where(and(eq(s.inventoryItems.id, l.itemId), eq(s.inventoryItems.siteId, a.siteId), gte(s.inventoryItems.onHand, l.quantity)))
+          .returning();
+        if (!item) throw new InsufficientStock(onHand.get(l.itemId) ?? 0, l.quantity);
+        await tx.insert(s.stockLedger).values({ siteId: a.siteId, itemId: l.itemId, delta: -l.quantity, balanceAfter: item.onHand, reason: "assignment", refType: "request_line", refId: l.id, actorId: a.userId, configVersion });
+      }
+      await tx.update(s.requests).set({ status: "assigned", updatedAt: new Date(), statusChangedAt: new Date() }).where(eq(s.requests.id, requestId));
+      await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "assignment.created", entityType: "assignment", entityId: assignment!.id, metadata: { requestId, quantity: total, lines: lines.length }, configVersion: configVersion ?? undefined, requestId: a.requestId });
       return toAssignment(assignment!);
     });
     return { assignment: value, replayed };
@@ -197,7 +233,7 @@ export async function recordConsumption(db: Database, a: Actor, assignmentId: st
     }
     const [row] = await tx.insert(s.consumptionRecords).values({ siteId: a.siteId, assignmentId, quantity, recordedBy: a.userId }).returning();
     if (used + quantity === assignment.quantity) {
-      await tx.update(s.requests).set({ status: "fulfilled", updatedAt: new Date() }).where(and(eq(s.requests.id, assignment.requestId), eq(s.requests.status, "assigned")));
+      await tx.update(s.requests).set({ status: "fulfilled", updatedAt: new Date(), statusChangedAt: new Date() }).where(and(eq(s.requests.id, assignment.requestId), eq(s.requests.status, "assigned")));
     }
     await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "consumption.recorded", entityType: "consumption", entityId: row!.id, metadata: { assignmentId, quantity }, requestId: a.requestId });
     return toConsumption(row!);

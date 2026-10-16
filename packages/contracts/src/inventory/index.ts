@@ -18,16 +18,28 @@ export const stockItemSchema = z.object({
 });
 export type StockItem = z.infer<typeof stockItemSchema>;
 
+export const requestLineSchema = z.object({
+  id: uuid,
+  itemId: uuid,
+  quantity: z.number().int().min(1),
+  /** Values of configurable fields (hidden fields are stripped before reaching the client). */
+  extras: z.record(z.string(), z.unknown()).default({}),
+});
+export type RequestLine = z.infer<typeof requestLineSchema>;
+
 export const requestRecordSchema = z.object({
   id: uuid,
   siteId: uuid,
-  itemId: uuid,
-  quantity: z.number().int().min(1),
+  lines: z.array(requestLineSchema).min(1),
   status: workflowStatusSchema,
   requestedBy: uuid,
   /** Configuration release version under which this request was created. */
   releaseVersion: z.number().int(),
   createdAt: isoTimestamp,
+  /** When the status last changed (drives Aging SLA). */
+  statusChangedAt: isoTimestamp,
+  /** Server-computed seconds since the last status change. */
+  ageSeconds: z.number().int().min(0),
 });
 export type RequestRecord = z.infer<typeof requestRecordSchema>;
 
@@ -42,7 +54,7 @@ export const assignmentSchema = z.object({
   id: uuid,
   siteId: uuid,
   requestId: uuid,
-  itemId: uuid,
+  /** Total units across all lines of the request. */
   quantity: z.number().int().min(1),
   assignedBy: uuid,
   createdAt: isoTimestamp,
@@ -80,9 +92,19 @@ export type RepairRecord = z.infer<typeof repairRecordSchema>;
 
 // ---- request payloads (shared by API validation and frontend forms) ----
 
-export const createRequestPayloadSchema = z.object({
+export const createRequestLinePayloadSchema = z.object({
   itemId: uuid,
   quantity: z.number().int().min(1, "Quantity must be at least 1").max(1_000_000),
+  extras: z.record(z.string(), z.unknown()).optional(),
+});
+export type CreateRequestLinePayload = z.infer<typeof createRequestLinePayloadSchema>;
+
+export const createRequestPayloadSchema = z.object({
+  lines: z
+    .array(createRequestLinePayloadSchema)
+    .min(1, "Add at least one item")
+    .max(50)
+    .refine((ls) => new Set(ls.map((l) => l.itemId)).size === ls.length, "Each item can appear only once"),
   note: z.string().max(500).optional(),
 });
 export type CreateRequestPayload = z.infer<typeof createRequestPayloadSchema>;

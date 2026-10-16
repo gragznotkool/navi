@@ -15,6 +15,13 @@
       "when": 1792139434380,
       "tag": "0001_rls_roles_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792139494380,
+      "tag": "0002_schema_v2",
+      "breakpoints": true
     }
   ]
 }

@@ -5,7 +5,7 @@ import { DataTable } from "../../components/tables/DataTable";
 import { Button, PageHeader, Panel } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
 import { toRequestError } from "../../lib/api";
-import { formatDateTime, shortId } from "../../lib/format";
+import { formatDateTime, shortId, totalQuantity } from "../../lib/format";
 import { useSiteRuntime } from "../../runtime/context";
 import type { ModuleProps } from "../../runtime/registry";
 import { opsApi } from "../../services";
@@ -57,7 +57,7 @@ export function AssignmentsModule({ page }: ModuleProps) {
               emptyHint="Approved requests appear here."
               columns={[
                 { key: "id", header: "Request", render: (r) => <span className="font-medium">#{shortId(r.id)}</span> },
-                { key: "qty", header: "Qty", align: "right", render: (r) => r.quantity },
+                { key: "qty", header: "Qty", align: "right", render: (r) => totalQuantity(r) },
                 {
                   key: "a",
                   header: "",

@@ -33,7 +33,8 @@ async function approvedRequests(itemId: string, count: number, quantity = 1): Pr
   try {
     const ids: string[] = [];
     for (let i = 0; i < count; i++) {
-      const r = (await admin.query("insert into requests (site_id,item_id,quantity,status,requested_by,release_version) values ($1,$2,$3,'approved',$4,1) returning id", [SITES.distribution, itemId, quantity, USERS.dispatcher])).rows[0];
+      const r = (await admin.query("insert into requests (site_id,status,requested_by,release_version) values ($1,'approved',$2,1) returning id", [SITES.distribution, USERS.dispatcher])).rows[0];
+      await admin.query("insert into request_lines (site_id,request_id,item_id,quantity) values ($1,$2,$3,$4)", [SITES.distribution, r.id, itemId, quantity]);
       await admin.query("insert into approvals (site_id,request_id,decision,decided_by) values ($1,$2,'approved',$3)", [SITES.distribution, r.id, USERS.approver]);
       ids.push(r.id as string);
     }
@@ -48,7 +49,7 @@ async function snapshot(itemId: string) {
   try {
     const item = (await admin.query("select on_hand from inventory_items where id = $1", [itemId])).rows[0];
     const ledger = (await admin.query("select coalesce(sum(delta),0)::int s, count(*)::int n from stock_ledger where item_id = $1", [itemId])).rows[0];
-    const assignments = (await admin.query("select count(*)::int n from assignments where item_id = $1", [itemId])).rows[0];
+    const assignments = (await admin.query("select count(distinct a.id)::int n from assignments a join request_lines l on l.request_id = a.request_id where l.item_id = $1", [itemId])).rows[0];
     return { onHand: item.on_hand as number, ledgerSum: ledger.s as number, ledgerRows: ledger.n as number, assignments: assignments.n as number };
   } finally {
     await admin.end();
@@ -117,7 +118,8 @@ describe("inventory correctness under concurrency", () => {
   it("refuses to allocate for a request that is not approved", async () => {
     const itemId = await newItem(10);
     const admin = adminPool();
-    const r = (await admin.query("insert into requests (site_id,item_id,quantity,status,requested_by,release_version) values ($1,$2,1,'submitted',$3,1) returning id", [SITES.distribution, itemId, USERS.dispatcher])).rows[0];
+    const r = (await admin.query("insert into requests (site_id,status,requested_by,release_version) values ($1,'submitted',$2,1) returning id", [SITES.distribution, USERS.dispatcher])).rows[0];
+    await admin.query("insert into request_lines (site_id,request_id,item_id,quantity) values ($1,$2,$3,1)", [SITES.distribution, r.id, itemId]);
     await admin.end();
     await expect(assignMaterial(db, actor, r.id, `unapproved-${itemId}`)).rejects.toMatchObject({ code: "invalid_transition" });
     expect((await snapshot(itemId)).onHand).toBe(10);

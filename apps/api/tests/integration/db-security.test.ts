@@ -204,17 +204,16 @@ describe("database-level invariants", () => {
   it("an assignment cannot exist without an approved request", async () => {
     const admin = adminPool();
     try {
-      const [item] = (await admin.query("select id from inventory_items where site_id = $1 limit 1", [SITES.distribution])).rows;
       const req = (
         await admin.query(
-          "insert into requests (site_id, item_id, quantity, status, requested_by, release_version) values ($1,$2,1,'submitted',$3,1) returning id",
-          [SITES.distribution, item.id, USERS.dispatcher],
+          "insert into requests (site_id, status, requested_by, release_version) values ($1,'submitted',$2,1) returning id",
+          [SITES.distribution, USERS.dispatcher],
         )
       ).rows[0];
       await rejectsWith(
         admin.query(
-          "insert into assignments (site_id, request_id, item_id, quantity, assigned_by) values ($1,$2,$3,1,$4)",
-          [SITES.distribution, req.id, item.id, USERS.dispatcher],
+          "insert into assignments (site_id, request_id, quantity, assigned_by) values ($1,$2,1,$3)",
+          [SITES.distribution, req.id, USERS.dispatcher],
         ),
       /assignments_requires_approval_fk/);
     } finally {
@@ -226,12 +225,13 @@ describe("database-level invariants", () => {
     const admin = adminPool();
     try {
       const [centralItem] = (await admin.query("select id from inventory_items where site_id = $1 limit 1", [SITES.centralStores])).rows;
+      const req = (await admin.query("insert into requests (site_id, status, requested_by, release_version) values ($1,'submitted',$2,1) returning id", [SITES.distribution, USERS.dispatcher])).rows[0];
       await rejectsWith(
         admin.query(
-          "insert into requests (site_id, item_id, quantity, status, requested_by, release_version) values ($1,$2,1,'submitted',$3,1)",
-          [SITES.distribution, centralItem.id, USERS.dispatcher],
+          "insert into request_lines (site_id, request_id, item_id, quantity) values ($1,$2,$3,1)",
+          [SITES.distribution, req.id, centralItem.id],
         ),
-      /requests_item_same_site_fk/);
+      /request_lines_item_same_site_fk/);
     } finally {
       await admin.end();
     }
