@@ -1,0 +1,352 @@
+{
+  "schemaVersion": 1,
+  "siteId": "00000000-0000-4000-8000-000000000003",
+  "slug": "distribution",
+  "name": "Distribution",
+  "theme": {
+    "primary": "#6D28D9",
+    "secondary": "#0891B2"
+  },
+  "shell": "workbench",
+  "layouts": [
+    {
+      "id": "split-workspace",
+      "type": "split-workspace"
+    },
+    {
+      "id": "data-table",
+      "type": "data-table"
+    },
+    {
+      "id": "dashboard",
+      "type": "dashboard"
+    }
+  ],
+  "modules": {
+    "nodes": [
+      {
+        "id": "auth-rbac",
+        "moduleType": "auth-rbac",
+        "position": {
+          "x": 0,
+          "y": 0
+        },
+        "config": {}
+      },
+      {
+        "id": "user-management",
+        "moduleType": "user-management",
+        "position": {
+          "x": 280,
+          "y": 0
+        },
+        "config": {}
+      },
+      {
+        "id": "dashboard-shell",
+        "moduleType": "dashboard-shell",
+        "position": {
+          "x": 560,
+          "y": 0
+        },
+        "config": {}
+      },
+      {
+        "id": "request",
+        "moduleType": "request",
+        "position": {
+          "x": 840,
+          "y": 0
+        },
+        "config": {}
+      },
+      {
+        "id": "approval",
+        "moduleType": "approval",
+        "position": {
+          "x": 0,
+          "y": 160
+        },
+        "config": {}
+      },
+      {
+        "id": "material-assignment",
+        "moduleType": "material-assignment",
+        "position": {
+          "x": 280,
+          "y": 160
+        },
+        "config": {}
+      },
+      {
+        "id": "assignment-frontend",
+        "moduleType": "assignment-frontend",
+        "position": {
+          "x": 560,
+          "y": 160
+        },
+        "config": {}
+      },
+      {
+        "id": "consumption-tracking",
+        "moduleType": "consumption-tracking",
+        "position": {
+          "x": 840,
+          "y": 160
+        },
+        "config": {}
+      },
+      {
+        "id": "analytics-dashboard",
+        "moduleType": "analytics-dashboard",
+        "position": {
+          "x": 0,
+          "y": 320
+        },
+        "config": {}
+      }
+    ],
+    "edges": [
+      {
+        "id": "auth-rbac.identity-out->dashboard-shell.identity-in",
+        "sourceNodeId": "auth-rbac",
+        "sourcePortId": "identity-out",
+        "targetNodeId": "dashboard-shell",
+        "targetPortId": "identity-in"
+      },
+      {
+        "id": "auth-rbac.identity-out->user-management.identity-in",
+        "sourceNodeId": "auth-rbac",
+        "sourcePortId": "identity-out",
+        "targetNodeId": "user-management",
+        "targetPortId": "identity-in"
+      },
+      {
+        "id": "request.request-out->approval.request-in",
+        "sourceNodeId": "request",
+        "sourcePortId": "request-out",
+        "targetNodeId": "approval",
+        "targetPortId": "request-in"
+      },
+      {
+        "id": "approval.approved-out->material-assignment.approved-in",
+        "sourceNodeId": "approval",
+        "sourcePortId": "approved-out",
+        "targetNodeId": "material-assignment",
+        "targetPortId": "approved-in"
+      },
+      {
+        "id": "material-assignment.assignment-out->assignment-frontend.assignment-in",
+        "sourceNodeId": "material-assignment",
+        "sourcePortId": "assignment-out",
+        "targetNodeId": "assignment-frontend",
+        "targetPortId": "assignment-in"
+      },
+      {
+        "id": "material-assignment.assignment-out->consumption-tracking.assignment-in",
+        "sourceNodeId": "material-assignment",
+        "sourcePortId": "assignment-out",
+        "targetNodeId": "consumption-tracking",
+        "targetPortId": "assignment-in"
+      }
+    ]
+  },
+  "pages": [
+    {
+      "id": "home",
+      "title": "Dashboard",
+      "path": "dashboard",
+      "nodeId": "dashboard-shell",
+      "layoutId": "dashboard",
+      "requiredPermission": "dashboard:view"
+    },
+    {
+      "id": "users",
+      "title": "Users",
+      "path": "users",
+      "nodeId": "user-management",
+      "layoutId": "data-table",
+      "requiredPermission": "users:view"
+    },
+    {
+      "id": "requests",
+      "title": "Requests",
+      "path": "requests",
+      "nodeId": "request",
+      "layoutId": "data-table",
+      "requiredPermission": "request:view"
+    },
+    {
+      "id": "approvals",
+      "title": "Approvals",
+      "path": "approvals",
+      "nodeId": "approval",
+      "layoutId": "data-table",
+      "requiredPermission": "approval:view"
+    },
+    {
+      "id": "assignments",
+      "title": "Material Assignment",
+      "path": "assignments",
+      "nodeId": "material-assignment",
+      "layoutId": "split-workspace",
+      "requiredPermission": "assignment:view"
+    },
+    {
+      "id": "assignment-workbench",
+      "title": "Assignment Workbench",
+      "path": "assignment-workbench",
+      "nodeId": "assignment-frontend",
+      "layoutId": "split-workspace",
+      "requiredPermission": "assignment:view"
+    },
+    {
+      "id": "consumption",
+      "title": "Consumption",
+      "path": "consumption",
+      "nodeId": "consumption-tracking",
+      "layoutId": "data-table",
+      "requiredPermission": "consumption:view"
+    },
+    {
+      "id": "analytics",
+      "title": "Analytics",
+      "path": "analytics",
+      "nodeId": "analytics-dashboard",
+      "layoutId": "dashboard",
+      "requiredPermission": "analytics:view"
+    }
+  ],
+  "roles": [
+    {
+      "id": "admin",
+      "name": "Administrator",
+      "permissions": [
+        "auth:manage",
+        "users:view",
+        "users:manage",
+        "dashboard:view",
+        "request:view",
+        "request:create",
+        "approval:view",
+        "approval:decide",
+        "assignment:view",
+        "assignment:create",
+        "consumption:view",
+        "consumption:record",
+        "analytics:view"
+      ]
+    },
+    {
+      "id": "dispatcher",
+      "name": "Dispatcher",
+      "permissions": [
+        "dashboard:view",
+        "request:view",
+        "request:create",
+        "assignment:view",
+        "assignment:create",
+        "consumption:view",
+        "consumption:record"
+      ]
+    },
+    {
+      "id": "approver",
+      "name": "Approver",
+      "permissions": [
+        "dashboard:view",
+        "request:view",
+        "approval:view",
+        "approval:decide",
+        "analytics:view"
+      ]
+    }
+  ],
+  "navigation": [
+    {
+      "pageId": "home",
+      "label": "Dashboard"
+    },
+    {
+      "pageId": "users",
+      "label": "Users"
+    },
+    {
+      "pageId": "requests",
+      "label": "Requests"
+    },
+    {
+      "pageId": "approvals",
+      "label": "Approvals"
+    },
+    {
+      "pageId": "assignments",
+      "label": "Material Assignment"
+    },
+    {
+      "pageId": "assignment-workbench",
+      "label": "Assignment Workbench"
+    },
+    {
+      "pageId": "consumption",
+      "label": "Consumption"
+    },
+    {
+      "pageId": "analytics",
+      "label": "Analytics"
+    }
+  ],
+  "workflowDefinitions": [
+    {
+      "id": "request-flow",
+      "initial": "draft",
+      "states": [
+        "draft",
+        "submitted",
+        "approved",
+        "rejected",
+        "assigned",
+        "fulfilled",
+        "cancelled"
+      ],
+      "transitions": [
+        {
+          "from": "draft",
+          "to": "submitted",
+          "permission": "request:create"
+        },
+        {
+          "from": "submitted",
+          "to": "approved",
+          "permission": "approval:decide"
+        },
+        {
+          "from": "submitted",
+          "to": "rejected",
+          "permission": "approval:decide"
+        },
+        {
+          "from": "approved",
+          "to": "assigned",
+          "permission": "assignment:create"
+        },
+        {
+          "from": "assigned",
+          "to": "fulfilled"
+        },
+        {
+          "from": "draft",
+          "to": "cancelled"
+        },
+        {
+          "from": "submitted",
+          "to": "cancelled"
+        }
+      ]
+    }
+  ],
+  "calculatedFieldDefinitions": [],
+  "metadata": {
+    "description": "Distribution seed configuration (development demo)"
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "name": "opshub",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:api dev:web",
+    "dev:web": "npm run dev -w @opshub/web",
+    "dev:api": "npm run dev -w @opshub/api",
+    "build": "npm run build -w @opshub/contracts && npm run build -w @opshub/api && npm run build -w @opshub/web",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "npm run test:unit --workspaces --if-present",
+    "test:integration": "npm run test:integration --workspaces --if-present",
+    "test:e2e": "npm run test:e2e -w @opshub/web",
+    "db:generate": "npm run db:generate -w @opshub/api",
+    "db:migrate": "npm run db:migrate -w @opshub/api",
+    "db:seed": "npm run db:seed -w @opshub/api",
+    "db:reset": "npm run db:reset -w @opshub/api",
+    "config:validate": "npm run config:validate -w @opshub/api",
+    "demo:reset": "npm run db:reset && npm run db:seed"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.12.0",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.2"
+  }
+}
