@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { createRequestPayloadSchema, type CreateRequestPayload, type RequestRecord } from "@opshub/contracts";
 import { ErrorState, LoadingState } from "../../components/feedback";
+import { parseFieldValue, visibleFields } from "../../components/FieldInputs";
 import { RecordView } from "../../components/tables/RecordView";
 import { Button, PageHeader, Panel, SelectField, StatusBadge, TextField } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
@@ -91,6 +92,8 @@ function LineList({ lines }: { lines: RequestRecord["lines"] }) {
 }
 
 function RequestForm({ siteId, onDone }: { siteId: string; onDone: () => void }) {
+  const { config } = useSiteRuntime();
+  const lineFields = visibleFields(config.fields, "request_line");
   const items = useAsync(() => opsApi.items(siteId), [siteId]);
   const form = useForm<CreateRequestPayload>({
     resolver: zodResolver(createRequestPayloadSchema),
@@ -126,6 +129,22 @@ function RequestForm({ siteId, onDone }: { siteId: string; onDone: () => void })
               </SelectField>
               <TextField label="Quantity" type="number" min={1} error={errors.lines?.[index]?.quantity?.message} {...form.register(`lines.${index}.quantity`, { valueAsNumber: true })} />
               {fields.length > 1 ? <Button type="button" onClick={() => remove(index)} aria-label={`Remove item ${index + 1}`}>Remove</Button> : <span />}
+              {lineFields.map((f) => (
+                f.type === "boolean" ? (
+                  <label key={f.id} className="flex items-center gap-2 text-sm sm:col-span-3">
+                    <input type="checkbox" {...form.register(`lines.${index}.extras.${f.key}`)} /> {f.label}
+                  </label>
+                ) : (
+                  <div key={f.id} className="sm:col-span-3">
+                    <TextField
+                      label={`${f.label}${f.required ? " *" : ""}`}
+                      type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
+                      step={f.type === "number" ? "any" : undefined}
+                      {...form.register(`lines.${index}.extras.${f.key}`, { setValueAs: (v) => parseFieldValue(f.type, v) })}
+                    />
+                  </div>
+                )
+              ))}
             </div>
           ))}
           {errors.lines?.root?.message || errors.lines?.message ? <p className="text-sm text-danger" role="alert">{errors.lines?.root?.message ?? errors.lines?.message}</p> : null}

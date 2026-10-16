@@ -34,11 +34,57 @@ export const publishRequestSchema = z.object({
   baseVersion: z.number().int().nullable(),
   configuration: z.unknown(),
   note: z.string().max(500).optional(),
+  /** Must be true when the impact preview reports the change as destructive. */
+  confirmDestructive: z.boolean().optional(),
 });
 export type PublishRequest = z.infer<typeof publishRequestSchema>;
 
 export const rollbackRequestSchema = z.object({
   targetVersion: z.number().int().min(1),
   baseVersion: z.number().int().nullable(),
+  confirmDestructive: z.boolean().optional(),
 });
 export type RollbackRequest = z.infer<typeof rollbackRequestSchema>;
+
+// ---- impact analysis & plain-English change summaries (Track B) ----
+
+export const impactFieldSchema = z.object({
+  entity: z.string(),
+  key: z.string(),
+  label: z.string(),
+  /** How many existing rows hold a value for this field. Those values are kept in the database. */
+  rowsWithData: z.number().int().min(0),
+});
+export type ImpactField = z.infer<typeof impactFieldSchema>;
+
+export const releaseImpactSchema = z.object({
+  modulesAdded: z.array(z.string()),
+  modulesRemoved: z.array(z.string()),
+  fieldsHidden: z.array(impactFieldSchema),
+  fieldsRemoved: z.array(impactFieldSchema),
+  roleChanges: z.array(z.object({ role: z.string(), added: z.array(z.string()), removed: z.array(z.string()) })),
+  /** Requests still in flight (submitted/approved), grouped by the release version they were created under. */
+  openRequestsByVersion: z.array(z.object({ version: z.number().int(), count: z.number().int() })),
+  destructive: z.boolean(),
+  destructiveReasons: z.array(z.string()),
+});
+export type ReleaseImpact = z.infer<typeof releaseImpactSchema>;
+
+/** Preview request: either a candidate configuration or a target version (rollback). */
+export const impactRequestSchema = z
+  .object({
+    baseVersion: z.number().int().nullable(),
+    configuration: z.unknown().optional(),
+    targetVersion: z.number().int().min(1).optional(),
+  })
+  .refine((v) => v.configuration !== undefined || v.targetVersion !== undefined, "Provide a configuration or a targetVersion");
+export type ImpactRequest = z.infer<typeof impactRequestSchema>;
+
+export const impactReportSchema = z.object({
+  valid: z.boolean(),
+  errors: z.array(z.string()),
+  /** Plain-English list of what will change, one sentence each. */
+  sentences: z.array(z.string()),
+  impact: releaseImpactSchema.nullable(),
+});
+export type ImpactReport = z.infer<typeof impactReportSchema>;

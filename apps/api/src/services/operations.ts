@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { and, asc, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
-import type { Assignment, ConsumptionRecord, PaginatedResponse, RequestRecord, StockItem } from "@opshub/contracts";
+import type { Assignment, ConsumptionRecord, PaginatedResponse, RequestRecord, SiteConfiguration, StockItem } from "@opshub/contracts";
 import { recordAudit } from "../audit/audit.js";
 import type { Database, Tx } from "../db/scoped.js";
 import * as s from "../db/schema/index.js";
-import { getActiveRelease } from "../repositories/releases.js";
+import { validateExtras, visibleExtras } from "../fields/runtime.js";
+import { getActiveRelease, parseStoredConfig } from "../repositories/releases.js";
 import { canTransition, requestTransitions } from "../workflows/transitions.js";
 import { AppError, conflict, notFound } from "../utils/errors.js";
 
@@ -21,7 +22,7 @@ export class InsufficientStock extends AppError {
   }
 }
 
-const toStockItem = (r: typeof s.inventoryItems.$inferSelect): StockItem => ({
+const toStockItem = (r: typeof s.inventoryItems.$inferSelect, cfg: SiteConfiguration | null): StockItem => ({
   id: r.id,
   siteId: r.siteId,
   sku: r.sku,
@@ -29,14 +30,15 @@ const toStockItem = (r: typeof s.inventoryItems.$inferSelect): StockItem => ({
   unit: r.unit,
   onHand: r.onHand,
   reorderLevel: r.reorderLevel,
+  extras: cfg ? visibleExtras(cfg, "inventory_item", r.extras) : {},
   updatedAt: r.updatedAt.toISOString(),
 });
 type LineRow = typeof s.requestLines.$inferSelect & { sku: string; name: string };
 
-const toRequest = (r: typeof s.requests.$inferSelect, lines: LineRow[]): RequestRecord => ({
+const toRequest = (r: typeof s.requests.$inferSelect, lines: LineRow[], cfg: SiteConfiguration | null): RequestRecord => ({
   id: r.id,
   siteId: r.siteId,
-  lines: lines.map((l) => ({ id: l.id, itemId: l.itemId, sku: l.sku, name: l.name, quantity: l.quantity, extras: (l.extras ?? {}) as Record<string, unknown> })),
+  lines: lines.map((l) => ({ id: l.id, itemId: l.itemId, sku: l.sku, name: l.name, quantity: l.quantity, extras: cfg ? visibleExtras(cfg, "request_line", l.extras) : {} })),
   status: r.status,
   requestedBy: r.requestedBy,
   releaseVersion: r.releaseVersion,
@@ -44,6 +46,12 @@ const toRequest = (r: typeof s.requests.$inferSelect, lines: LineRow[]): Request
   statusChangedAt: r.statusChangedAt.toISOString(),
   ageSeconds: Math.max(0, Math.floor((Date.now() - r.statusChangedAt.getTime()) / 1000)),
 });
+
+/** The active configuration for the tenant in `tx`, or null when the site has no release. */
+async function activeConfig(tx: Tx, siteId: string): Promise<SiteConfiguration | null> {
+  const active = await getActiveRelease(tx, siteId);
+  return active ? parseStoredConfig(active.configuration) : null;
+}
 
 /** Loads lines for the given requests, grouped by request, in a stable (item id) order. */
 async function linesFor(tx: Tx, siteId: string, requestIds: string[]) {
@@ -83,7 +91,8 @@ export async function listItems(db: Database, a: Actor, page: number, pageSize: 
   return db.withTenant(scope(a), async (tx) => {
     const [{ total } = { total: 0 }] = await tx.select({ total: count() }).from(s.inventoryItems).where(eq(s.inventoryItems.siteId, a.siteId));
     const rows = await tx.select().from(s.inventoryItems).where(eq(s.inventoryItems.siteId, a.siteId)).orderBy(s.inventoryItems.sku).limit(pageSize).offset((page - 1) * pageSize);
-    return { items: rows.map(toStockItem), page, pageSize, total };
+    const cfg = await activeConfig(tx, a.siteId);
+    return { items: rows.map((r) => toStockItem(r, cfg)), page, pageSize, total };
   });
 }
 
@@ -93,7 +102,7 @@ export async function getItem(db: Database, a: Actor, itemId: string) {
     if (!row) throw notFound("Item not found");
     const ledger = await tx.select().from(s.stockLedger).where(eq(s.stockLedger.itemId, itemId)).orderBy(desc(s.stockLedger.createdAt)).limit(50);
     return {
-      item: toStockItem(row),
+      item: toStockItem(row, await activeConfig(tx, a.siteId)),
       ledger: ledger.map((l) => ({ id: l.id, delta: l.delta, balanceAfter: l.balanceAfter, reason: l.reason, refType: l.refType, refId: l.refId, createdAt: l.createdAt.toISOString() })),
     };
   });
@@ -104,7 +113,8 @@ export async function listRequests(db: Database, a: Actor, page: number, pageSiz
     const [{ total } = { total: 0 }] = await tx.select({ total: count() }).from(s.requests).where(eq(s.requests.siteId, a.siteId));
     const rows = await tx.select().from(s.requests).where(eq(s.requests.siteId, a.siteId)).orderBy(desc(s.requests.createdAt)).limit(pageSize).offset((page - 1) * pageSize);
     const lines = await linesFor(tx, a.siteId, rows.map((r) => r.id));
-    return { items: rows.map((r) => toRequest(r, lines.get(r.id) ?? [])), page, pageSize, total };
+    const cfg = await activeConfig(tx, a.siteId);
+    return { items: rows.map((r) => toRequest(r, lines.get(r.id) ?? [], cfg)), page, pageSize, total };
   });
 }
 
@@ -112,7 +122,7 @@ export async function getRequest(db: Database, a: Actor, id: string): Promise<Re
   return db.withTenant(scope(a), async (tx) => {
     const [row] = await tx.select().from(s.requests).where(and(eq(s.requests.siteId, a.siteId), eq(s.requests.id, id)));
     if (!row) throw notFound("Request not found");
-    return toRequest(row, (await linesFor(tx, a.siteId, [row.id])).get(row.id) ?? []);
+    return toRequest(row, (await linesFor(tx, a.siteId, [row.id])).get(row.id) ?? [], await activeConfig(tx, a.siteId));
   });
 }
 
@@ -137,16 +147,38 @@ export async function createRequest(
     if (found.length !== new Set(itemIds).size) throw notFound("Item not found");
     const active = await getActiveRelease(tx, a.siteId);
     if (!active) throw conflict("no_active_release", "Site has no active configuration release");
+    const cfg = parseStoredConfig(active.configuration);
+    const cleaned = input.lines.map((l) => ({ ...l, extras: validateExtras(cfg, "request_line", l.extras, { requireAll: true }) }));
     const [row] = await tx
       .insert(s.requests)
       .values({ siteId: a.siteId, status: "submitted", requestedBy: a.userId, releaseVersion: active.version, note: input.note ?? null })
       .returning();
     const lines = await tx
       .insert(s.requestLines)
-      .values(input.lines.map((l) => ({ siteId: a.siteId, requestId: row!.id, itemId: l.itemId, quantity: l.quantity, extras: l.extras ?? {} })))
+      .values(cleaned.map((l) => ({ siteId: a.siteId, requestId: row!.id, itemId: l.itemId, quantity: l.quantity, extras: l.extras })))
       .returning();
     await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "request.submitted", entityType: "request", entityId: row!.id, configVersion: active.version, requestId: a.requestId });
-    return toRequest(row!, (await linesFor(tx, a.siteId, [row!.id])).get(row!.id) ?? lines.map((l) => ({ ...l, sku: "", name: "" })));
+    return toRequest(row!, (await linesFor(tx, a.siteId, [row!.id])).get(row!.id) ?? lines.map((l) => ({ ...l, sku: "", name: "" })), cfg);
+  });
+}
+
+/** Sets (or clears, with null) configured field values on an item. Hidden fields' stored values are untouched. */
+export async function updateItemExtras(db: Database, a: Actor, itemId: string, extras: Record<string, unknown>): Promise<StockItem> {
+  return db.withTenant(scope(a), async (tx) => {
+    const active = await getActiveRelease(tx, a.siteId);
+    if (!active) throw conflict("no_active_release", "Site has no active configuration release");
+    const cfg = parseStoredConfig(active.configuration);
+    const [row] = await tx.select().from(s.inventoryItems).where(and(eq(s.inventoryItems.siteId, a.siteId), eq(s.inventoryItems.id, itemId))).for("update");
+    if (!row) throw notFound("Item not found");
+    const cleaned = validateExtras(cfg, "inventory_item", extras, { requireAll: false, allowClear: true });
+    const merged: Record<string, unknown> = { ...(row.extras as Record<string, unknown>) };
+    for (const [k, v] of Object.entries(cleaned)) {
+      if (v === null) delete merged[k];
+      else merged[k] = v;
+    }
+    const [updated] = await tx.update(s.inventoryItems).set({ extras: merged, updatedAt: new Date() }).where(eq(s.inventoryItems.id, itemId)).returning();
+    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "item.fields-updated", entityType: "inventory_item", entityId: itemId, metadata: { keys: Object.keys(cleaned) }, configVersion: active.version, requestId: a.requestId });
+    return toStockItem(updated!, cfg);
   });
 }
 
@@ -167,7 +199,7 @@ export async function decideRequest(db: Database, a: Actor, requestId: string, d
     if (!updated) throw conflict("invalid_transition", "Request changed concurrently");
     const active = await getActiveRelease(tx, a.siteId);
     await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: `request.${decision}`, entityType: "request", entityId: requestId, configVersion: active?.version, requestId: a.requestId });
-    return toRequest(updated, (await linesFor(tx, a.siteId, [requestId])).get(requestId) ?? []);
+    return toRequest(updated, (await linesFor(tx, a.siteId, [requestId])).get(requestId) ?? [], await activeConfig(tx, a.siteId));
   });
 }
 

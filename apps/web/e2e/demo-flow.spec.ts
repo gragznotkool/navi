@@ -42,12 +42,15 @@ test("core demo: sites, switching, builder, publish, runtime change, rollback", 
 
   // Builder: add Return Management, validate on the server, publish.
   await nav.getByRole("link", { name: "Configuration builder" }).click();
-  await expect(page.getByRole("button", { name: "Publish" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review & publish" })).toBeDisabled();
   await page.getByLabel("Add module").selectOption({ label: "Return Management" });
   await page.getByRole("button", { name: "Add" }).click();
   await page.getByRole("button", { name: "Validate" }).click();
   await expect(page.getByText("No errors or warnings.")).toBeVisible();
-  await page.getByRole("button", { name: "Publish" }).click();
+  await page.getByRole("button", { name: "Review & publish" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(/“Return Management” module is added, with a new “Returns” tab/)).toBeVisible();
+  await dialog.getByRole("button", { name: "Publish" }).click();
   await expect(page.getByRole("heading", { name: "Releases" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Active" })).toBeVisible();
 
@@ -59,6 +62,10 @@ test("core demo: sites, switching, builder, publish, runtime change, rollback", 
   // Roll back: Returns disappears again, history is preserved.
   await nav2.getByRole("link", { name: "Releases" }).click();
   await page.getByRole("button", { name: "Roll back to version 1" }).click();
+  const rollbackDialog = page.getByRole("dialog");
+  await expect(rollbackDialog.getByText(/module is removed/)).toBeVisible();
+  await rollbackDialog.getByRole("checkbox").check();
+  await rollbackDialog.getByRole("button", { name: "Roll back" }).click();
   await expect(page.getByRole("link", { name: "Returns" })).toHaveCount(0);
   await expect(page.getByText("Rollback to version 1").first()).toBeVisible();
 });
@@ -70,7 +77,7 @@ test("builder blocks an invalid draft: removing a dependency is rejected by the 
   await page.getByRole("button", { name: "Remove module" }).click();
   await page.getByRole("button", { name: "Validate" }).click();
   await expect(page.getByText(/requires "request"/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Publish" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Review & publish" })).toBeDisabled();
 });
 
 test("role-aware access: storekeeper sees only their site and no admin tools", async ({ page }) => {
@@ -96,4 +103,33 @@ test("request to assignment flow across roles", async ({ page, context }) => {
   await page.goto("/s/distribution/approvals");
   await page.getByRole("button", { name: /^Approve request/ }).first().click();
   await expect(page.getByText(/approved/).first()).toBeVisible();
+});
+
+test("hiding a field: plain-English impact, confirmation, data kept, restored by rollback", async ({ page }) => {
+  await login(page, "admin@opshub.local");
+  await page.goto("/s/central-stores/inventory");
+  await expect(page.getByRole("columnheader", { name: "Unit price" })).toBeVisible();
+
+  await page.goto("/s/central-stores/admin/builder");
+  await page.getByRole("button", { name: "Hide field Unit price" }).click();
+  await page.getByRole("button", { name: "Validate" }).click();
+  await expect(page.getByText("No errors or warnings.")).toBeVisible();
+  await page.getByRole("button", { name: "Review & publish" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText(/3 rows keep the saved value/)).toBeVisible();
+  await expect(dialog.getByRole("button", { name: "Publish" })).toBeDisabled();
+  await dialog.getByRole("checkbox").check();
+  await dialog.getByRole("button", { name: "Publish" }).click();
+  await expect(page.getByRole("heading", { name: "Releases" })).toBeVisible();
+
+  await page.goto("/s/central-stores/inventory");
+  await expect(page.getByRole("columnheader", { name: "Unit price" })).toHaveCount(0);
+
+  // Roll back to the version that still showed the field: the saved prices are back.
+  await page.goto("/s/central-stores/admin/releases");
+  await page.getByRole("button", { name: "Roll back to version 1" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Roll back" }).click();
+  await page.goto("/s/central-stores/inventory");
+  await expect(page.getByRole("columnheader", { name: "Unit price" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: "180" })).toBeVisible();
 });

@@ -5,6 +5,8 @@ import type {
   ConfigurationValidationResult,
   CreateRequestPayload,
   DataTypeDefinition,
+  ImpactReport,
+  ImpactRequest,
   ModuleDefinition,
   PaginatedResponse,
   PublishRequest,
@@ -15,6 +17,7 @@ import type {
   SiteConfiguration,
   SiteSummary,
   StockItem,
+  UpdateItemFieldsPayload,
   TrustCheckResult,
   LoginRequest,
 } from "@opshub/contracts";
@@ -48,6 +51,7 @@ export const opsApi = {
   items: (siteId: string, page = 1) => call<PaginatedResponse<StockItem>>(http.get(`/sites/${siteId}/inventory`, { params: { page, pageSize: 50 } })),
   item: (siteId: string, id: string) => call<ItemDetail>(http.get(`/sites/${siteId}/inventory/${id}`)),
   requests: (siteId: string, page = 1) => call<PaginatedResponse<RequestRecord>>(http.get(`/sites/${siteId}/requests`, { params: { page, pageSize: 100 } })),
+  updateItemFields: (siteId: string, id: string, body: UpdateItemFieldsPayload) => call<StockItem>(http.patch(`/sites/${siteId}/inventory/${id}`, body)),
   createRequest: (siteId: string, body: CreateRequestPayload) => call<RequestRecord>(http.post(`/sites/${siteId}/requests`, body)),
   decide: (siteId: string, id: string, decision: "approved" | "rejected", comment?: string) =>
     call<RequestRecord>(http.post(`/sites/${siteId}/requests/${id}/decision`, { decision, comment })),
@@ -67,6 +71,8 @@ export const releasesApi = {
   list: (siteId: string) => call<ReleaseSummary[]>(http.get(`/sites/${siteId}/releases`)),
   publish: (siteId: string, body: PublishRequest) => call<ReleaseSummary>(http.post(`/sites/${siteId}/releases/publish`, body)),
   rollback: (siteId: string, body: RollbackRequest) => call<ReleaseSummary>(http.post(`/sites/${siteId}/releases/rollback`, body)),
+  impact: (siteId: string, body: ImpactRequest) => call<ImpactReport>(http.post(`/sites/${siteId}/releases/impact`, body)),
+  summary: (siteId: string, releaseId: string) => call<{ version: number; sentences: string[] }>(http.get(`/sites/${siteId}/releases/${releaseId}/summary`)),
   diff: (siteId: string, releaseId: string) => call<ReleaseDiff>(http.get(`/sites/${siteId}/releases/${releaseId}/diff`)),
   audit: (siteId: string) => call<AuditEvent[]>(http.get(`/sites/${siteId}/audit-events`)),
 };

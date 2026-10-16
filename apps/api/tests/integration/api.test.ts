@@ -234,7 +234,11 @@ describe("configuration validation and release lifecycle", () => {
     expect(diff.body.data.entries.some((e: { path: string; change: string }) => e.path.includes("return-management") && e.change === "added")).toBe(true);
 
     // Rollback creates a NEW release; history is preserved.
-    const rb = await agent.post(`${base}/releases/rollback`).set(H).send({ baseVersion: 2, targetVersion: 1 });
+    // Rolling back removes the Returns module, so it must be explicitly confirmed.
+    const unconfirmed = await agent.post(`${base}/releases/rollback`).set(H).send({ baseVersion: 2, targetVersion: 1 });
+    expect(unconfirmed.status).toBe(409);
+    expect(unconfirmed.body.error.code).toBe("destructive_confirmation_required");
+    const rb = await agent.post(`${base}/releases/rollback`).set(H).send({ baseVersion: 2, targetVersion: 1, confirmDestructive: true });
     expect(rb.status).toBe(201);
     expect(rb.body.data.version).toBe(3);
     expect(rb.body.data.rolledBackToVersion).toBe(1);

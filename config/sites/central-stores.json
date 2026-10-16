@@ -216,7 +216,9 @@
       "resultType": "number"
     }
   ],
-  "fields": [],
+  "fields": [
+    { "id": "item-price", "entity": "inventory_item", "key": "price", "label": "Unit price", "type": "number", "required": false, "hidden": false }
+  ],
   "metadata": {
     "description": "Central Stores seed configuration (development demo)"
   }

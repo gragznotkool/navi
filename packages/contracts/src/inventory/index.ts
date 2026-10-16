@@ -14,6 +14,8 @@ export const stockItemSchema = z.object({
   unit: z.string(),
   onHand: z.number().int().min(0),
   reorderLevel: z.number().int().min(0),
+  /** Values of configured, visible fields. */
+  extras: z.record(z.string(), z.unknown()).default({}),
   updatedAt: isoTimestamp,
 });
 export type StockItem = z.infer<typeof stockItemSchema>;
@@ -113,6 +115,12 @@ export const createRequestPayloadSchema = z.object({
   note: z.string().max(500).optional(),
 });
 export type CreateRequestPayload = z.infer<typeof createRequestPayloadSchema>;
+
+export const updateItemFieldsPayloadSchema = z.object({
+  /** Field values to set. `null` clears a value. */
+  extras: z.record(z.string(), z.unknown()),
+});
+export type UpdateItemFieldsPayload = z.infer<typeof updateItemFieldsPayloadSchema>;
 
 export const decideRequestPayloadSchema = z.object({
   decision: z.enum(["approved", "rejected"]),

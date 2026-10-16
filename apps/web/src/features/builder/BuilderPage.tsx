@@ -11,6 +11,8 @@ import { useSiteRuntime } from "../../runtime/context";
 import { configApi, releasesApi, sitesApi } from "../../services";
 import { notify } from "../../stores/toast";
 import { addEdge, addModule, canConnect, moveNode, removeEdge, removeModule, setNodeConfig } from "./configOps";
+import { ImpactDialog } from "../releases/ImpactDialog";
+import { FieldsPanel } from "./FieldsPanel";
 import { usePreviewStore } from "./previewStore";
 
 type ModuleNodeData = { def: ModuleDefinition | undefined; moduleType: string };
@@ -63,6 +65,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState<"validate" | "draft" | "preview" | "publish" | null>(null);
   const [stale, setStale] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const dirty = useMemo(() => JSON.stringify(config) !== JSON.stringify(activeConfig), [config, activeConfig]);
 
   const edit = useCallback((next: SiteConfiguration) => {
@@ -105,7 +108,10 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
       return await fn();
     } catch (e) {
       const err = toRequestError(e);
-      if (err.code === "stale_draft") setStale(true);
+      if (err.code === "stale_draft") {
+        setStale(true);
+        setReviewing(false);
+      }
       if (err.code === "configuration_invalid") {
         setValidation({ valid: false, warnings: [], errors: (err.details ?? []).map((d) => ({ severity: "error" as const, stage: d.path, code: "", message: d.message })) });
       }
@@ -136,9 +142,10 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
       setPreview(slug, r.configuration);
       navigate(`/preview/${slug}`);
     });
-  const publish = () =>
+  const publish = (confirmDestructive: boolean) =>
     run("publish", async () => {
-      const r = await releasesApi.publish(siteId, { baseVersion: activeVersion, configuration: config, note: note || undefined });
+      const r = await releasesApi.publish(siteId, { baseVersion: activeVersion, configuration: config, note: note || undefined, ...(confirmDestructive ? { confirmDestructive: true } : {}) });
+      setReviewing(false);
       notify.success(`Published release v${r.version}`);
       reload();
       navigate(`/s/${slug}/admin/releases`);
@@ -185,7 +192,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           <Button onClick={validate} loading={busy === "validate"}>Validate</Button>
           <Button onClick={saveDraft} loading={busy === "draft"} disabled={!dirty}>Save draft</Button>
           <Button onClick={preview} loading={busy === "preview"}>Preview</Button>
-          <Button variant="primary" onClick={publish} loading={busy === "publish"} disabled={!validation?.valid || !dirty || stale}>Publish</Button>
+          <Button variant="primary" onClick={() => setReviewing(true)} disabled={!validation?.valid || !dirty || stale}>Review &amp; publish</Button>
         </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
@@ -227,11 +234,23 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
               </div>
             )}
           </Panel>
+          <FieldsPanel config={config} onChange={edit} />
           <Panel title="Release note">
             <TextField label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
           </Panel>
         </div>
       </div>
+      {reviewing && (
+        <ImpactDialog
+          siteId={siteId}
+          title="Review before publishing"
+          confirmLabel="Publish"
+          busy={busy === "publish"}
+          request={{ baseVersion: activeVersion, configuration: config }}
+          onConfirm={(confirm) => void publish(confirm)}
+          onClose={() => setReviewing(false)}
+        />
+      )}
       <div className="mt-4">
         <Panel title="Validation">
           {!validation ? (

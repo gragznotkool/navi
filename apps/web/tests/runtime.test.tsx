@@ -12,7 +12,7 @@ vi.mock("../src/services", () => ({
 }));
 import { opsApi } from "../src/services";
 
-const item = { id: "i1", siteId: "s", sku: "BRG-1", name: "Bearing", unit: "each", onHand: 4, reorderLevel: 10, updatedAt: "2026-01-01T00:00:00.000Z" };
+const item = { id: "i1", siteId: "s", sku: "BRG-1", name: "Bearing", unit: "each", onHand: 4, reorderLevel: 10, extras: {}, updatedAt: "2026-01-01T00:00:00.000Z" };
 const pageFor = (c: SiteConfiguration, path: string): PageDefinition => c.pages.find((p) => p.path === path)!;
 
 beforeEach(() => vi.resetAllMocks());

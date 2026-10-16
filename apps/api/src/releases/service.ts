@@ -1,5 +1,5 @@
 import { desc, eq, sql } from "drizzle-orm";
-import type { ConfigurationValidationResult, PublishRequest, ReleaseDiff, ReleaseSummary, RollbackRequest } from "@opshub/contracts";
+import type { ConfigurationValidationResult, ImpactReport, ImpactRequest, PublishRequest, ReleaseDiff, ReleaseSummary, RollbackRequest, SiteConfiguration } from "@opshub/contracts";
 import { recordAudit } from "../audit/audit.js";
 import { compileConfiguration } from "../compiler/compile.js";
 import type { Database, Tx } from "../db/scoped.js";
@@ -7,6 +7,8 @@ import * as s from "../db/schema/index.js";
 import { getActiveRelease, getReleaseById, getReleaseByVersion, listReleases } from "../repositories/releases.js";
 import { AppError, conflict, notFound } from "../utils/errors.js";
 import { diffConfigurations } from "./diff.js";
+import { analyzeImpact } from "./impact.js";
+import { describeChanges } from "./plain.js";
 
 export class ValidationFailed extends AppError {
   constructor(readonly result: ConfigurationValidationResult) {
@@ -36,6 +38,31 @@ async function activate(tx: Tx, siteId: string, releaseId: string, version: numb
     .insert(s.siteActiveReleases)
     .values({ siteId, releaseId, version })
     .onConflictDoUpdate({ target: s.siteActiveReleases.siteId, set: { releaseId, version, updatedAt: new Date() } });
+}
+
+/** Re-compiles a stored configuration so older schema versions are migrated before use. */
+function loadStored(configuration: unknown): SiteConfiguration {
+  const { compiled } = compileConfiguration(configuration);
+  if (!compiled) throw new AppError(500, "stored_config_invalid", "A stored release no longer validates");
+  return compiled;
+}
+
+/** Human explanation of what changed since the version the caller was editing from. */
+async function staleMessage(tx: Tx, siteId: string, baseVersion: number | null, active: { version: number; configuration: unknown } | null): Promise<string> {
+  const head = `Version ${active?.version ?? "none"} was published while you were working from version ${baseVersion ?? "none"}.`;
+  if (!active) return `${head} Reload and re-apply your changes.`;
+  const base = baseVersion === null ? null : await getReleaseByVersion(tx, siteId, baseVersion);
+  const sentences = describeChanges(base ? loadStored(base.configuration) : null, loadStored(active.configuration));
+  return `${head} Since then: ${sentences.join(" ")} Reload and re-apply your changes.`;
+}
+
+/** Destructive changes need an explicit confirmation from the caller. */
+async function requireConfirmation(tx: Tx, siteId: string, active: { configuration: unknown } | null, candidate: SiteConfiguration, confirmed: boolean | undefined): Promise<void> {
+  if (!active) return;
+  const { impact } = await analyzeImpact(tx, siteId, loadStored(active.configuration), candidate);
+  if (impact.destructive && !confirmed) {
+    throw new AppError(409, "destructive_confirmation_required", "This change removes or hides something that is in use. Review the impact and confirm to continue.", impact.destructiveReasons.map((m) => ({ path: "impact", message: m })));
+  }
 }
 
 function toSummary(r: typeof s.siteReleases.$inferSelect, isActive: boolean): ReleaseSummary {
@@ -69,8 +96,9 @@ export async function publish(db: Database, actor: Actor, req: PublishRequest): 
     await lockSite(tx, actor.siteId);
     const active = await getActiveRelease(tx, actor.siteId);
     if ((active?.version ?? null) !== req.baseVersion) {
-      throw conflict("stale_draft", `Draft is based on version ${req.baseVersion ?? "none"} but the active version is ${active?.version ?? "none"}. Reload and re-apply your changes.`);
+      throw conflict("stale_draft", await staleMessage(tx, actor.siteId, req.baseVersion, active));
     }
+    await requireConfirmation(tx, actor.siteId, active, compiled, req.confirmDestructive);
     const version = await nextVersion(tx, actor.siteId);
     const [row] = await tx
       .insert(s.siteReleases)
@@ -88,13 +116,14 @@ export async function rollback(db: Database, actor: Actor, req: RollbackRequest)
     await lockSite(tx, actor.siteId);
     const active = await getActiveRelease(tx, actor.siteId);
     if ((active?.version ?? null) !== req.baseVersion) {
-      throw conflict("stale_draft", `Active version is ${active?.version ?? "none"}, not ${req.baseVersion ?? "none"}. Reload before rolling back.`);
+      throw conflict("stale_draft", await staleMessage(tx, actor.siteId, req.baseVersion, active));
     }
     const target = await getReleaseByVersion(tx, actor.siteId, req.targetVersion);
     if (!target) throw notFound(`Release version ${req.targetVersion} not found`);
     // Re-validate: a registry change since publication must not silently activate an invalid config.
     const { result, compiled } = compileConfiguration(target.configuration);
     if (!compiled) throw new ValidationFailed(result);
+    await requireConfirmation(tx, actor.siteId, active, compiled, req.confirmDestructive);
     const version = await nextVersion(tx, actor.siteId);
     const [row] = await tx
       .insert(s.siteReleases)
@@ -138,5 +167,33 @@ export async function saveDraft(db: Database, actor: { siteId: string; userId: s
       .onConflictDoUpdate({ target: s.siteDrafts.siteId, set: { baseVersion, configuration: configuration ?? null, updatedBy: actor.userId, updatedAt: now } });
     await recordAudit(tx, { siteId: actor.siteId, actorId: actor.userId, action: "draft.saved", entityType: "site_draft", entityId: actor.siteId, metadata: { valid: result.valid } });
     return { savedAt: now.toISOString(), validation: result };
+  });
+}
+
+/** Read-only preview of publishing a candidate configuration, or rolling back to `targetVersion`. */
+export async function previewImpact(db: Database, actor: { siteId: string; userId: string }, req: ImpactRequest): Promise<ImpactReport> {
+  return db.withTenant(actor, async (tx) => {
+    let input: unknown = req.configuration;
+    if (req.targetVersion !== undefined) {
+      const target = await getReleaseByVersion(tx, actor.siteId, req.targetVersion);
+      if (!target) throw notFound(`Release version ${req.targetVersion} not found`);
+      input = target.configuration;
+    }
+    const { result, compiled } = compileConfiguration(input);
+    if (!compiled) return { valid: false, errors: result.errors.map((e) => `${e.code}: ${e.message}`), sentences: [], impact: null };
+    const active = await getActiveRelease(tx, actor.siteId);
+    if (!active) return { valid: true, errors: [], sentences: describeChanges(null, compiled), impact: null };
+    const { impact, sentences } = await analyzeImpact(tx, actor.siteId, loadStored(active.configuration), compiled);
+    return { valid: true, errors: [], sentences, impact };
+  });
+}
+
+/** Plain-English summary of one release compared with the one before it. */
+export async function summary(db: Database, actor: { siteId: string; userId: string }, releaseId: string): Promise<{ version: number; sentences: string[] }> {
+  return db.withTenant(actor, async (tx) => {
+    const release = await getReleaseById(tx, actor.siteId, releaseId);
+    if (!release) throw notFound("Release not found");
+    const previous = release.version > 1 ? await getReleaseByVersion(tx, actor.siteId, release.version - 1) : null;
+    return { version: release.version, sentences: describeChanges(previous ? loadStored(previous.configuration) : null, loadStored(release.configuration)) };
   });
 }

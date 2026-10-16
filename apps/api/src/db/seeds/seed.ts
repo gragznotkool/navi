@@ -36,11 +36,11 @@ const devUsers = [
 ] as const;
 
 /** Demo stock (clearly seed data). Quantity becomes an opening-balance ledger entry. */
-const demoStock: Record<string, { sku: string; name: string; unit: string; qty: number; reorder: number }[]> = {
+const demoStock: Record<string, { sku: string; name: string; unit: string; qty: number; reorder: number; price?: number }[]> = {
   "central-stores": [
-    { sku: "BRG-6204", name: "Ball bearing 6204", unit: "each", qty: 120, reorder: 40 },
-    { sku: "FLT-OIL-10", name: "Oil filter 10 micron", unit: "each", qty: 18, reorder: 25 },
-    { sku: "GSK-KIT-A", name: "Gasket kit A", unit: "kit", qty: 60, reorder: 20 },
+    { sku: "BRG-6204", name: "Ball bearing 6204", unit: "each", qty: 120, reorder: 40, price: 180 },
+    { sku: "FLT-OIL-10", name: "Oil filter 10 micron", unit: "each", qty: 18, reorder: 25, price: 420 },
+    { sku: "GSK-KIT-A", name: "Gasket kit A", unit: "kit", qty: 60, reorder: 20, price: 95 },
   ],
   distribution: [
     { sku: "CBL-3C-2.5", name: "Cable 3-core 2.5mm", unit: "metre", qty: 500, reorder: 100 },
@@ -124,7 +124,7 @@ export async function seed(adminUrl: string): Promise<void> {
           if (found.length > 0) continue;
           const [row] = await tx
             .insert(s.inventoryItems)
-            .values({ siteId: sid, sku: it.sku, name: it.name, unit: it.unit, onHand: it.qty, reorderLevel: it.reorder })
+            .values({ siteId: sid, sku: it.sku, name: it.name, unit: it.unit, onHand: it.qty, reorderLevel: it.reorder, extras: it.price === undefined ? {} : { price: it.price } })
             .returning({ id: s.inventoryItems.id });
           await tx.insert(s.stockLedger).values({ siteId: sid, itemId: row!.id, delta: it.qty, balanceAfter: it.qty, reason: "opening-balance", refType: "seed", refId: row!.id, actorId: devUsers[0].id });
         }

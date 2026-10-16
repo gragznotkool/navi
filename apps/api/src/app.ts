@@ -12,6 +12,8 @@ import {
   loginRequestSchema,
   paginationRequestSchema,
   publishRequestSchema,
+  impactRequestSchema,
+  updateItemFieldsPayloadSchema,
   recordConsumptionPayloadSchema,
   rollbackRequestSchema,
   configurationDraftSchema,
@@ -154,6 +156,12 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   st.get("/:siteId/releases", auth, requireSite(db), async (req, res) => {
     res.json({ data: await releases.history(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }) });
   });
+  st.post("/:siteId/releases/impact", auth, requireSite(db, "release:publish"), validateBody(impactRequestSchema), async (req, res) => {
+    res.json({ data: await releases.previewImpact(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, req.body) });
+  });
+  st.get("/:siteId/releases/:releaseId/summary", auth, requireSite(db), async (req, res) => {
+    res.json({ data: await releases.summary(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, String(req.params.releaseId)) });
+  });
   st.post("/:siteId/releases/publish", auth, requireSite(db, "release:publish"), validateBody(publishRequestSchema), async (req, res) => {
     res.status(201).json({ data: await releases.publish(db, actor(req), req.body) });
   });
@@ -180,6 +188,9 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   });
   st.get("/:siteId/inventory/:itemId", auth, requireSite(db, "inventory:view"), async (req, res) => {
     res.json({ data: await ops.getItem(db, opActor(req), String(req.params.itemId)) });
+  });
+  st.patch("/:siteId/inventory/:itemId", auth, requireSite(db, "inventory:manage"), validateBody(updateItemFieldsPayloadSchema), async (req, res) => {
+    res.json({ data: await ops.updateItemExtras(db, opActor(req), String(req.params.itemId), req.body.extras) });
   });
   st.get("/:siteId/requests", auth, requireSite(db, "request:view"), paging, async (req, res) => {
     const p = validatedQuery<PaginationRequest>(res);
