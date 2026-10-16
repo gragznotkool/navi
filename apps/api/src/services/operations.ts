@@ -31,10 +31,12 @@ const toStockItem = (r: typeof s.inventoryItems.$inferSelect): StockItem => ({
   reorderLevel: r.reorderLevel,
   updatedAt: r.updatedAt.toISOString(),
 });
-const toRequest = (r: typeof s.requests.$inferSelect, lines: (typeof s.requestLines.$inferSelect)[]): RequestRecord => ({
+type LineRow = typeof s.requestLines.$inferSelect & { sku: string; name: string };
+
+const toRequest = (r: typeof s.requests.$inferSelect, lines: LineRow[]): RequestRecord => ({
   id: r.id,
   siteId: r.siteId,
-  lines: lines.map((l) => ({ id: l.id, itemId: l.itemId, quantity: l.quantity, extras: (l.extras ?? {}) as Record<string, unknown> })),
+  lines: lines.map((l) => ({ id: l.id, itemId: l.itemId, sku: l.sku, name: l.name, quantity: l.quantity, extras: (l.extras ?? {}) as Record<string, unknown> })),
   status: r.status,
   requestedBy: r.requestedBy,
   releaseVersion: r.releaseVersion,
@@ -45,17 +47,24 @@ const toRequest = (r: typeof s.requests.$inferSelect, lines: (typeof s.requestLi
 
 /** Loads lines for the given requests, grouped by request, in a stable (item id) order. */
 async function linesFor(tx: Tx, siteId: string, requestIds: string[]) {
-  const byRequest = new Map<string, (typeof s.requestLines.$inferSelect)[]>();
+  const byRequest = new Map<string, LineRow[]>();
   if (requestIds.length === 0) return byRequest;
-  const rows = await tx.select().from(s.requestLines).where(and(eq(s.requestLines.siteId, siteId), inArray(s.requestLines.requestId, requestIds))).orderBy(asc(s.requestLines.itemId));
-  for (const r of rows) byRequest.set(r.requestId, [...(byRequest.get(r.requestId) ?? []), r]);
+  const rows = await tx
+    .select({ line: s.requestLines, sku: s.inventoryItems.sku, name: s.inventoryItems.name })
+    .from(s.requestLines)
+    .innerJoin(s.inventoryItems, and(eq(s.inventoryItems.siteId, s.requestLines.siteId), eq(s.inventoryItems.id, s.requestLines.itemId)))
+    .where(and(eq(s.requestLines.siteId, siteId), inArray(s.requestLines.requestId, requestIds)))
+    .orderBy(asc(s.requestLines.itemId));
+  for (const { line, sku, name } of rows) byRequest.set(line.requestId, [...(byRequest.get(line.requestId) ?? []), { ...line, sku, name }]);
   return byRequest;
 }
-const toAssignment = (r: typeof s.assignments.$inferSelect): Assignment => ({
+const toAssignment = (r: typeof s.assignments.$inferSelect, lines: LineRow[]): Assignment => ({
   id: r.id,
   siteId: r.siteId,
   requestId: r.requestId,
   quantity: r.quantity,
+  configVersion: r.configVersion,
+  lines: lines.map((l) => ({ id: l.id, itemId: l.itemId, sku: l.sku, name: l.name, quantity: l.quantity })),
   assignedBy: r.assignedBy,
   createdAt: r.createdAt.toISOString(),
 });
@@ -108,7 +117,11 @@ export async function getRequest(db: Database, a: Actor, id: string): Promise<Re
 }
 
 export async function listAssignments(db: Database, a: Actor): Promise<Assignment[]> {
-  return db.withTenant(scope(a), async (tx) => (await tx.select().from(s.assignments).where(eq(s.assignments.siteId, a.siteId)).orderBy(desc(s.assignments.createdAt)).limit(100)).map(toAssignment));
+  return db.withTenant(scope(a), async (tx) => {
+    const rows = await tx.select().from(s.assignments).where(eq(s.assignments.siteId, a.siteId)).orderBy(desc(s.assignments.createdAt)).limit(100);
+    const lines = await linesFor(tx, a.siteId, rows.map((r) => r.requestId));
+    return rows.map((r) => toAssignment(r, lines.get(r.requestId) ?? []));
+  });
 }
 
 // ---------------------------------------------------------------- writes
@@ -133,7 +146,7 @@ export async function createRequest(
       .values(input.lines.map((l) => ({ siteId: a.siteId, requestId: row!.id, itemId: l.itemId, quantity: l.quantity, extras: l.extras ?? {} })))
       .returning();
     await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "request.submitted", entityType: "request", entityId: row!.id, configVersion: active.version, requestId: a.requestId });
-    return toRequest(row!, lines.sort((x, y) => x.itemId.localeCompare(y.itemId)));
+    return toRequest(row!, (await linesFor(tx, a.siteId, [row!.id])).get(row!.id) ?? lines.map((l) => ({ ...l, sku: "", name: "" })));
   });
 }
 
@@ -216,7 +229,7 @@ export async function assignMaterial(db: Database, a: Actor, requestId: string, 
       }
       await tx.update(s.requests).set({ status: "assigned", updatedAt: new Date(), statusChangedAt: new Date() }).where(eq(s.requests.id, requestId));
       await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "assignment.created", entityType: "assignment", entityId: assignment!.id, metadata: { requestId, quantity: total, lines: lines.length }, configVersion: configVersion ?? undefined, requestId: a.requestId });
-      return toAssignment(assignment!);
+      return toAssignment(assignment!, lines);
     });
     return { assignment: value, replayed };
   });
@@ -235,7 +248,7 @@ export async function recordConsumption(db: Database, a: Actor, assignmentId: st
     if (used + quantity === assignment.quantity) {
       await tx.update(s.requests).set({ status: "fulfilled", updatedAt: new Date(), statusChangedAt: new Date() }).where(and(eq(s.requests.id, assignment.requestId), eq(s.requests.status, "assigned")));
     }
-    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "consumption.recorded", entityType: "consumption", entityId: row!.id, metadata: { assignmentId, quantity }, requestId: a.requestId });
+    await recordAudit(tx, { siteId: a.siteId, actorId: a.userId, action: "consumption.recorded", entityType: "consumption", entityId: row!.id, metadata: { assignmentId, quantity }, configVersion: (await getActiveRelease(tx, a.siteId))?.version, requestId: a.requestId });
     return toConsumption(row!);
   });
 }

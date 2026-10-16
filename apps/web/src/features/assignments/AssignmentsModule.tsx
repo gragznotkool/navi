@@ -57,6 +57,7 @@ export function AssignmentsModule({ page }: ModuleProps) {
               emptyHint="Approved requests appear here."
               columns={[
                 { key: "id", header: "Request", render: (r) => <span className="font-medium">#{shortId(r.id)}</span> },
+                { key: "items", header: "Items", render: (r) => r.lines.map((l) => `${l.sku} × ${l.quantity}`).join(", ") },
                 { key: "qty", header: "Qty", align: "right", render: (r) => totalQuantity(r) },
                 {
                   key: "a",
@@ -84,7 +85,9 @@ export function AssignmentsModule({ page }: ModuleProps) {
               columns={[
                 { key: "id", header: "Assignment", render: (a) => <span className="font-medium">#{shortId(a.id)}</span> },
                 { key: "req", header: "Request", render: (a) => `#${shortId(a.requestId)}` },
+                { key: "items", header: "Items", render: (a) => a.lines.map((l) => `${l.sku} × ${l.quantity}`).join(", ") },
                 { key: "qty", header: "Qty", align: "right", render: (a) => a.quantity },
+                { key: "ver", header: "Config v", align: "right", render: (a) => a.configVersion ?? "—" },
                 { key: "at", header: "Assigned", render: (a) => formatDateTime(a.createdAt) },
               ]}
             />

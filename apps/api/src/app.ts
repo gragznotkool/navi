@@ -119,7 +119,7 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
       const site = await db.withTenant({ siteId: mem.siteId, userId: req.user!.id }, async (tx) => {
         const active = await getActiveRelease(tx, mem.siteId);
         const [row] = await tx.select().from(s.sites).where(eq(s.sites.id, mem.siteId));
-        return active && row ? { row, cfg: parseStoredConfig(active.configuration), version: active.version } : null;
+        return active && row && !row.isSystem ? { row, cfg: parseStoredConfig(active.configuration), version: active.version } : null;
       });
       if (site) summaries.push({ id: site.row.id, slug: site.row.slug, name: site.row.name, accent: site.cfg.theme.primary, shell: site.cfg.shell, activeReleaseVersion: site.version });
     }

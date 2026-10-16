@@ -329,3 +329,12 @@ describe("request, approval and assignment flow", () => {
     expect((await dispatcher.get(`/api/v1/sites/${SITES.centralStores}/requests/${req.id}`)).status).toBe(404);
   });
 });
+
+describe("system sites in listings", () => {
+  it("never lists the reserved trust-lab site, even for a platform admin", async () => {
+    const { agent } = await loginAs("admin@opshub.local");
+    const res = await agent.get("/api/v1/sites");
+    expect(res.body.data.map((x: { slug: string }) => x.slug)).not.toContain("trust-lab");
+    expect(res.body.data).toHaveLength(3);
+  });
+});

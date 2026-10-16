@@ -21,6 +21,8 @@ export type StockItem = z.infer<typeof stockItemSchema>;
 export const requestLineSchema = z.object({
   id: uuid,
   itemId: uuid,
+  sku: z.string(),
+  name: z.string(),
   quantity: z.number().int().min(1),
   /** Values of configurable fields (hidden fields are stripped before reaching the client). */
   extras: z.record(z.string(), z.unknown()).default({}),
@@ -56,6 +58,9 @@ export const assignmentSchema = z.object({
   requestId: uuid,
   /** Total units across all lines of the request. */
   quantity: z.number().int().min(1),
+  /** Release version in force when the stock was assigned. */
+  configVersion: z.number().int().nullable(),
+  lines: z.array(requestLineSchema.omit({ extras: true })),
   assignedBy: uuid,
   createdAt: isoTimestamp,
 });

@@ -33,7 +33,7 @@ describe("UniversalRenderer", () => {
 
   it("uses the configured layout: kanban shows status columns", async () => {
     vi.mocked(opsApi.requests).mockResolvedValue({
-      items: [{ id: "abcdef12-0000-4000-8000-000000000000", siteId: "s", lines: [{ id: "l1", itemId: "i", quantity: 2, extras: {} }], status: "submitted", requestedBy: "u", releaseVersion: 1, createdAt: "2026-01-01T00:00:00.000Z", statusChangedAt: "2026-01-01T00:00:00.000Z", ageSeconds: 0 }],
+      items: [{ id: "abcdef12-0000-4000-8000-000000000000", siteId: "s", lines: [{ id: "l1", itemId: "i", sku: "SKU-1", name: "Thing", quantity: 2, extras: {} }], status: "submitted", requestedBy: "u", releaseVersion: 1, createdAt: "2026-01-01T00:00:00.000Z", statusChangedAt: "2026-01-01T00:00:00.000Z", ageSeconds: 0 }],
       page: 1, pageSize: 100, total: 1,
     });
     renderInSite(<UniversalRenderer page={pageFor(configs.service, "requests")} />, { config: configs.service, permissions: allPermissions(configs.service) });

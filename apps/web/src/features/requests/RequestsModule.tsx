@@ -69,7 +69,7 @@ export function RequestsModule({ page, layout }: ModuleProps) {
             <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
               <dt className="text-muted">Request</dt><dd>#{shortId(r.id)}</dd>
               <dt className="text-muted">Status</dt><dd><StatusBadge status={r.status} /></dd>
-              <dt className="text-muted">Items</dt><dd><LineList siteId={siteId} lines={r.lines} /></dd>
+              <dt className="text-muted">Items</dt><dd><LineList lines={r.lines} /></dd>
               <dt className="text-muted">Created</dt><dd>{formatDateTime(r.createdAt)}</dd>
               <dt className="text-muted">Config version</dt><dd>{r.releaseVersion}</dd>
             </dl>
@@ -80,13 +80,11 @@ export function RequestsModule({ page, layout }: ModuleProps) {
   );
 }
 
-function LineList({ siteId, lines }: { siteId: string; lines: RequestRecord["lines"] }) {
-  const items = useAsync(() => opsApi.items(siteId), [siteId]);
-  const label = new Map((items.data?.items ?? []).map((i) => [i.id, `${i.sku} — ${i.name}`]));
+function LineList({ lines }: { lines: RequestRecord["lines"] }) {
   return (
     <ul>
       {lines.map((l) => (
-        <li key={l.id}>{label.get(l.itemId) ?? `#${shortId(l.itemId)}`} × {l.quantity}</li>
+        <li key={l.id}>{l.sku} — {l.name} × {l.quantity}</li>
       ))}
     </ul>
   );

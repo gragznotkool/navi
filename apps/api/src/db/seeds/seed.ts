@@ -12,6 +12,9 @@ import * as s from "../schema/index.js";
 const here = dirname(fileURLToPath(import.meta.url));
 const sitesDir = resolve(here, "../../../../../config/sites");
 
+/** Reserved system site used by live Trust Console proofs. */
+export const TRUST_LAB_SITE_ID = "00000000-0000-4000-8000-0000000000aa";
+
 /** LOCAL DEVELOPMENT ONLY credentials. Never used outside seeded demo databases. */
 export const DEV_PASSWORD = "opshub-dev-1";
 
@@ -77,6 +80,8 @@ export async function seed(adminUrl: string): Promise<void> {
       for (const c of configs) {
         await tx.insert(s.sites).values({ id: c.siteId, slug: c.slug, name: c.name }).onConflictDoNothing({ target: s.sites.id });
       }
+      // Reserved lab site for live Trust Console proofs. Hidden from site lists; no members.
+      await tx.insert(s.sites).values({ id: TRUST_LAB_SITE_ID, slug: "trust-lab", name: "Trust Lab", isSystem: true }).onConflictDoNothing({ target: s.sites.id });
       for (const u of devUsers) {
         await tx
           .insert(s.users)

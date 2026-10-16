@@ -77,7 +77,7 @@ export async function publish(db: Database, actor: Actor, req: PublishRequest): 
       .values({ siteId: actor.siteId, version, configuration: compiled, note: req.note ?? null, publishedBy: actor.userId })
       .returning();
     await activate(tx, actor.siteId, row!.id, version);
-    await recordAudit(tx, { siteId: actor.siteId, actorId: actor.userId, action: "release.published", entityType: "site_release", entityId: row!.id, metadata: { version, previousVersion: active?.version ?? null }, requestId: actor.requestId });
+    await recordAudit(tx, { siteId: actor.siteId, actorId: actor.userId, action: "release.published", entityType: "site_release", entityId: row!.id, configVersion: version, metadata: { version, previousVersion: active?.version ?? null }, requestId: actor.requestId });
     return toSummary(row!, true);
   });
 }
@@ -101,7 +101,7 @@ export async function rollback(db: Database, actor: Actor, req: RollbackRequest)
       .values({ siteId: actor.siteId, version, configuration: compiled, note: `Rollback to version ${target.version}`, publishedBy: actor.userId, rolledBackToVersion: target.version })
       .returning();
     await activate(tx, actor.siteId, row!.id, version);
-    await recordAudit(tx, { siteId: actor.siteId, actorId: actor.userId, action: "release.rolled-back", entityType: "site_release", entityId: row!.id, metadata: { version, targetVersion: target.version, previousVersion: active?.version ?? null }, requestId: actor.requestId });
+    await recordAudit(tx, { siteId: actor.siteId, actorId: actor.userId, action: "release.rolled-back", entityType: "site_release", entityId: row!.id, configVersion: version, metadata: { version, targetVersion: target.version, previousVersion: active?.version ?? null }, requestId: actor.requestId });
     return toSummary(row!, true);
   });
 }

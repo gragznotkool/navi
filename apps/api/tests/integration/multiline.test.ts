@@ -127,3 +127,42 @@ describe("multi-line allocation", () => {
     expect(await itemState(b)).toMatchObject({ onHand: 980, ledgerSum: 980 });
   });
 });
+
+describe("config version pinning", () => {
+  it("keeps earlier movements on their version after a new release, and a failed assignment pins nothing", async () => {
+    const a = await newItem(10);
+    const first = await approvedRequest([{ itemId: a, quantity: 1 }]);
+    await assignMaterial(db, actor, first, `pin-1-${a}`);
+
+    // Publish release v2 directly (admin) and move the active pointer.
+    const admin = adminPool();
+    const v1 = (await admin.query("select configuration from site_releases where site_id = $1 and version = 1", [SITES.distribution])).rows[0];
+    const rel = (await admin.query("insert into site_releases (site_id, version, configuration, published_by) values ($1, 2, $2, $3) returning id", [SITES.distribution, v1.configuration, USERS.dispatcher])).rows[0];
+    await admin.query("update site_active_releases set release_id = $2, version = 2 where site_id = $1", [SITES.distribution, rel.id]);
+
+    const short = await approvedRequest([{ itemId: a, quantity: 500 }]);
+    await expect(assignMaterial(db, actor, short, `pin-short-${a}`)).rejects.toMatchObject({ code: "insufficient_stock" });
+    const second = await approvedRequest([{ itemId: a, quantity: 2 }]);
+    await assignMaterial(db, actor, second, `pin-2-${a}`);
+
+    const rows = (await admin.query("select config_version, delta from stock_ledger where item_id = $1 and reason = 'assignment' order by created_at", [a])).rows;
+    const asg = (await admin.query("select a.config_version, r.release_version from assignments a join requests r on r.id = a.request_id where a.request_id = any($1) order by a.created_at", [[first, second]])).rows;
+    await admin.end();
+    expect(rows.map((r) => r.config_version)).toEqual([1, 2]);
+    expect(asg.map((r) => r.config_version)).toEqual([1, 2]);
+    expect(rows).toHaveLength(2); // the failed attempt wrote nothing
+    // Restore v1 as active so other tests in this file see the baseline.
+    const restore = adminPool();
+    await restore.query("update site_active_releases set release_id = (select id from site_releases where site_id = $1 and version = 1), version = 1 where site_id = $1", [SITES.distribution]);
+    await restore.end();
+  });
+});
+
+describe("system sites", () => {
+  it("the reserved trust-lab site exists, is flagged as system, and is hidden from site lists", async () => {
+    const admin = adminPool();
+    const row = (await admin.query("select is_system from sites where slug = 'trust-lab'")).rows[0];
+    await admin.end();
+    expect(row).toEqual({ is_system: true });
+  });
+});
