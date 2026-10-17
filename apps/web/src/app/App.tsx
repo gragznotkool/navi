@@ -10,6 +10,7 @@ import { useSession } from "../stores/session";
 import { EmptyState } from "../components/feedback";
 
 import { NewSitePage } from "../features/provisioning/NewSitePage";
+import { BoloBuildPage } from "../features/builder/BoloBuildPage";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const status = useSession((s) => s.status);
@@ -24,6 +25,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/" element={<RequireAuth><HubPage /></RequireAuth>} />
+      <Route path="/opshub/bolo-build" element={<RequireAuth><BoloBuildPage /></RequireAuth>} />
       <Route path="/sites/new" element={<RequireAuth><NewSitePage /></RequireAuth>} />
       <Route path="/admin/provision" element={<RequireAuth><NewSitePage /></RequireAuth>} />
       <Route path="/trust" element={<RequireAuth><TrustConsolePage /></RequireAuth>} />

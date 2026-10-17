@@ -181,3 +181,5 @@ export type ConfigurationDraft = z.infer<typeof configurationDraftSchema>;
 /** Body for validate / preview endpoints. */
 export const configurationPayloadSchema = z.object({ configuration: z.unknown() });
 export type ConfigurationPayload = z.infer<typeof configurationPayloadSchema>;
+
+export * from "./proposal.js";

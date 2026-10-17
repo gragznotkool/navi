@@ -25,6 +25,10 @@ import {
   updateWebsiteAccessRequestSchema,
   websiteDeployRequestSchema,
   configurationDraftSchema,
+  generateProposalRequestSchema,
+  updateProposalRequestSchema,
+  approveProposalRequestSchema,
+  publishProposalRequestSchema,
   REPORT_MAX_BYTES,
   type PaginationRequest,
   type SiteSummary,
@@ -35,6 +39,7 @@ import { compileConfiguration } from "./compiler/compile.js";
 import type { Env } from "./config/env.js";
 import type { Database } from "./db/scoped.js";
 import * as s from "./db/schema/index.js";
+import { ProposalService } from "./services/proposalService.js";
 import {
   authenticate,
   errorHandler,
@@ -414,6 +419,44 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   st.get("/:siteId/audit-events", auth, requireSite(db, "config:manage"), async (req, res) => {
     const rows = await db.withTenant({ siteId: req.siteAccess!.siteId, userId: req.user!.id }, (tx) => tx.select().from(s.auditEvents).orderBy(s.auditEvents.createdAt).limit(200));
     res.json({ data: rows.map((r) => ({ id: r.id, siteId: r.siteId, actorId: r.actorId, action: r.action, entityType: r.entityType, entityId: r.entityId, createdAt: r.createdAt.toISOString() })) });
+  });
+
+  // ---------- Bolo & Build Proposals (AI-powered configuration proposals)
+  const proposalService = new ProposalService(db);
+  const proposalActor = (req: express.Request) => ({
+    userId: req.user!.id,
+    siteId: req.siteAccess!.siteId,
+    siteSlug: req.siteAccess!.siteSlug,
+    requestId: req.requestId,
+    isPlatformAdmin: req.user!.isPlatformAdmin,
+  });
+
+  st.post("/:siteId/proposals", auth, requireSite(db, "config:manage"), validateBody(generateProposalRequestSchema), async (req, res) => {
+    res.status(201).json({ data: await proposalService.createFromPrompt(proposalActor(req), req.body) });
+  });
+
+  st.get("/:siteId/proposals", auth, requireSite(db, "config:manage"), async (req, res) => {
+    res.json({ data: await proposalService.listProposals(proposalActor(req)) });
+  });
+
+  st.get("/:siteId/proposals/:proposalId", auth, requireSite(db, "config:manage"), async (req, res) => {
+    res.json({ data: await proposalService.getProposal(proposalActor(req), String(req.params.proposalId)) });
+  });
+
+  st.patch("/:siteId/proposals/:proposalId", auth, requireSite(db, "config:manage"), validateBody(updateProposalRequestSchema), async (req, res) => {
+    res.json({ data: await proposalService.updateProposal(proposalActor(req), String(req.params.proposalId), req.body) });
+  });
+
+  st.post("/:siteId/proposals/:proposalId/submit", auth, requireSite(db, "config:manage"), async (req, res) => {
+    res.json({ data: await proposalService.submitForApproval(proposalActor(req), String(req.params.proposalId)) });
+  });
+
+  st.post("/:siteId/proposals/:proposalId/decision", auth, requireSite(db, "release:publish"), validateBody(approveProposalRequestSchema), async (req, res) => {
+    res.json({ data: await proposalService.decideProposal(proposalActor(req), String(req.params.proposalId), req.body) });
+  });
+
+  st.post("/:siteId/proposals/:proposalId/publish", auth, requireSite(db, "release:publish"), validateBody(publishProposalRequestSchema), async (req, res) => {
+    res.status(201).json({ data: await proposalService.publishProposal(proposalActor(req), String(req.params.proposalId), req.body) });
   });
 
   // ---------- operations

@@ -13,6 +13,7 @@ import {
   Wrench,
   BarChart3,
   ChevronRight,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useState, type CSSProperties, type ReactNode } from "react";
@@ -55,6 +56,7 @@ function useNav(): { main: NavEntry[]; platform: NavEntry[] } {
   });
   const platform: NavEntry[] = [];
   if (permissions.has("config:manage")) {
+    platform.push({ to: `/opshub/bolo-build`, label: "Bolo & Build Studio", icon: Sparkles });
     platform.push({ to: `${basePath}/admin/builder`, label: "Configuration builder", icon: GitBranch });
     platform.push({ to: `${basePath}/admin/releases`, label: "Releases", icon: History });
   }

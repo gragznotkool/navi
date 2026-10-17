@@ -8,6 +8,7 @@ import {
   PackageCheck,
   Plus,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -78,6 +79,13 @@ export function HubPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Link
+            to="/opshub/bolo-build"
+            className="devfest-btn inline-flex items-center gap-1.5 rounded-full bg-[#4285F4] px-3.5 py-1.5 font-mono text-xs font-bold text-white shadow-[2px_2px_0px_#1E293B] hover:bg-[#3367D6]"
+            title="AI-Powered Operational Configuration Studio"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-[#FBBC04] fill-[#FBBC04]" aria-hidden /> BOLO & BUILD
+          </Link>
           {session?.user.isPlatformAdmin && (
             <Link
               to="/sites/new"
