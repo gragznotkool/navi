@@ -3,12 +3,12 @@ import type { LayoutType, ModuleNode, ModuleType, PageDefinition } from "@opshub
 import { ApprovalsModule } from "../../features/approvals/ApprovalsModule";
 import { AssignmentsModule } from "../../features/assignments/AssignmentsModule";
 import { ConsumptionModule } from "../../features/assignments/ConsumptionModule";
-import { RepairsModule } from "../../features/repairs/RepairsModule";
-import { ReportsModule } from "../../features/reports/ReportsModule";
-import { ReturnsModule } from "../../features/returns/ReturnsModule";
-import { UsersModule } from "../../features/users/UsersModule";
 import { InventoryModule } from "../../features/inventory/InventoryModule";
 import { RequestsModule } from "../../features/requests/RequestsModule";
+import { PcbRepairModule } from "../../features/pcb-repair/PcbRepairModule";
+import { ReturnsModule } from "../../features/returns/ReturnsModule";
+import { ReportsModule } from "../../features/reports/ReportsModule";
+import { UsersModule } from "../../features/users/UsersModule";
 import { DashboardModule } from "../pages/DashboardModule";
 import { UnavailableModule } from "../pages/UnavailableModule";
 
@@ -42,11 +42,11 @@ export const rendererRegistry: Record<ModuleType, ComponentType<ModuleProps>> = 
   "assignment-frontend": AssignmentsModule,
   "consumption-tracking": ConsumptionModule,
   "return-management": ReturnsModule,
-  "pcb-repair": RepairsModule,
+  "pcb-repair": PcbRepairModule,
   "analytics-dashboard": AnalyticsModule,
   "reports-excel": ReportsModule,
 };
 
 export function resolveRenderer(moduleType: string): ComponentType<ModuleProps> | null {
-  return Object.prototype.hasOwnProperty.call(rendererRegistry, moduleType) ? rendererRegistry[moduleType as ModuleType] : null;
+  return (Object.prototype.hasOwnProperty.call(rendererRegistry, moduleType) ? rendererRegistry[moduleType as ModuleType] : null) ?? null;
 }

@@ -19,36 +19,43 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1792139494380,
-      "tag": "0002_schema_v2",
+      "when": 1792146010523,
+      "tag": "0002_inventory_cost_columns",
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "7",
-      "when": 1792139554380,
-      "tag": "0003_trust_lab_site",
+      "when": 1792147000000,
+      "tag": "0003_schema_v2",
       "breakpoints": true
     },
     {
       "idx": 4,
       "version": "7",
-      "when": 1792139614380,
-      "tag": "0004_provisioning_grants",
+      "when": 1792148000000,
+      "tag": "0004_trust_lab_site",
       "breakpoints": true
     },
     {
       "idx": 5,
       "version": "7",
-      "when": 1792139674380,
-      "tag": "0005_public_intake",
+      "when": 1792149000000,
+      "tag": "0005_provisioning_grants",
       "breakpoints": true
     },
     {
       "idx": 6,
       "version": "7",
-      "when": 1792139734380,
-      "tag": "0006_member_management",
+      "when": 1792149100000,
+      "tag": "0006_public_intake",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1792149200000,
+      "tag": "0007_member_management",
       "breakpoints": true
     }
   ]

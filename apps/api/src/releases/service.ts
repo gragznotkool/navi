@@ -105,6 +105,11 @@ export async function publish(db: Database, actor: Actor, req: PublishRequest): 
       .values({ siteId: actor.siteId, version, configuration: compiled, note: req.note ?? null, publishedBy: actor.userId })
       .returning();
     await activate(tx, actor.siteId, row!.id, version);
+    try {
+      await tx.delete(s.siteDrafts).where(eq(s.siteDrafts.siteId, actor.siteId));
+    } catch {
+      await tx.update(s.siteDrafts).set({ configuration: null }).where(eq(s.siteDrafts.siteId, actor.siteId));
+    }
     await recordAudit(tx, { siteId: actor.siteId, actorId: actor.userId, action: "release.published", entityType: "site_release", entityId: row!.id, configVersion: version, metadata: { version, previousVersion: active?.version ?? null }, requestId: actor.requestId });
     return toSummary(row!, true);
   });
@@ -153,6 +158,39 @@ export async function diff(db: Database, actor: { siteId: string; userId: string
   });
 }
 
+// Preview a release configuration (read‑only)
+export async function preview(db: Database, actor: { siteId: string; userId: string }, releaseId: string): Promise<{ version: number; configuration: unknown }> {
+  return db.withTenant(actor, async (tx) => {
+    const release = await getReleaseById(tx, actor.siteId, releaseId);
+    if (!release) throw notFound("Release not found");
+    return { version: release.version, configuration: release.configuration };
+  });
+}
+
+// Determine if a rollback is allowed for a target release
+export async function rollbackEligibility(
+  db: Database,
+  actor: { siteId: string; userId: string },
+  targetVersion: number,
+  baseVersion: number
+): Promise<{ eligible: boolean; warnings?: string[]; blockingReasons?: string[] }> {
+  return db.withTenant(actor, async (tx) => {
+    const active = await getActiveRelease(tx, actor.siteId);
+    if ((active?.version ?? null) !== baseVersion) {
+      return { eligible: false, blockingReasons: ["Active version mismatch – reload before attempting rollback."] };
+    }
+    const target = await getReleaseByVersion(tx, actor.siteId, targetVersion);
+    if (!target) {
+      return { eligible: false, blockingReasons: [`Target release version ${targetVersion} not found`] };
+    }
+    const { result, compiled } = compileConfiguration(target.configuration);
+    if (!compiled) {
+      return { eligible: false, blockingReasons: result.errors.map((e) => `${e.code}: ${e.message}`) };
+    }
+    return { eligible: true };
+  });
+}
+
 export async function saveDraft(db: Database, actor: { siteId: string; userId: string }, baseVersion: number | null, configuration: unknown): Promise<{ savedAt: string; validation: ConfigurationValidationResult }> {
   const { result } = compileConfiguration(configuration);
   return db.withTenant(actor, async (tx) => {
@@ -170,6 +208,28 @@ export async function saveDraft(db: Database, actor: { siteId: string; userId: s
   });
 }
 
+export async function getDraft(db: Database, actor: { siteId: string; userId: string }): Promise<{ baseVersion: number | null; configuration: SiteConfiguration | null; updatedAt: string } | null> {
+  return db.withTenant(actor, async (tx) => {
+    const [row] = await tx.select().from(s.siteDrafts).where(eq(s.siteDrafts.siteId, actor.siteId));
+    if (!row || !row.configuration) return null;
+    return {
+      baseVersion: row.baseVersion,
+      configuration: row.configuration as SiteConfiguration,
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  });
+}
+
+export async function discardDraft(db: Database, actor: { siteId: string; userId: string }): Promise<{ discarded: boolean }> {
+  return db.withTenant(actor, async (tx) => {
+    try {
+      await tx.delete(s.siteDrafts).where(eq(s.siteDrafts.siteId, actor.siteId));
+    } catch {
+      await tx.update(s.siteDrafts).set({ configuration: null }).where(eq(s.siteDrafts.siteId, actor.siteId));
+    }
+    return { discarded: true };
+  });
+}
 /** Read-only preview of publishing a candidate configuration, or rolling back to `targetVersion`. */
 export async function previewImpact(db: Database, actor: { siteId: string; userId: string }, req: ImpactRequest): Promise<ImpactReport> {
   return db.withTenant(actor, async (tx) => {

@@ -1,5 +1,4 @@
-import { UnavailableModule } from "../src/runtime/pages/UnavailableModule";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PageDefinition, SiteConfiguration } from "@opshub/contracts";
 import { ApiRequestError } from "../src/lib/api";
@@ -8,15 +7,27 @@ import { UniversalRenderer } from "../src/runtime/UniversalRenderer";
 import { allPermissions, configs, renderInSite } from "./helpers";
 
 vi.mock("../src/services", () => ({
-  opsApi: { items: vi.fn(), requests: vi.fn(), assignments: vi.fn() },
+  opsApi: {
+    items: vi.fn(),
+    requests: vi.fn(),
+    assignments: vi.fn(),
+    repairs: vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 50, total: 0 }),
+    returns: vi.fn().mockResolvedValue({ items: [], page: 1, pageSize: 50, total: 0 }),
+    stockSummary: vi.fn().mockResolvedValue({ totalItems: 0, belowReorderLevel: 0, source: "database" }),
+    hubOverview: vi.fn().mockResolvedValue({ sites: [], totals: { sites: 0, inventoryItems: 0, stockUnits: 0, pendingRequests: 0, pendingApprovals: 0, outstandingAssignments: 0 } }),
+  },
   sitesApi: { modules: vi.fn().mockResolvedValue([]) },
+  reportsApi: { list: vi.fn().mockResolvedValue([]) },
 }));
-import { opsApi } from "../src/services";
+import { opsApi, reportsApi } from "../src/services";
 
 const item = { id: "i1", siteId: "s", sku: "BRG-1", name: "Bearing", unit: "each", onHand: 4, reorderLevel: 10, extras: {}, updatedAt: "2026-01-01T00:00:00.000Z" };
 const pageFor = (c: SiteConfiguration, path: string): PageDefinition => c.pages.find((p) => p.path === path)!;
 
-beforeEach(() => vi.resetAllMocks());
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(reportsApi.list).mockResolvedValue([]);
+});
 
 describe("UniversalRenderer", () => {
   it("renders a module from configuration through the registry", async () => {
@@ -62,8 +73,8 @@ describe("UniversalRenderer", () => {
     expect(opsApi.items).not.toHaveBeenCalled();
   });
 
-  it("a module without a screen is explained honestly instead of faked", () => {
-    render(<UnavailableModule title="Platform module" reason="Managed by the platform; it has no page of its own." />);
+  it("explains modules that are enabled but not implemented", () => {
+    renderInSite(<UniversalRenderer page={pageFor(configs.service, "users")} />, { config: configs.service, permissions: allPermissions(configs.service) });
     expect(screen.getByRole("status")).toHaveTextContent("Not implemented yet");
   });
 });

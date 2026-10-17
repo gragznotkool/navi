@@ -58,7 +58,7 @@ export async function requestsWorkbook(config: SiteConfiguration, requests: Requ
   sheet.columns = head.map((h) => ({ header: neutralizeCell(h) as string, key: h }));
   for (const r of requests) {
     for (const l of r.lines) {
-      sheet.addRow([cell(r.id), cell(r.status), new Date(r.createdAt), new Date(r.statusChangedAt), r.releaseVersion, cell(l.sku), cell(l.name), l.quantity, ...fields.map((f) => cell(l.extras[f.key]))]);
+      sheet.addRow([cell(r.id), cell(r.status), new Date(r.createdAt), r.statusChangedAt ? new Date(r.statusChangedAt) : "", r.releaseVersion, cell(l.sku), cell(l.name), l.quantity, ...fields.map((f) => cell(l.extras[f.key]))]);
     }
   }
   sheet.getColumn(3).numFmt = "yyyy-mm-dd hh:mm";

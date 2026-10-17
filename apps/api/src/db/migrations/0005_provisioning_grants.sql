@@ -7,3 +7,6 @@ CREATE POLICY platform_admin_insert ON sites FOR INSERT
 --> statement-breakpoint
 CREATE POLICY platform_admin_insert ON user_site_roles FOR INSERT
   WITH CHECK (EXISTS (SELECT 1 FROM users u WHERE u.id = app_user_id() AND u.is_platform_admin));
+--> statement-breakpoint
+GRANT DELETE ON site_drafts TO opshub_app;
+

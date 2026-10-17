@@ -343,6 +343,8 @@
   ],
   "calculatedFieldDefinitions": [],
   "fields": [],
+  "customFields": [],
+  "reports": {},
   "metadata": {
     "description": "Service Centre seed configuration (development demo)"
   }

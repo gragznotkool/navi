@@ -6,6 +6,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgEnum,
   pgTable,
   primaryKey,
@@ -168,6 +169,9 @@ export const inventoryItems = pgTable(
     /** Denormalised balance; reconcilable against SUM(stock_ledger.delta). Never negative (CHECK). */
     onHand: integer("on_hand").notNull().default(0),
     reorderLevel: integer("reorder_level").notNull().default(0),
+    /** Confidential commercial fields. Exposed only through role-masked reports, never the plain inventory API. */
+    unitCost: numeric("unit_cost", { precision: 12, scale: 2 }).notNull().default("0"),
+    vendorMargin: numeric("vendor_margin", { precision: 5, scale: 2 }).notNull().default("0"),
     /** Values of configurable fields. Hidden fields stay here (soft-hide). */
     extras: jsonb("extras").notNull().default(sql`'{}'::jsonb`),
     createdAt: createdAt(),
@@ -178,6 +182,8 @@ export const inventoryItems = pgTable(
     unique("inventory_items_site_id_uq").on(t.siteId, t.id),
     check("inventory_items_on_hand_nonneg", sql`${t.onHand} >= 0`),
     check("inventory_items_reorder_nonneg", sql`${t.reorderLevel} >= 0`),
+    check("inventory_items_cost_nonneg", sql`${t.unitCost} >= 0`),
+    check("inventory_items_margin_range", sql`${t.vendorMargin} between 0 and 100`),
   ],
 );
 

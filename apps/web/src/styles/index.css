@@ -49,3 +49,32 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* ---- Builder feedback: refused connections shake the target and flash a dashed red edge;
+        accepted connections pulse green. Motion is skipped for users who prefer reduced motion. ---- */
+@keyframes ops-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-7px); }
+  30% { transform: translateX(6px); }
+  45% { transform: translateX(-5px); }
+  60% { transform: translateX(4px); }
+  75% { transform: translateX(-2px); }
+}
+@keyframes ops-glow {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(22, 163, 74, 0)); }
+  35% { filter: drop-shadow(0 0 7px rgba(22, 163, 74, 0.95)); }
+}
+.ops-shake { animation: ops-shake 0.5s ease-in-out; border-color: #dc2626 !important; }
+.react-flow__edge.ops-edge-reject .react-flow__edge-path {
+  stroke: #dc2626;
+  stroke-width: 3;
+  stroke-dasharray: 7 5;
+}
+.react-flow__edge.ops-edge-ok .react-flow__edge-path {
+  stroke: #16a34a;
+  stroke-width: 3;
+  animation: ops-glow 1.4s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ops-shake, .react-flow__edge.ops-edge-ok .react-flow__edge-path { animation: none; }
+}

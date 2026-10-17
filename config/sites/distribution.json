@@ -347,6 +347,8 @@
   ],
   "calculatedFieldDefinitions": [],
   "fields": [],
+  "customFields": [],
+  "reports": {},
   "metadata": {
     "description": "Distribution seed configuration (development demo)"
   }

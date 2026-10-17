@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useParams } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { useAsync } from "../hooks/useAsync";
 import { ReleasesPage } from "../features/releases/ReleasesPage";
@@ -11,7 +11,6 @@ import { SiteRuntimeProvider } from "./context";
 import { SiteShell } from "./SiteShell";
 import { UniversalRenderer } from "./UniversalRenderer";
 import { useSiteRuntime } from "./context";
-import { Link } from "react-router-dom";
 import { usePreviewStore } from "../features/builder/previewStore";
 
 // The builder pulls in the graph editor, so it is loaded only when someone opens it.
@@ -22,19 +21,27 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
   const { slug = "" } = useParams();
   const session = useSession((s) => s.session);
   const membership = session?.memberships.find((m) => m.siteSlug === slug);
-  const draft = usePreviewStore((s) => s.drafts[slug]);
+  const draft = usePreviewStore((s) => s.getDraft(slug) ?? s.drafts[slug]);
+
   useEffect(() => {
-    if (membership && !preview) setLastSite(slug);
-  }, [membership, preview, slug]);
+    if (slug && !preview) setLastSite(slug);
+  }, [preview, slug]);
+
   // Permissions are re-read with the config: they derive from the ACTIVE release's roles, so a
   // publish/rollback changes them and the login-time session snapshot would be stale.
   const active = useAsync(async () => {
-    if (!membership) return null;
-    const [cfg, access] = await Promise.all([sitesApi.config(membership.siteId), sitesApi.access(membership.siteId)]);
-    return { ...cfg, permissions: access.permissions };
-  }, [membership?.siteId]);
+    let siteId = membership?.siteId;
+    if (!siteId) {
+      const sites = await sitesApi.list();
+      const match = sites.find((s) => s.slug === slug);
+      if (match) siteId = match.id;
+    }
+    if (!siteId) return null;
+    const [cfg, access] = await Promise.all([sitesApi.config(siteId), sitesApi.access(siteId)]);
+    return { ...cfg, permissions: access.permissions, resolvedSiteId: siteId };
+  }, [slug, membership?.siteId]);
 
-  if (!membership) {
+  if (!membership && !active.data && !active.loading) {
     return (
       <div className="p-8">
         <EmptyState title="Site not found" hint="You are not a member of this site, or it does not exist." action={<Link className="mt-2 text-sm text-accent underline" to="/">Back to your sites</Link>} />
@@ -46,10 +53,11 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
   if (preview && !draft) return <div className="p-8"><EmptyState title="No draft to preview" hint="Open the configuration builder and validate a draft first." action={<Link className="mt-2 text-sm text-accent underline" to={`/s/${slug}/admin/builder`}>Open builder</Link>} /></div>;
 
   const config = preview && draft ? draft : active.data.configuration;
+  const siteId = active.data.resolvedSiteId || membership?.siteId || config.siteId;
   return (
     <SiteRuntimeProvider
       value={{
-        siteId: membership.siteId,
+        siteId,
         slug,
         version: preview ? null : active.data.version,
         config,
@@ -61,7 +69,18 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
     >
       <Routes>
         <Route index element={<FirstPage />} />
-        {!preview && <Route path="admin/builder" element={<SiteShell title="Configuration builder"><Suspense fallback={<LoadingState label="Loading the builder…" />}><BuilderPage activeVersion={active.data.version} activeConfig={active.data.configuration} /></Suspense></SiteShell>} />}
+        {!preview && (
+          <Route
+            path="admin/builder"
+            element={
+              <SiteShell title="Configuration builder">
+                <Suspense fallback={<LoadingState label="Loading the builder…" />}>
+                  <BuilderPage activeVersion={active.data.version} activeConfig={active.data.configuration} />
+                </Suspense>
+              </SiteShell>
+            }
+          />
+        )}
         {!preview && <Route path="admin/rewind" element={<SiteShell title="Rewind"><RewindPage /></SiteShell>} />}
         {!preview && <Route path="admin/releases" element={<SiteShell title="Releases"><ReleasesPage /></SiteShell>} />}
         <Route path=":pagePath" element={<PageRoute />} />

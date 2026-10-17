@@ -1,4 +1,4 @@
-import type { FieldDefinition, ModuleDefinition, ModuleEdge, SiteConfiguration } from "@opshub/contracts";
+import type { CalculatedFieldDefinition, CustomFieldDefinition, FieldDefinition, ModuleDefinition, ModuleEdge, SiteConfiguration } from "@opshub/contracts";
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
@@ -40,6 +40,7 @@ export function removeModule(config: SiteConfiguration, nodeId: string, registry
   next.modules.edges = next.modules.edges.filter((e) => e.sourceNodeId !== nodeId && e.targetNodeId !== nodeId);
   const removedPages = next.pages.filter((p) => p.nodeId === nodeId).map((p) => p.id);
   next.pages = next.pages.filter((p) => p.nodeId !== nodeId);
+  next.customFields = next.customFields.filter((f) => f.nodeId !== nodeId);
   next.navigation = next.navigation.filter((n) => !removedPages.includes(n.pageId));
   const stillDefined = new Set(next.modules.nodes.flatMap((n) => registry.find((d) => d.type === n.moduleType)?.permissions ?? []));
   for (const r of next.roles) r.permissions = r.permissions.filter((p) => stillDefined.has(p));
@@ -70,26 +71,123 @@ export function addEdge(config: SiteConfiguration, edge: Omit<ModuleEdge, "id">)
   return next;
 }
 
+export const edgeIdOf = (e: Omit<ModuleEdge, "id">): string => `${e.sourceNodeId}.${e.sourcePortId}->${e.targetNodeId}.${e.targetPortId}`;
+
 export function removeEdge(config: SiteConfiguration, edgeId: string): SiteConfiguration {
   const next = clone(config);
   next.modules.edges = next.modules.edges.filter((e) => e.id !== edgeId);
   return next;
 }
 
-/** Port-level connection check for UX. The server compiler re-checks everything on validate/publish. */
-export function canConnect(
-  registry: readonly ModuleDefinition[],
-  dataTypes: readonly { id: string; assignableTo: string[] }[],
-  c: { sourceNodeId: string; sourcePortId: string; targetNodeId: string; targetPortId: string },
-  config: SiteConfiguration,
-): boolean {
-  if (c.sourceNodeId === c.targetNodeId) return false;
+type PortConnection = { sourceNodeId: string; sourcePortId: string; targetNodeId: string; targetPortId: string };
+type DataTypes = readonly { id: string; assignableTo: string[] }[];
+
+/**
+ * Why a connection is not allowed, in words a builder user can act on (null when it is allowed).
+ * Mirrors the server compiler's graph rules; the server remains the authority on validate/publish.
+ */
+export function explainConnection(registry: readonly ModuleDefinition[], dataTypes: DataTypes, c: PortConnection, config: SiteConfiguration): string | null {
+  if (c.sourceNodeId === c.targetNodeId) return "Self-connection: a module cannot feed itself.";
   const src = config.modules.nodes.find((n) => n.id === c.sourceNodeId);
   const tgt = config.modules.nodes.find((n) => n.id === c.targetNodeId);
-  const sp = registry.find((d) => d.type === src?.moduleType)?.ports.find((p) => p.id === c.sourcePortId);
-  const tp = registry.find((d) => d.type === tgt?.moduleType)?.ports.find((p) => p.id === c.targetPortId);
-  if (!sp || !tp || sp.direction !== "output" || tp.direction !== "input") return false;
-  return sp.dataType === tp.dataType || (dataTypes.find((d) => d.id === sp.dataType)?.assignableTo.includes(tp.dataType) ?? false);
+  const sd = registry.find((d) => d.type === src?.moduleType);
+  const td = registry.find((d) => d.type === tgt?.moduleType);
+  const sp = sd?.ports.find((p) => p.id === c.sourcePortId);
+  const tp = td?.ports.find((p) => p.id === c.targetPortId);
+  if (!sd || !td || !sp || !tp) return "Unknown module or port.";
+  if (sp.direction !== "output" || tp.direction !== "input") return "Direction: connect an output port to an input port.";
+  const compatible = sp.dataType === tp.dataType || (dataTypes.find((d) => d.id === sp.dataType)?.assignableTo.includes(tp.dataType) ?? false);
+  if (!compatible) {
+    return `Incompatible Port: ${td.displayName} module requires a ${tp.label} input stream, but ${sd.displayName} outputs ${sp.label}.`;
+  }
+  // The new edge closes a loop when the target can already reach the source.
+  const next = new Map<string, string[]>();
+  for (const e of config.modules.edges) next.set(e.sourceNodeId, [...(next.get(e.sourceNodeId) ?? []), e.targetNodeId]);
+  const stack = [c.targetNodeId];
+  const seen = new Set<string>();
+  while (stack.length > 0) {
+    const n = stack.pop()!;
+    if (n === c.sourceNodeId) return `Circular wiring: ${td.displayName} already feeds ${sd.displayName}.`;
+    if (seen.has(n)) continue;
+    seen.add(n);
+    stack.push(...(next.get(n) ?? []));
+  }
+  return null;
+}
+
+/** Port-level connection check for UX. The server compiler re-checks everything on validate/publish. */
+export function canConnect(registry: readonly ModuleDefinition[], dataTypes: DataTypes, c: PortConnection, config: SiteConfiguration): boolean {
+  return explainConnection(registry, dataTypes, c, config) === null;
+}
+
+/** Problems a freshly placed module has on its own (missing dependencies, nothing feeding its inputs). */
+export function isolationProblem(registry: readonly ModuleDefinition[], config: SiteConfiguration, nodeId: string): string | null {
+  const node = config.modules.nodes.find((n) => n.id === nodeId);
+  const def = registry.find((d) => d.type === node?.moduleType);
+  if (!node || !def) return null;
+  const missing = def.dependencies.filter((d) => !config.modules.nodes.some((n) => n.moduleType === d));
+  if (missing.length > 0) {
+    const names = missing.map((m) => registry.find((d) => d.type === m)?.displayName ?? m).join(", ");
+    return `${def.displayName} needs ${names} in the graph first.`;
+  }
+  const inputs = def.ports.filter((p) => p.direction === "input" && p.dataType !== "identity");
+  const fed = (portId: string) => config.modules.edges.some((e) => e.targetNodeId === nodeId && e.targetPortId === portId);
+  if (inputs.length > 0 && inputs.every((p) => !fed(p.id))) {
+    return `Isolated: ${def.displayName} has no incoming ${inputs.map((p) => p.label).join(" / ")} stream.`;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------- inspector edits
+
+export function setRolePermission(config: SiteConfiguration, roleId: string, permission: string, granted: boolean): SiteConfiguration {
+  const next = clone(config);
+  const role = next.roles.find((r) => r.id === roleId);
+  if (!role) return config;
+  role.permissions = granted ? [...new Set([...role.permissions, permission])] : role.permissions.filter((p) => p !== permission);
+  return next;
+}
+
+export function addCustomField(config: SiteConfiguration, nodeId: string): SiteConfiguration {
+  const next = clone(config);
+  let n = next.customFields.filter((f) => f.nodeId === nodeId).length + 1;
+  while (next.customFields.some((f) => f.nodeId === nodeId && f.name === `field${n}`)) n++;
+  next.customFields.push({ id: `${nodeId}.field${n}`, nodeId, name: `field${n}`, type: "string", required: false });
+  return next;
+}
+
+export function updateCustomField(config: SiteConfiguration, id: string, patch: Partial<Omit<CustomFieldDefinition, "id" | "nodeId">>): SiteConfiguration {
+  const next = clone(config);
+  const f = next.customFields.find((x) => x.id === id);
+  if (f) Object.assign(f, patch);
+  return next;
+}
+
+export function removeCustomField(config: SiteConfiguration, id: string): SiteConfiguration {
+  const next = clone(config);
+  next.customFields = next.customFields.filter((f) => f.id !== id);
+  return next;
+}
+
+export function addCalculatedField(config: SiteConfiguration): SiteConfiguration {
+  const next = clone(config);
+  let n = next.calculatedFieldDefinitions.length + 1;
+  while (next.calculatedFieldDefinitions.some((f) => f.id === `calc-${n}`)) n++;
+  next.calculatedFieldDefinitions.push({ id: `calc-${n}`, label: `Calculated field ${n}`, expression: "a + b", inputs: { a: "number", b: "number" }, resultType: "number" });
+  return next;
+}
+
+export function updateCalculatedField(config: SiteConfiguration, id: string, patch: Partial<Omit<CalculatedFieldDefinition, "id">>): SiteConfiguration {
+  const next = clone(config);
+  const f = next.calculatedFieldDefinitions.find((x) => x.id === id);
+  if (f) Object.assign(f, patch);
+  return next;
+}
+
+export function removeCalculatedField(config: SiteConfiguration, id: string): SiteConfiguration {
+  const next = clone(config);
+  next.calculatedFieldDefinitions = next.calculatedFieldDefinitions.filter((f) => f.id !== id);
+  return next;
 }
 
 /** Adds a field, or returns the config unchanged when the entity already has that key. */

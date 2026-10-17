@@ -92,6 +92,27 @@ export const calculatedFieldDefinitionSchema = z.object({
 });
 export type CalculatedFieldDefinition = z.infer<typeof calculatedFieldDefinitionSchema>;
 
+export const customFieldDefinitionSchema = z.object({
+  id: z.string().min(1),
+  nodeId: z.string().min(1),
+  name: z.string().regex(/^[A-Za-z][A-Za-z0-9_]{0,39}$/, "field name must start with a letter and use letters, digits or _"),
+  type: z.enum(["string", "number", "boolean", "date"]),
+  required: z.boolean(),
+});
+export type CustomFieldDefinition = z.infer<typeof customFieldDefinitionSchema>;
+
+/**
+ * Excel report policy for one report key. Roles are role ids from `roles`.
+ * `maskColumns` maps a role to the column keys it must not see (cells become "*** CONFIDENTIAL ***").
+ */
+export const reportDefinitionSchema = z.object({
+  title: z.string().min(1),
+  exportRoles: z.array(z.string().min(1)),
+  importRoles: z.array(z.string().min(1)),
+  maskColumns: z.record(z.string(), z.array(z.string().min(1))),
+});
+export type ReportDefinition = z.infer<typeof reportDefinitionSchema>;
+
 export const fieldEntitySchema = z.enum(["inventory_item", "request_line"]);
 export type FieldEntity = z.infer<typeof fieldEntitySchema>;
 
@@ -121,7 +142,12 @@ export const siteConfigurationSchema = z.object({
   navigation: z.array(navigationItemSchema),
   workflowDefinitions: z.array(workflowDefinitionSchema),
   calculatedFieldDefinitions: z.array(calculatedFieldDefinitionSchema),
-  fields: z.array(fieldDefinitionSchema),
+  /** Configurable fields on domain entities (Schema v2). */
+  fields: z.array(fieldDefinitionSchema).default([]),
+  /** Extra per-module fields configured in the builder inspector. Absent in older releases. */
+  customFields: z.array(customFieldDefinitionSchema).default([]),
+  /** Keyed by report key (e.g. "inventory"). Absent in older releases, which therefore expose no reports. */
+  reports: z.record(z.string().regex(/^[a-z0-9-]+$/), reportDefinitionSchema).default({}),
   metadata: z.record(z.string(), z.string()),
 });
 export type SiteConfiguration = z.infer<typeof siteConfigurationSchema>;

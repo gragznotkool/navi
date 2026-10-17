@@ -7,7 +7,7 @@ export const apiErrorSchema = z.object({
   code: z.string(),
   message: z.string(),
   requestId: z.string().optional(),
-  details: z.array(z.object({ path: z.string(), message: z.string() })).optional(),
+  details: z.array(z.object({ path: z.string(), message: z.string(), row: z.number().int().optional(), column: z.string().optional() })).optional(),
 });
 export type ApiError = z.infer<typeof apiErrorSchema>;
 

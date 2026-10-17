@@ -13,7 +13,7 @@ import { configs, renderInSite } from "./helpers";
 vi.mock("../src/services", () => ({
   authApi: { login: vi.fn(), logout: vi.fn(), me: vi.fn() },
   sitesApi: { modules: vi.fn(), dataTypes: vi.fn() },
-  configApi: { validate: vi.fn(), saveDraft: vi.fn(), preview: vi.fn() },
+  configApi: { validate: vi.fn(), saveDraft: vi.fn(), preview: vi.fn(), draft: vi.fn(), discardDraft: vi.fn() },
   releasesApi: { publish: vi.fn(), impact: vi.fn() },
 }));
 import { authApi, configApi, releasesApi, sitesApi } from "../src/services";
@@ -32,6 +32,7 @@ const registry: ModuleDefinition[] = [
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(configApi.draft).mockResolvedValue(null);
   useSession.setState({ status: "anonymous", session: null });
 });
 
@@ -117,7 +118,7 @@ describe("BuilderPage", () => {
 
   it("publishes only after a valid server verdict and sends the base version", async () => {
     vi.mocked(configApi.validate).mockResolvedValue({ valid: true, warnings: [], errors: [] });
-vi.mocked(releasesApi.impact).mockResolvedValue({ valid: true, errors: [], sentences: ["The “Return Management” module is added."], impact: { modulesAdded: [], modulesRemoved: [], fieldsHidden: [], fieldsRemoved: [], roleChanges: [], openRequestsByVersion: [], destructive: false, destructiveReasons: [] } });
+    vi.mocked(releasesApi.impact).mockResolvedValue({ valid: true, errors: [], sentences: ["The “Return Management” module is added."], impact: { modulesAdded: [], modulesRemoved: [], fieldsHidden: [], fieldsRemoved: [], roleChanges: [], openRequestsByVersion: [], destructive: false, destructiveReasons: [] } });
     vi.mocked(releasesApi.publish).mockResolvedValue({ id: "r", siteId: "s", version: 2, note: null, publishedBy: "u", publishedAt: "2026-01-01T00:00:00.000Z", rolledBackToVersion: null, isActive: true });
     mount();
     await addReturns();
@@ -125,13 +126,13 @@ vi.mocked(releasesApi.impact).mockResolvedValue({ valid: true, errors: [], sente
     await waitFor(() => expect(screen.getByRole("button", { name: "Review & publish" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Review & publish" }));
     expect(await screen.findByText("The “Return Management” module is added.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Publish" }));
+    await userEvent.click(screen.getByRole("button", { name: "Publish release" }));
     await waitFor(() => expect(releasesApi.publish).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ baseVersion: 1 })));
   });
 
   it("surfaces a stale-draft conflict and blocks further publishing", async () => {
     vi.mocked(configApi.validate).mockResolvedValue({ valid: true, warnings: [], errors: [] });
-vi.mocked(releasesApi.impact).mockResolvedValue({ valid: true, errors: [], sentences: ["The “Return Management” module is added."], impact: { modulesAdded: [], modulesRemoved: [], fieldsHidden: [], fieldsRemoved: [], roleChanges: [], openRequestsByVersion: [], destructive: false, destructiveReasons: [] } });
+    vi.mocked(releasesApi.impact).mockResolvedValue({ valid: true, errors: [], sentences: ["The “Return Management” module is added."], impact: { modulesAdded: [], modulesRemoved: [], fieldsHidden: [], fieldsRemoved: [], roleChanges: [], openRequestsByVersion: [], destructive: false, destructiveReasons: [] } });
     vi.mocked(releasesApi.publish).mockRejectedValue(new ApiRequestError(409, "stale_draft", "Draft is based on version 1 but the active version is 2."));
     mount();
     await addReturns();
@@ -139,7 +140,7 @@ vi.mocked(releasesApi.impact).mockResolvedValue({ valid: true, errors: [], sente
     await waitFor(() => expect(screen.getByRole("button", { name: "Review & publish" })).toBeEnabled());
     await userEvent.click(screen.getByRole("button", { name: "Review & publish" }));
     expect(await screen.findByText("The “Return Management” module is added.")).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Publish" }));
+    await userEvent.click(screen.getByRole("button", { name: "Publish release" }));
     expect(await screen.findByText(/active release changed/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Review & publish" })).toBeDisabled();
   });

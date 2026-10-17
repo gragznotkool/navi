@@ -1,5 +1,5 @@
 {
-  "id": "9e06701d-0b7f-4d10-b076-4b4f44babc89",
+  "id": "54293a8b-103d-49f9-a16d-11c748a2688c",
   "prevId": "ea423d8d-59ad-4c95-ae19-aa932142ee3f",
   "version": "7",
   "dialect": "postgresql",
@@ -131,17 +131,17 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
         "quantity": {
           "name": "quantity",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
-        },
-        "config_version": {
-          "name": "config_version",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
         },
         "approved_decision": {
           "name": "approved_decision",
@@ -193,6 +193,21 @@
             "site_id",
             "request_id",
             "decision"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "assignments_item_same_site_fk": {
+          "name": "assignments_item_same_site_fk",
+          "tableFrom": "assignments",
+          "tableTo": "inventory_items",
+          "columnsFrom": [
+            "site_id",
+            "item_id"
+          ],
+          "columnsTo": [
+            "site_id",
+            "id"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -279,12 +294,6 @@
         "request_id": {
           "name": "request_id",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "config_version": {
-          "name": "config_version",
-          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -582,12 +591,19 @@
           "notNull": true,
           "default": 0
         },
-        "extras": {
-          "name": "extras",
-          "type": "jsonb",
+        "unit_cost": {
+          "name": "unit_cost",
+          "type": "numeric(12, 2)",
           "primaryKey": false,
           "notNull": true,
-          "default": "'{}'::jsonb"
+          "default": "'0'"
+        },
+        "vendor_margin": {
+          "name": "vendor_margin",
+          "type": "numeric(5, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
         },
         "created_at": {
           "name": "created_at",
@@ -648,278 +664,16 @@
         "inventory_items_reorder_nonneg": {
           "name": "inventory_items_reorder_nonneg",
           "value": "\"inventory_items\".\"reorder_level\" >= 0"
+        },
+        "inventory_items_cost_nonneg": {
+          "name": "inventory_items_cost_nonneg",
+          "value": "\"inventory_items\".\"unit_cost\" >= 0"
+        },
+        "inventory_items_margin_range": {
+          "name": "inventory_items_margin_range",
+          "value": "\"inventory_items\".\"vendor_margin\" between 0 and 100"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.provisioning_events": {
-      "name": "provisioning_events",
-      "schema": "",
-      "columns": {
-        "job_id": {
-          "name": "job_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "seq": {
-          "name": "seq",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "level": {
-          "name": "level",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message": {
-          "name": "message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "at": {
-          "name": "at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "provisioning_events_job_id_provisioning_jobs_id_fk": {
-          "name": "provisioning_events_job_id_provisioning_jobs_id_fk",
-          "tableFrom": "provisioning_events",
-          "tableTo": "provisioning_jobs",
-          "columnsFrom": [
-            "job_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "provisioning_events_job_id_seq_pk": {
-          "name": "provisioning_events_job_id_seq_pk",
-          "columns": [
-            "job_id",
-            "seq"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.provisioning_jobs": {
-      "name": "provisioning_jobs",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "slug": {
-          "name": "slug",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "provisioning_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'running'"
-        },
-        "input": {
-          "name": "input",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "requested_by": {
-          "name": "requested_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "provisioning_jobs_requested_by_users_id_fk": {
-          "name": "provisioning_jobs_requested_by_users_id_fk",
-          "tableFrom": "provisioning_jobs",
-          "tableTo": "users",
-          "columnsFrom": [
-            "requested_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "provisioning_jobs_slug_unique": {
-          "name": "provisioning_jobs_slug_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.refresh_tokens": {
-      "name": "refresh_tokens",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "family_id": {
-          "name": "family_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "token_hash": {
-          "name": "token_hash",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "expires_at": {
-          "name": "expires_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "revoked_at": {
-          "name": "revoked_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "replaced_by": {
-          "name": "replaced_by",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "refresh_tokens_user_idx": {
-          "name": "refresh_tokens_user_idx",
-          "columns": [
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "refresh_tokens_family_idx": {
-          "name": "refresh_tokens_family_idx",
-          "columns": [
-            {
-              "expression": "family_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "refresh_tokens_user_id_users_id_fk": {
-          "name": "refresh_tokens_user_id_users_id_fk",
-          "tableFrom": "refresh_tokens",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "refresh_tokens_token_hash_unique": {
-          "name": "refresh_tokens_token_hash_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "token_hash"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.repair_records": {
@@ -1046,126 +800,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.request_lines": {
-      "name": "request_lines",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "site_id": {
-          "name": "site_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "request_id": {
-          "name": "request_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "item_id": {
-          "name": "item_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quantity": {
-          "name": "quantity",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "extras": {
-          "name": "extras",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        }
-      },
-      "indexes": {
-        "request_lines_request_idx": {
-          "name": "request_lines_request_idx",
-          "columns": [
-            {
-              "expression": "request_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "request_lines_request_same_site_fk": {
-          "name": "request_lines_request_same_site_fk",
-          "tableFrom": "request_lines",
-          "tableTo": "requests",
-          "columnsFrom": [
-            "site_id",
-            "request_id"
-          ],
-          "columnsTo": [
-            "site_id",
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "request_lines_item_same_site_fk": {
-          "name": "request_lines_item_same_site_fk",
-          "tableFrom": "request_lines",
-          "tableTo": "inventory_items",
-          "columnsFrom": [
-            "site_id",
-            "item_id"
-          ],
-          "columnsTo": [
-            "site_id",
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "request_lines_site_id_uq": {
-          "name": "request_lines_site_id_uq",
-          "nullsNotDistinct": false,
-          "columns": [
-            "site_id",
-            "id"
-          ]
-        },
-        "request_lines_request_item_uq": {
-          "name": "request_lines_request_item_uq",
-          "nullsNotDistinct": false,
-          "columns": [
-            "request_id",
-            "item_id"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "request_lines_quantity_positive": {
-          "name": "request_lines_quantity_positive",
-          "value": "\"request_lines\".\"quantity\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.requests": {
       "name": "requests",
       "schema": "",
@@ -1183,6 +817,18 @@
           "primaryKey": false,
           "notNull": true
         },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "status": {
           "name": "status",
           "type": "request_status",
@@ -1190,13 +836,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'draft'"
-        },
-        "status_changed_at": {
-          "name": "status_changed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         },
         "requested_by": {
           "name": "requested_by",
@@ -1286,6 +925,21 @@
           ],
           "onDelete": "restrict",
           "onUpdate": "no action"
+        },
+        "requests_item_same_site_fk": {
+          "name": "requests_item_same_site_fk",
+          "tableFrom": "requests",
+          "tableTo": "inventory_items",
+          "columnsFrom": [
+            "site_id",
+            "item_id"
+          ],
+          "columnsTo": [
+            "site_id",
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1300,7 +954,12 @@
         }
       },
       "policies": {},
-      "checkConstraints": {},
+      "checkConstraints": {
+        "requests_quantity_positive": {
+          "name": "requests_quantity_positive",
+          "value": "\"requests\".\"quantity\" > 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.return_records": {
@@ -1731,13 +1390,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "is_system": {
-          "name": "is_system",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -1819,12 +1471,6 @@
         "actor_id": {
           "name": "actor_id",
           "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "config_version": {
-          "name": "config_version",
-          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -2109,15 +1755,6 @@
         "assignment",
         "return-restock",
         "adjustment"
-      ]
-    },
-    "public.provisioning_status": {
-      "name": "provisioning_status",
-      "schema": "public",
-      "values": [
-        "running",
-        "succeeded",
-        "failed"
       ]
     },
     "public.repair_status": {

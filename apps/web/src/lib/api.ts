@@ -46,6 +46,30 @@ export async function call<T>(promise: Promise<{ data: { data: T } }>): Promise<
   }
 }
 
+/** Blob responses carry JSON error bodies as Blobs; decode them so users see the real reason. */
+export async function toRequestErrorFromBlob(e: unknown): Promise<ApiRequestError> {
+  if (e instanceof AxiosError && e.response?.data instanceof Blob) {
+    try {
+      const body = JSON.parse(await e.response.data.text()) as { error?: ApiError };
+      if (body.error) return new ApiRequestError(e.response.status, body.error.code, body.error.message, body.error.details ?? []);
+    } catch {
+      /* fall through to the generic mapping */
+    }
+  }
+  return toRequestError(e);
+}
+
+/** Hands a Blob to the browser as a file download. */
+export function saveBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
 // ---------------------------------------------------------------- session refresh
 
 interface AuthHandlers {
