@@ -309,14 +309,13 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
     setTimeout(() => flow.current?.fitView({ duration: 300, padding: 0.15 }), 60);
   };
   const onCanvasDragOver = (e: DragEvent) => {
-    if (!e.dataTransfer.types.includes(MODULE_DRAG_TYPE)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
   };
   const onCanvasDrop = (e: DragEvent) => {
-    const type = e.dataTransfer.getData(MODULE_DRAG_TYPE);
-    if (!type) return;
     e.preventDefault();
+    const type = e.dataTransfer.getData(MODULE_DRAG_TYPE) || e.dataTransfer.getData("text/plain");
+    if (!type) return;
     const pos = flow.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY });
     addFromGallery(type, pos ? { x: Math.round(pos.x - 120), y: Math.round(pos.y - 40) } : undefined);
   };
@@ -449,12 +448,32 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#A5A8A6]" /></Button>
         </div>
       </div>
-      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-[4px] border border-[#303432] bg-[#171919] p-3">
-        <SelectField label="Add module" value={toAdd} onChange={(e) => setToAdd(e.target.value)} className="w-64">
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-[4px] border border-[#303432] bg-[#171919] p-3">
+        <SelectField label="Add module" value={toAdd} onChange={(e) => setToAdd(e.target.value)} className="w-56">
           <option value="">Select a module…</option>
           {available.map((d) => <option key={d.type} value={d.type}>{d.displayName}</option>)}
         </SelectField>
         <Button disabled={!toAdd} onClick={addSelected} variant="primary">Add</Button>
+        <div className="hidden lg:flex items-center gap-1.5 border-l border-[#303432] pl-3">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#A5A8A6] mr-1">Drag & Drop:</span>
+          {available.slice(0, 5).map((d) => (
+            <button
+              key={d.type}
+              type="button"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(MODULE_DRAG_TYPE, d.type);
+                e.dataTransfer.setData("text/plain", d.type);
+                e.dataTransfer.effectAllowed = "copy";
+              }}
+              onClick={() => placeModule(d.type)}
+              title={`Drag onto canvas or click to add ${d.displayName}`}
+              className="cursor-grab active:cursor-grabbing rounded-[3px] border border-[#303432] bg-[#111313] px-2.5 py-1 text-xs font-semibold text-[#F5F5F0] transition hover:border-[#FFE500] hover:text-[#FFE500]"
+            >
+              + {d.displayName}
+            </button>
+          ))}
+        </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button onClick={validate} loading={busy === "validate"} className="uppercase font-mono">Validate</Button>
           <Button onClick={saveDraft} loading={busy === "draft"} disabled={!dirty} className="uppercase font-mono">Save draft</Button>
@@ -520,6 +539,8 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
             onConnect={onConnect}
             isValidConnection={isValidConnection}
             onInit={(i) => { flow.current = i; }}
+            onDragOver={onCanvasDragOver}
+            onDrop={onCanvasDrop}
             defaultEdgeOptions={{ style: { stroke: "#C9CDD1", strokeWidth: 2 } }}
             fitView
             nodesDraggable={!locked}

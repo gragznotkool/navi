@@ -41,6 +41,7 @@ export function ModuleGallery({ defs, config, query, locked, onAdd, onUnlock }: 
                     draggable={!on}
                     onDragStart={(e) => {
                       e.dataTransfer.setData(MODULE_DRAG_TYPE, d.type);
+                      e.dataTransfer.setData("text/plain", d.type);
                       e.dataTransfer.effectAllowed = "copy";
                     }}
                     onClick={() => !on && onAdd(d.type)}
