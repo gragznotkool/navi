@@ -63,13 +63,13 @@ export function ImpactDialog({
             {data.sentences.map((s) => <li key={s}>{s}</li>)}
           </ul>
           {destructive && data.impact && (
-            <div className="mt-4 rounded-ui border border-amber-300 bg-amber-50 p-3 text-sm">
-              <p className="mb-1 flex items-center gap-2 font-medium"><Badge tone="warning">Needs confirmation</Badge> This change affects things that are in use</p>
-              <ul className="list-disc pl-5">
+            <div className="mt-4 rounded-ui border border-warning/40 bg-warning/10 p-3 text-sm">
+              <p className="mb-2 flex items-center gap-2 font-medium text-warning"><Badge tone="warning">Needs confirmation</Badge> This change affects things that are in use</p>
+              <ul className="list-disc pl-5 space-y-1 text-xs text-secondary">
                 {data.impact.destructiveReasons.map((r) => <li key={r}>{r}</li>)}
               </ul>
-              <label className="mt-3 flex items-start gap-2">
-                <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} className="mt-1" />
+              <label className="mt-3 flex items-start gap-2 text-xs text-primary font-medium cursor-pointer">
+                <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} className="mt-0.5 accent-[#FFE500]" />
                 <span>I understand and want to continue. Hidden values stay in the database and can be restored.</span>
               </label>
             </div>

@@ -80,12 +80,12 @@ export interface PresetResult {
 export function applyPreset(config: SiteConfiguration, preset: Preset, registry: readonly ModuleDefinition[]): PresetResult {
   const inPreset = new Set<string>(preset.modules.map((m) => m.type));
   const others = config.modules.nodes.filter((n) => !inPreset.has(n.moduleType));
-  const originY = others.length > 0 ? Math.max(...others.map((n) => n.position.y)) + 190 : 0;
+  const originY = others.length > 0 ? Math.max(...others.map((n) => n.position.y)) + 210 : 0;
   let next = config;
   for (const m of preset.modules) {
     const def = registry.find((d) => d.type === m.type);
     if (!def) continue;
-    const pos = { x: 40 + m.col * 270, y: originY + m.row * 170 };
+    const pos = { x: 40 + m.col * 300, y: originY + m.row * 190 };
     next = next.modules.nodes.some((n) => n.moduleType === m.type) ? moveNode(next, m.type, pos) : addModule(next, def, pos);
   }
   const before = new Set(next.modules.edges.map((e) => e.id));

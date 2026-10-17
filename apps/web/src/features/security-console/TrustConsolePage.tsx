@@ -20,50 +20,84 @@ function Dot({ name, ok }: { name: string; ok: boolean }) {
       role="img"
       aria-label={`${name}: ${ok ? "passed" : "failed"}`}
       title={`${name}: ${ok ? "passed" : "failed"}`}
-      className={`inline-flex h-5 w-5 items-center justify-center rounded text-[11px] font-bold text-white ${ok ? "bg-success" : "bg-danger"}`}
+      className={`inline-flex h-5 w-5 items-center justify-center rounded-[2px] font-mono text-[11px] font-bold text-[#080909] ${
+        ok ? "bg-[#39D98A]" : "bg-[#FF5C5C]"
+      }`}
     >
       {ok ? "✓" : "✗"}
     </span>
   );
 }
 
-function ProofRow({ definition, result, running, onRun }: { definition: ProofList["proofs"][number]["definition"]; result: ProofResult; running: boolean; onRun: () => void }) {
+function ProofRow({
+  definition,
+  result,
+  running,
+  onRun,
+}: {
+  definition: ProofList["proofs"][number]["definition"];
+  result: ProofResult;
+  running: boolean;
+  onRun: () => void;
+}) {
   return (
     <li className="py-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium">{definition.title}</p>
-          <p className="text-xs text-muted">{definition.description}</p>
-          {definition.writesToLab && <p className="text-xs text-muted">Writes test rows into the reserved lab site only.</p>}
+          <p className="font-mono text-sm font-semibold text-[#F5F5F0]">{definition.title}</p>
+          <p className="font-mono text-xs text-[#A5A8A6]">{definition.description}</p>
+          {definition.writesToLab && (
+            <p className="font-mono text-[11px] text-[#FFE500]">
+              Writes test rows into the reserved lab site only.
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Badge tone={proofTone[result.status]}>{proofLabel[result.status]}</Badge>
-          <Button onClick={onRun} loading={running} aria-label={`Run proof: ${definition.title}`}>Run</Button>
+          <Button
+            onClick={onRun}
+            loading={running}
+            aria-label={`Run proof: ${definition.title}`}
+            className="uppercase font-mono text-xs"
+          >
+            Run
+          </Button>
         </div>
       </div>
       {result.cells.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1" aria-label={`${definition.title} results`}>
-          {result.cells.map((c) => <Dot key={c.label} name={c.label} ok={c.ok} />)}
+        <div className="mt-2.5 flex flex-wrap gap-1.5" aria-label={`${definition.title} results`}>
+          {result.cells.map((c) => (
+            <Dot key={c.label} name={c.label} ok={c.ok} />
+          ))}
         </div>
       )}
-      {result.error && <p role="alert" className="mt-2 text-xs text-danger">Proof could not complete: {result.error}</p>}
+      {result.error && (
+        <p role="alert" className="mt-2 font-mono text-xs text-[#FF5C5C]">
+          Proof could not complete: {result.error}
+        </p>
+      )}
       {result.status !== "not-run" && (
-        <details className="mt-2 text-xs">
-          <summary className="cursor-pointer text-muted">
+        <details className="mt-2 font-mono text-xs">
+          <summary className="cursor-pointer text-[#A5A8A6] hover:text-[#FFE500]">
             Evidence · ran {result.ranAt ? formatDateTime(result.ranAt) : ""} · {result.durationMs} ms
           </summary>
-          <ul className="mt-1 divide-y divide-line rounded-ui border border-line">
+          <ul className="mt-2 divide-y divide-[#303432] rounded-[3px] border border-[#303432] bg-[#111313]">
             {result.cells.map((c) => (
-              <li key={c.label} className="flex justify-between gap-3 px-2 py-1">
-                <span className="font-medium">{c.ok ? "✓" : "✗"} {c.label}</span>
-                <span className="text-right text-muted">{c.detail}</span>
+              <li key={c.label} className="flex justify-between gap-3 px-3 py-1.5 text-xs">
+                <span className={c.ok ? "text-[#39D98A] font-medium" : "text-[#FF5C5C] font-medium"}>
+                  {c.ok ? "✓" : "✗"} {c.label}
+                </span>
+                <span className="text-right text-[#A5A8A6]">{c.detail}</span>
               </li>
             ))}
           </ul>
           {Object.keys(result.evidence).length > 0 && (
-            <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 text-muted">
+            <dl className="mt-2 rounded-[3px] border border-[#303432] bg-[#0d0f0e] p-2.5 font-mono text-[11px] grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[#A5A8A6]">
               {Object.entries(result.evidence).map(([k, v]) => (
-                <div key={k} className="contents"><dt>{k}</dt><dd>{String(v)}</dd></div>
+                <div key={k} className="contents">
+                  <dt className="text-[#777C79] uppercase">{k}</dt>
+                  <dd className="text-[#F5F5F0] truncate">{String(v)}</dd>
+                </div>
               ))}
             </dl>
           )}
@@ -117,58 +151,112 @@ export function TrustConsolePage() {
     for (const p of proofs.data?.proofs ?? []) await run(p.definition.id);
   };
 
-  const rows = (proofs.data?.proofs ?? []).map((p) => ({ definition: p.definition, result: results[p.definition.id] ?? p.last }));
+  const rows = (proofs.data?.proofs ?? []).map((p) => ({
+    definition: p.definition,
+    result: results[p.definition.id] ?? p.last,
+  }));
   const total = rows.reduce((n, r) => n + r.result.cells.length, 0);
   const passing = rows.reduce((n, r) => n + r.result.cells.filter((c) => c.ok).length, 0);
 
   return (
-    <main className="mx-auto w-full max-w-4xl p-6">
-      <Link to="/" className="text-xs text-muted hover:underline">← Sites</Link>
-      <h1 className="mt-1 text-lg font-semibold">Security and Trust Console</h1>
-      <p className="mb-4 mt-0.5 text-sm text-muted">
-        Proofs run live against this API and database right now. A proof shows “Not run” until you run it, and its verdict comes only from what the run observed.
-      </p>
+    <main className="mx-auto w-full max-w-5xl p-6">
+      <Link to="/" className="inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wider text-[#A5A8A6] hover:text-[#FFE500]">
+        ← RETURN TO HUB
+      </Link>
+      <div className="mt-2 flex items-center justify-between border-b border-[#303432] pb-4">
+        <div>
+          <h1 className="font-['Barlow_Condensed',sans-serif] text-2xl font-black uppercase tracking-wider text-[#F5F5F0]">
+            Security and Trust Console
+          </h1>
+          <p className="mt-1 font-mono text-xs text-[#A5A8A6]">
+            Proofs run live against this API and database right now. A proof shows “Not run” until you run it, and its verdict comes only from what the run observed.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-[#39D98A] animate-pulse" />
+          <span className="font-mono text-xs uppercase text-[#39D98A]">REALTIME ENGINE ACTIVE</span>
+        </div>
+      </div>
+
       {proofs.loading && !proofs.data && <LoadingState />}
       {proofs.error ? <ErrorState error={proofs.error} onRetry={proofs.reload} /> : null}
       {proofs.data && (
         <>
-          <Panel title="Environment">
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-              <dt className="text-muted">Mode</dt><dd>{proofs.data.environment.nodeEnv}</dd>
-              <dt className="text-muted">Database</dt><dd>{proofs.data.environment.database}</dd>
-              <dt className="text-muted">Connected as</dt><dd>{proofs.data.environment.databaseRole}</dd>
-              <dt className="text-muted">Proof site</dt><dd>{proofs.data.environment.labSite}</dd>
-            </dl>
-            <p className="mt-2 text-xs text-muted">{proofs.data.environment.note}</p>
-          </Panel>
+          <div className="mt-4">
+            <Panel title="ENVIRONMENT TELEMETRY">
+              <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 font-mono text-xs">
+                <div className="rounded-[2px] border border-[#303432] bg-[#111313] p-2.5">
+                  <dt className="text-[#777C79] uppercase text-[10px]">Runtime Mode</dt>
+                  <dd className="mt-1 text-sm font-semibold text-[#F5F5F0]">{proofs.data.environment.nodeEnv}</dd>
+                </div>
+                <div className="rounded-[2px] border border-[#303432] bg-[#111313] p-2.5">
+                  <dt className="text-[#777C79] uppercase text-[10px]">Database Engine</dt>
+                  <dd className="mt-1 text-sm font-semibold text-[#F5F5F0]">{proofs.data.environment.database}</dd>
+                </div>
+                <div className="rounded-[2px] border border-[#303432] bg-[#111313] p-2.5">
+                  <dt className="text-[#777C79] uppercase text-[10px]">Connected Role</dt>
+                  <dd className="mt-1 text-sm font-semibold text-[#FFE500]">{proofs.data.environment.databaseRole}</dd>
+                </div>
+                <div className="rounded-[2px] border border-[#303432] bg-[#111313] p-2.5">
+                  <dt className="text-[#777C79] uppercase text-[10px]">Reserved Lab Site</dt>
+                  <dd className="mt-1 text-sm font-semibold text-[#F5F5F0]">{proofs.data.environment.labSite}</dd>
+                </div>
+              </dl>
+              <p className="mt-3 font-mono text-xs text-[#A5A8A6]">{proofs.data.environment.note}</p>
+            </Panel>
+          </div>
+
           <div className="mt-4">
             <Panel
               title={total > 0 ? `Live proofs · ${passing} of ${total} checks passing` : "Live proofs"}
-              actions={<Button variant="primary" onClick={runAll} loading={running.size > 0}>Run all proofs</Button>}
+              actions={
+                <Button variant="primary" onClick={runAll} loading={running.size > 0} className="uppercase font-mono">
+                  Run all proofs
+                </Button>
+              }
             >
-              {failure && <p role="alert" className="mb-2 text-sm text-danger">{failure}</p>}
-              <ul className="divide-y divide-line">
+              {failure && (
+                <p role="alert" className="mb-2 rounded-[2px] border border-[#FF5C5C]/40 bg-[#FF5C5C]/10 p-2 font-mono text-xs text-[#FF5C5C]">
+                  {failure}
+                </p>
+              )}
+              <ul className="divide-y divide-[#303432]">
                 {rows.map((r) => (
-                  <ProofRow key={r.definition.id} definition={r.definition} result={r.result} running={running.has(r.definition.id)} onRun={() => void run(r.definition.id)} />
+                  <ProofRow
+                    key={r.definition.id}
+                    definition={r.definition}
+                    result={r.result}
+                    running={running.has(r.definition.id)}
+                    onRun={() => void run(r.definition.id)}
+                  />
                 ))}
               </ul>
             </Panel>
           </div>
         </>
       )}
+
       {checks.data && (
         <div className="mt-4">
-          <Panel title={checks.data.generatedAt ? `Recorded test-suite runs · last ${formatDateTime(checks.data.generatedAt)}` : "Recorded test-suite runs · none recorded"}>
-            <p className="mb-2 text-xs text-muted">These come from the automated test suite on the API host (test environment), not from this deployment. “Not run” means nobody has run the tests here.</p>
-            <ul className="divide-y divide-line">
+          <Panel
+            title={
+              checks.data.generatedAt
+                ? `Recorded test-suite runs · last ${formatDateTime(checks.data.generatedAt)}`
+                : "Recorded test-suite runs · none recorded"
+            }
+          >
+            <p className="mb-3 font-mono text-xs text-[#A5A8A6]">
+              These come from the automated test suite on the API host (test environment), not from this deployment. “Not run” means nobody has run the tests here.
+            </p>
+            <ul className="divide-y divide-[#303432]">
               {checks.data.checks.map((c) => (
                 <li key={c.id} className="flex items-start justify-between gap-3 py-2.5">
                   <div>
-                    <p className="text-sm font-medium">{c.label}</p>
-                    {c.detail && <p className="text-xs text-muted">{c.detail}</p>}
+                    <p className="font-mono text-sm font-medium text-[#F5F5F0]">{c.label}</p>
+                    {c.detail && <p className="font-mono text-xs text-[#A5A8A6]">{c.detail}</p>}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
-                    <Badge>{c.environment === "test" ? "test environment" : "production"}</Badge>
+                    <Badge>{c.environment === "test" ? "TEST ENV" : "PROD"}</Badge>
                     <Badge tone={tone[c.status]}>{label[c.status]}</Badge>
                   </div>
                 </li>
@@ -183,20 +271,29 @@ export function TrustConsolePage() {
         <Panel
           title="Tenant Isolation Live Invariant"
           actions={
-            <Button onClick={() => setIsoTrigger((i) => i + 1)} loading={isolation.loading} aria-label="Run isolation check">
+            <Button
+              onClick={() => setIsoTrigger((i) => i + 1)}
+              loading={isolation.loading}
+              aria-label="Run isolation check"
+              className="uppercase font-mono text-xs"
+            >
               Run isolation check
             </Button>
           }
         >
           {isolation.loading && !isolation.data && <LoadingState />}
-          {isolation.error && <ErrorState error={isolation.error} onRetry={isolation.reload} />}
+          {isolation.error ? <ErrorState error={isolation.error} onRetry={isolation.reload} /> : null}
           {isolation.data && (
-            <div>
+            <div className="font-mono text-xs">
               <div className="flex items-center gap-2">
-                <Badge tone={tone[isolation.data.passed ? "passed" : "failed"]}>{label[isolation.data.passed ? "passed" : "failed"]}</Badge>
-                <span className="text-sm font-medium">{isolation.data.detail}</span>
+                <Badge tone={tone[isolation.data.passed ? "passed" : "failed"]}>
+                  {label[isolation.data.passed ? "passed" : "failed"]}
+                </Badge>
+                <span className="font-medium text-[#F5F5F0]">{isolation.data.detail}</span>
               </div>
-              <p className="mt-1 text-xs text-muted">Proves that the active platform user is strictly blocked from resolving tenant access or querying unauthorized site data.</p>
+              <p className="mt-1 text-[11px] text-[#A5A8A6]">
+                Proves that the active platform user is strictly blocked from resolving tenant access or querying unauthorized site data.
+              </p>
             </div>
           )}
         </Panel>
@@ -207,20 +304,29 @@ export function TrustConsolePage() {
         <Panel
           title="Inventory Integrity Live Invariant"
           actions={
-            <Button onClick={() => setInvTrigger((i) => i + 1)} loading={inventory.loading} aria-label="Run inventory check">
+            <Button
+              onClick={() => setInvTrigger((i) => i + 1)}
+              loading={inventory.loading}
+              aria-label="Run inventory check"
+              className="uppercase font-mono text-xs"
+            >
               Run inventory check
             </Button>
           }
         >
           {inventory.loading && !inventory.data && <LoadingState />}
-          {inventory.error && <ErrorState error={inventory.error} onRetry={inventory.reload} />}
+          {inventory.error ? <ErrorState error={inventory.error} onRetry={inventory.reload} /> : null}
           {inventory.data && (
-            <div>
+            <div className="font-mono text-xs">
               <div className="flex items-center gap-2">
-                <Badge tone={tone[inventory.data.passed ? "passed" : "failed"]}>{label[inventory.data.passed ? "passed" : "failed"]}</Badge>
-                <span className="text-sm font-medium">{inventory.data.detail}</span>
+                <Badge tone={tone[inventory.data.passed ? "passed" : "failed"]}>
+                  {label[inventory.data.passed ? "passed" : "failed"]}
+                </Badge>
+                <span className="font-medium text-[#F5F5F0]">{inventory.data.detail}</span>
               </div>
-              <p className="mt-1 text-xs text-muted">Verifies zero negative onHand levels, zero ledger sum mismatches, and zero duplicate ledger entries.</p>
+              <p className="mt-1 text-[11px] text-[#A5A8A6]">
+                Verifies zero negative onHand levels, zero ledger sum mismatches, and zero duplicate ledger entries.
+              </p>
             </div>
           )}
         </Panel>
@@ -230,14 +336,14 @@ export function TrustConsolePage() {
       {audit.data && audit.data.length > 0 && (
         <div className="mt-4">
           <Panel title="System Audit Stream (last 200 events)">
-            <ul className="divide-y divide-line max-h-72 overflow-y-auto">
+            <ul className="divide-y divide-[#303432] max-h-72 overflow-y-auto font-mono text-xs">
               {audit.data.map((e) => (
-                <li key={e.id} className="py-2 text-sm flex items-center justify-between gap-2">
+                <li key={e.id} className="py-2 flex items-center justify-between gap-2">
                   <span>
-                    <span className="font-semibold text-ink">{e.action}</span>
-                    {e.entityType && <span className="text-xs text-muted ml-2">({e.entityType})</span>}
+                    <span className="font-semibold text-[#F5F5F0]">{e.action}</span>
+                    {e.entityType && <span className="text-[11px] text-[#FFE500] ml-2">[{e.entityType}]</span>}
                   </span>
-                  <span className="text-xs text-muted">{formatDateTime(e.createdAt)}</span>
+                  <span className="text-[11px] text-[#777C79]">{formatDateTime(e.createdAt)}</span>
                 </li>
               ))}
             </ul>

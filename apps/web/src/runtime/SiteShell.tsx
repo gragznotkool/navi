@@ -61,18 +61,33 @@ function useNav(): { main: NavEntry[]; platform: NavEntry[] } {
   return { main, platform };
 }
 
-function NavItem({ entry, variant }: { entry: NavEntry; variant: "side" | "top" | "bench" }) {
+function NavItem({ entry, variant, iconOnly = false }: { entry: NavEntry; variant: "side" | "top" | "bench"; iconOnly?: boolean }) {
   const Icon = entry.icon;
-  const base = "inline-flex items-center gap-2 text-sm font-medium";
+  const base = "inline-flex items-center gap-2 text-xs font-semibold tracking-wider uppercase transition-all duration-150";
   const styles = {
-    side: (a: boolean) => `${base} rounded-ui px-3 py-2 ${a ? "bg-accent text-white" : "text-ink hover:bg-slate-100"}`,
-    top: (a: boolean) => `${base} h-full border-b-2 px-3 ${a ? "border-accent text-accent" : "border-transparent text-muted hover:text-ink"}`,
-    bench: (a: boolean) => `${base} h-full border-b-2 px-3 ${a ? "border-white text-white" : "border-transparent text-slate-300 hover:text-white"}`,
+    side: (a: boolean) =>
+      `${base} rounded-[2px] py-2 ${iconOnly ? "w-10 justify-center px-0" : "px-3"} ${
+        a
+          ? "bg-[#FFE500] text-[#080909] font-bold shadow-[0_0_12px_rgba(255,229,0,0.25)]"
+          : "text-[#A5A8A6] hover:bg-[#1f2222] hover:text-[#F5F5F0]"
+      }`,
+    top: (a: boolean) =>
+      `${base} h-full border-b-2 px-3.5 ${
+        a
+          ? "border-[#FFE500] text-[#FFE500] font-bold bg-[#FFE500]/5"
+          : "border-transparent text-[#A5A8A6] hover:text-[#F5F5F0] hover:border-[#303432]"
+      }`,
+    bench: (a: boolean) =>
+      `${base} h-full border-b-2 px-3.5 ${
+        a
+          ? "border-[#FFE500] text-[#FFE500] font-bold bg-[#FFE500]/10"
+          : "border-transparent text-[#777C79] hover:text-[#F5F5F0]"
+      }`,
   }[variant];
   return (
-    <NavLink to={entry.to} end className={({ isActive }) => styles(isActive)}>
-      <Icon className="h-4 w-4 shrink-0" aria-hidden />
-      {entry.label}
+    <NavLink to={entry.to} end title={iconOnly ? entry.label : undefined} className={({ isActive }) => styles(isActive)}>
+      <Icon className={iconOnly ? "h-4 w-4 shrink-0" : "h-3.5 w-3.5 shrink-0"} aria-hidden />
+      {iconOnly ? <span className="sr-only">{entry.label}</span> : entry.label}
     </NavLink>
   );
 }
@@ -90,13 +105,11 @@ function SiteSwitcher({ dark }: { dark?: boolean }) {
         id="site-switcher"
         value={slug}
         onChange={(e) => navigate(`/s/${e.target.value}`)}
-        className={`h-8 rounded-ui border px-2 text-sm font-medium ${
-          dark ? "border-slate-600 bg-slate-800 text-white" : "border-line bg-surface text-ink"
-        }`}
+        className="h-7 rounded-[2px] border border-[#303432] bg-[#111313] px-2 font-mono text-xs font-semibold uppercase tracking-wider text-[#FFE500] focus:border-[#FFE500] focus:outline-none"
       >
         {session?.memberships.map((m) => (
           <option key={m.siteId} value={m.siteSlug}>
-            {m.siteSlug}
+            LOC: {m.siteSlug.toUpperCase()}
           </option>
         ))}
       </select>
@@ -104,24 +117,26 @@ function SiteSwitcher({ dark }: { dark?: boolean }) {
   );
 }
 
-function UserMenu({ dark }: { dark?: boolean }) {
+function UserMenu({ dark, iconOnly = false }: { dark?: boolean; iconOnly?: boolean }) {
   const { session, logout } = useSession();
   const navigate = useNavigate();
   return (
-    <div className="flex items-center gap-3">
-      <span className={`hidden text-xs sm:inline ${dark ? "text-slate-300" : "text-muted"}`}>
-        {session?.user.displayName}
-      </span>
+    <div className={`flex items-center gap-3 font-mono text-xs ${iconOnly ? "justify-center" : ""}`}>
+      {!iconOnly && (
+        <span className="hidden text-[#A5A8A6] sm:inline">
+          {session?.user.displayName}
+        </span>
+      )}
       <button
         onClick={async () => {
           await logout();
           navigate("/login");
         }}
-        className={`inline-flex h-8 items-center gap-1.5 rounded-ui px-2 text-xs font-medium ${
-          dark ? "text-slate-200 hover:bg-slate-700" : "text-ink hover:bg-slate-100"
-        }`}
+        title={iconOnly ? `Sign out ${session?.user.displayName ?? ""}`.trim() : undefined}
+        aria-label={iconOnly ? "Sign out" : undefined}
+        className={`inline-flex h-7 items-center gap-1.5 rounded-[2px] border border-[#303432] bg-[#111313] text-[11px] font-semibold uppercase tracking-wider text-[#FF5C5C] hover:bg-[#FF5C5C]/10 hover:border-[#FF5C5C]/40 transition ${iconOnly ? "w-9 justify-center px-0" : "px-2.5"}`}
       >
-        <LogOut className="h-3.5 w-3.5" aria-hidden /> Sign out
+        <LogOut className="h-3 w-3" aria-hidden /> {!iconOnly && "Sign out"}
       </button>
     </div>
   );
@@ -130,16 +145,16 @@ function UserMenu({ dark }: { dark?: boolean }) {
 function Breadcrumbs({ current, dark }: { current: string; dark?: boolean }) {
   const { config, basePath } = useSiteRuntime();
   return (
-    <nav aria-label="Breadcrumb" className={`flex items-center gap-1 text-xs ${dark ? "text-slate-300" : "text-muted"}`}>
-      <Link to="/" className="hover:underline">
-        Sites
+    <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-wider text-[#777C79]">
+      <Link to="/" className="text-[#A5A8A6] hover:text-[#FFE500] transition">
+        OPS_HUB
       </Link>
-      <ChevronRight className="h-3 w-3" aria-hidden />
-      <Link to={basePath} className="hover:underline">
+      <ChevronRight className="h-3 w-3 text-[#777C79]" aria-hidden />
+      <Link to={basePath} className="text-[#A5A8A6] hover:text-[#FFE500] transition">
         {config.name}
       </Link>
-      <ChevronRight className="h-3 w-3" aria-hidden />
-      <span aria-current="page" className={dark ? "text-white" : "text-ink"}>
+      <ChevronRight className="h-3 w-3 text-[#777C79]" aria-hidden />
+      <span aria-current="page" className="font-bold text-[#FFE500]">
         {current}
       </span>
     </nav>
@@ -167,11 +182,17 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
   const { main, platform } = useNav();
   const style = { "--accent": config.theme.primary, "--accent-2": config.theme.secondary } as CSSProperties;
   const Brand = (
-    <Link to="/" className="flex items-center gap-2 text-sm font-semibold">
-      <span aria-hidden className="grid h-6 w-6 place-items-center rounded bg-accent text-xs font-bold text-white">
-        O
-      </span>
-      {!compact && <span>OpsHub</span>}
+    <Link to="/" className="flex items-center gap-2.5 text-sm font-semibold">
+      <div className="flex h-6 w-6 items-center justify-center rounded-[2px] bg-[#FFE500] text-[11px] font-black text-[#080909] shadow-[0_0_10px_rgba(255,229,0,0.4)]">
+        OH
+      </div>
+      {!compact && (
+        <div className="flex flex-col">
+          <span className="font-['Barlow_Condensed',sans-serif] text-base font-extrabold tracking-wider uppercase text-[#F5F5F0]">
+            OpsHub
+          </span>
+        </div>
+      )}
     </Link>
   );
   const all = [...main, ...platform];
@@ -179,23 +200,23 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
   // Shell 1: Sidebar shell (Central Stores)
   if (config.shell === "sidebar") {
     return (
-      <div style={style} className="flex h-full flex-col" data-shell="sidebar">
+      <div style={style} className="flex h-full flex-col bg-[#080909]" data-shell="sidebar">
         <OfflineBanner />
         <PreviewBanner />
         <div className="flex min-h-0 flex-1">
           <aside
-            className={`flex shrink-0 flex-col gap-3 border-r border-line bg-surface p-3 transition-all duration-150 ${
-              compact ? "w-16 items-center" : "w-60"
+            className={`flex shrink-0 flex-col gap-3.5 border-r border-[#303432] bg-[#111313] p-3.5 transition-all duration-150 ${
+              compact ? "w-16 items-center" : "w-64"
             }`}
           >
-            <div className="flex w-full items-center justify-between">
+            <div className={`flex w-full items-center border-b border-[#303432] pb-3 ${compact ? "flex-col gap-2" : "justify-between"}`}>
               {Brand}
               <button
                 type="button"
                 onClick={() => setCompact(!compact)}
                 aria-pressed={compact}
                 aria-label="Collapse navigation"
-                className="rounded border border-line p-1 text-xs text-muted hover:bg-slate-100 hover:text-ink"
+                className="rounded-[2px] border border-[#303432] bg-[#171919] p-1 font-mono text-[10px] text-[#A5A8A6] hover:border-[#FFE500] hover:text-[#FFE500] transition"
                 title={compact ? "Expand sidebar" : "Collapse sidebar"}
               >
                 {compact ? "»" : "«"}
@@ -203,29 +224,34 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
             </div>
             {!compact && <SiteSwitcher />}
             {!compact && (
-              <span className="rounded bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
-                Role: {roleName}
-              </span>
+              <div className="flex items-center justify-between rounded-[2px] border border-[#303432] bg-[#171919] px-2.5 py-1 font-mono text-[10px] text-[#A5A8A6]">
+                <span className="uppercase text-[#777C79]">Role:</span>
+                <span className="font-bold text-[#FFE500]">{roleName}</span>
+              </div>
             )}
-            <nav aria-label="Main" className="flex w-full flex-col gap-1">
+            <nav aria-label="Main" className={`flex w-full flex-col gap-1 ${compact ? "items-center" : ""}`}>
               {main.map((e) => (
-                <NavItem key={e.to} entry={e} variant="side" />
+                <NavItem key={e.to} entry={e} variant="side" iconOnly={compact} />
               ))}
             </nav>
-            {platform.length > 0 && !compact && (
-              <nav aria-label="Platform administration" className="flex flex-col gap-1 border-t border-line pt-3">
-                <p className="px-3 text-xs font-medium uppercase tracking-wide text-muted">Platform</p>
+            {platform.length > 0 && (
+              <nav aria-label="Platform administration" className={`flex w-full flex-col gap-1 border-t border-[#303432] pt-3 ${compact ? "items-center" : ""}`}>
+                {!compact && (
+                  <p className="px-3 font-mono text-[10px] font-bold uppercase tracking-wider text-[#777C79]">
+                    // PLATFORM ADMIN
+                  </p>
+                )}
                 {platform.map((e) => (
-                  <NavItem key={e.to} entry={e} variant="side" />
+                  <NavItem key={e.to} entry={e} variant="side" iconOnly={compact} />
                 ))}
               </nav>
             )}
-            <div className="mt-auto w-full pt-2 border-t border-line">
-              <UserMenu />
+            <div className="mt-auto w-full border-t border-[#303432] pt-3">
+              <UserMenu iconOnly={compact} />
             </div>
           </aside>
-          <main className="min-w-0 flex-1 overflow-auto p-6">
-            <div className="mb-3">
+          <main className="min-w-0 flex-1 overflow-auto bg-[#080909] p-6 text-[#F5F5F0]">
+            <div className="mb-4">
               <Breadcrumbs current={title} />
             </div>
             {children}
@@ -238,21 +264,21 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
   // Shell 2: Workbench shell (Distribution)
   if (config.shell === "workbench") {
     return (
-      <div style={style} className="flex h-full flex-col" data-shell="workbench">
+      <div style={style} className="flex h-full flex-col bg-[#080909]" data-shell="workbench">
         <OfflineBanner />
         <PreviewBanner />
-        <header className="bg-slate-900 text-white">
+        <header className="border-b border-[#303432] bg-[#111313] bg-slate-900 text-[#F5F5F0]">
           <div className="flex h-12 items-center gap-4 px-4">
             {Brand}
             <SiteSwitcher dark />
-            <span className="hidden rounded bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-300 sm:inline">
-              Role: {roleName}
+            <span className="hidden rounded-[2px] border border-[#303432] bg-[#171919] px-2 py-0.5 font-mono text-[11px] text-[#A5A8A6] sm:inline">
+              ROLE: <strong className="text-[#FFE500]">{roleName}</strong>
             </span>
             <div className="ml-auto flex items-center gap-3">
               <UserMenu dark />
             </div>
           </div>
-          <nav aria-label="Main" className="toolrail flex h-10 items-stretch gap-1 overflow-x-auto border-t border-slate-700 px-3">
+          <nav aria-label="Main" className="toolrail flex h-9 items-stretch gap-1 overflow-x-auto border-t border-[#303432] bg-[#171919] px-3">
             {all.map((e) => (
               <NavItem key={e.to} entry={e} variant="bench" />
             ))}
@@ -261,13 +287,9 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
 
         <div className="flex min-h-0 flex-1">
           {/* Central work area */}
-          <main className="work-area min-w-0 flex-1 overflow-auto bg-slate-50 p-6" aria-label={title}>
-            <div className="mb-3 flex items-center justify-between border-b border-line pb-3">
-              <div>
-                <Breadcrumbs current={title} />
-                <h1 className="text-xl font-bold tracking-tight text-ink">{title}</h1>
-              </div>
-              <span className="text-xs font-medium text-muted">{config.name}</span>
+          <main className="work-area min-w-0 flex-1 overflow-auto bg-[#080909] p-6 text-[#F5F5F0]" aria-label={title}>
+            <div className="mb-4">
+              <Breadcrumbs current={title} />
             </div>
             {children}
           </main>
@@ -275,34 +297,33 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
           {/* Right Inspector panel */}
           <aside
             aria-label="Inspector"
-            className="hidden w-64 shrink-0 flex-col gap-4 border-l border-line bg-surface p-4 lg:flex"
+            className="hidden w-68 shrink-0 flex-col gap-4 border-l border-[#303432] bg-[#111313] p-4 lg:flex text-xs"
           >
             <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted">Workspace Details</h2>
-              <dl className="mt-3 grid gap-2.5 text-xs">
-                <div>
-                  <dt className="text-muted">Active Site</dt>
-                  <dd className="font-semibold text-ink">{config.name}</dd>
+              <div className="flex items-center gap-2 border-b border-[#303432] pb-2 font-mono text-[11px] font-bold uppercase tracking-wider text-[#FFE500]">
+                <span className="h-2 w-2 bg-[#FFE500]" />
+                TELEMETRY & STATUS
+              </div>
+              <dl className="mt-3 grid gap-2.5 font-mono text-[11px]">
+                <div className="rounded-[2px] border border-[#303432] bg-[#171919] p-2">
+                  <dt className="text-[#777C79] uppercase">Active Site</dt>
+                  <dd className="font-bold text-[#F5F5F0]">{config.name}</dd>
                 </div>
-                <div>
-                  <dt className="text-muted">Slug</dt>
-                  <dd className="font-mono text-ink">/{slug}</dd>
+                <div className="rounded-[2px] border border-[#303432] bg-[#171919] p-2">
+                  <dt className="text-[#777C79] uppercase">Node Identifier</dt>
+                  <dd className="text-[#FFE500]">/{slug}</dd>
                 </div>
-                <div>
-                  <dt className="text-muted">Your Role</dt>
-                  <dd className="font-medium text-ink">{roleName}</dd>
+                <div className="rounded-[2px] border border-[#303432] bg-[#171919] p-2">
+                  <dt className="text-[#777C79] uppercase">Access Role</dt>
+                  <dd className="text-[#F5F5F0]">{roleName}</dd>
                 </div>
-                <div>
-                  <dt className="text-muted">Current Page</dt>
-                  <dd className="font-medium text-ink">{title}</dd>
+                <div className="rounded-[2px] border border-[#303432] bg-[#171919] p-2">
+                  <dt className="text-[#777C79] uppercase">Release Target</dt>
+                  <dd className="text-[#39D98A]">v{version ?? "draft"}</dd>
                 </div>
-                <div>
-                  <dt className="text-muted">Release</dt>
-                  <dd className="font-mono text-ink">v{version ?? "draft"}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted">Shell Architecture</dt>
-                  <dd className="capitalize text-ink">{config.shell}</dd>
+                <div className="rounded-[2px] border border-[#303432] bg-[#171919] p-2">
+                  <dt className="text-[#777C79] uppercase">Architecture</dt>
+                  <dd className="capitalize text-[#A5A8A6]">{config.shell}</dd>
                 </div>
               </dl>
             </div>
@@ -314,47 +335,30 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
 
   // Shell 3: Topbar cards shell (Service Centre)
   return (
-    <div style={style} className="flex h-full flex-col" data-shell="topbar-cards">
+    <div style={style} className="flex h-full flex-col bg-[#080909]" data-shell="topbar-cards">
       <OfflineBanner />
       <PreviewBanner />
-      <header className="topbar border-b border-line bg-surface">
+      <header className="topbar border-b border-[#303432] bg-[#111313]">
         <div className="flex h-14 items-center gap-4 px-6">
           {Brand}
-          <strong className="text-sm font-semibold text-ink">{config.name}</strong>
-          <span className="hidden rounded bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 sm:inline">
-            Role: {roleName}
+          <div className="h-4 w-[1px] bg-[#303432]" />
+          <strong className="font-mono text-xs uppercase tracking-wider text-[#F5F5F0]">{config.name}</strong>
+          <span className="hidden rounded-[2px] border border-[#303432] bg-[#171919] px-2 py-0.5 font-mono text-[10px] text-[#A5A8A6] sm:inline">
+            ROLE: <span className="text-[#FFE500]">{roleName}</span>
           </span>
           <div className="ml-auto flex items-center gap-3">
             <SiteSwitcher />
             <UserMenu />
           </div>
         </div>
-        <nav aria-label="Main" className="flex h-10 items-stretch gap-1 overflow-x-auto border-t border-line px-4">
+        <nav aria-label="Main" className="flex h-10 items-stretch gap-1 overflow-x-auto border-t border-[#303432] bg-[#171919] px-4">
           {all.map((e) => (
             <NavItem key={e.to} entry={e} variant="top" />
           ))}
         </nav>
       </header>
-      {/* Quick entry card strip */}
-      <nav aria-label="Page cards" className="card-strip flex gap-2 overflow-x-auto border-b border-line bg-slate-50/70 p-3 px-6">
-        {main.map((n) => (
-          <NavLink
-            key={n.to}
-            to={n.to}
-            end
-            className={({ isActive }) =>
-              `flex items-center gap-2 rounded-ui border px-3 py-1.5 text-xs font-semibold transition ${
-                isActive ? "border-accent bg-surface text-accent shadow-xs" : "border-line bg-surface text-muted hover:border-slate-300 hover:text-ink"
-              }`
-            }
-          >
-            <n.icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
-            <span>{n.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-      <main className="min-h-0 flex-1 overflow-auto p-6">
-        <div className="mb-3">
+      <main className="min-h-0 flex-1 overflow-auto bg-[#080909] p-6 text-[#F5F5F0]">
+        <div className="mb-4">
           <Breadcrumbs current={title} />
         </div>
         {children}
@@ -362,3 +366,6 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
     </div>
   );
 }
+
+/** Shared with the website shell so both navigations use the same module icons. */
+export { icons as moduleIcons };

@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import ExcelJS from "exceljs";
-import { and, asc, count, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, or, sql } from "drizzle-orm";
 import type {
   Assignment,
   ConsumptionRecord,
@@ -11,6 +11,7 @@ import type {
   RequestRecord,
   ReturnRecord,
   ReturnStatus,
+  SearchResultItem,
   SiteConfiguration,
   StockItem,
   StockSummary,
@@ -570,3 +571,115 @@ export async function generateInventoryExcel(db: Database, a: Actor): Promise<Bu
     return Buffer.from(buffer);
   });
 }
+
+// ---------------------------------------------------------------- Cross-site Search
+
+export async function searchCrossSite(db: Database, userId: string, query: string): Promise<SearchResultItem[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const pattern = `%${trimmed}%`;
+
+  const [user] = await db.withoutTenant((tx) => tx.select().from(s.users).where(eq(s.users.id, userId)));
+  if (!user) throw notFound("User not found");
+
+  const siteRows = await db.withUser(userId, async (tx) => {
+    return user.isPlatformAdmin
+      ? tx.select({ id: s.sites.id, name: s.sites.name, slug: s.sites.slug }).from(s.sites).where(eq(s.sites.isSystem, false))
+      : tx
+          .select({ id: s.sites.id, name: s.sites.name, slug: s.sites.slug })
+          .from(s.userSiteRoles)
+          .innerJoin(s.sites, eq(s.sites.id, s.userSiteRoles.siteId))
+          .where(and(eq(s.userSiteRoles.userId, userId), eq(s.sites.isSystem, false)));
+  });
+
+  const siteMap = new Map<string, { name: string; slug: string }>();
+  for (const sRow of siteRows) siteMap.set(sRow.id, { name: sRow.name, slug: sRow.slug });
+  const siteIds = Array.from(siteMap.keys());
+  if (siteIds.length === 0) return [];
+
+  const results: SearchResultItem[] = [];
+
+  for (const sId of siteIds) {
+    const siteInfo = siteMap.get(sId)!;
+    await db.withTenant({ siteId: sId, userId }, async (tx) => {
+      // 1. Inventory Items
+      const items = await tx
+        .select({ id: s.inventoryItems.id, sku: s.inventoryItems.sku, name: s.inventoryItems.name, onHand: s.inventoryItems.onHand })
+        .from(s.inventoryItems)
+        .where(and(eq(s.inventoryItems.siteId, sId), or(ilike(s.inventoryItems.name, pattern), ilike(s.inventoryItems.sku, pattern))))
+        .limit(10);
+      for (const item of items) {
+        results.push({
+          id: item.id,
+          siteId: sId,
+          siteSlug: siteInfo.slug,
+          siteName: siteInfo.name,
+          module: "inventory",
+          title: item.name,
+          subtitle: `SKU: ${item.sku} · On Hand: ${item.onHand}`,
+          route: `/s/${siteInfo.slug}/inventory?highlight=${item.id}`,
+        });
+      }
+
+      // 2. Requests
+      const reqs = await tx
+        .select({ id: s.requests.id, status: s.requests.status, note: s.requests.note, releaseVersion: s.requests.releaseVersion })
+        .from(s.requests)
+        .where(and(eq(s.requests.siteId, sId), or(ilike(s.requests.note, pattern), ilike(s.requests.status, pattern))))
+        .limit(10);
+      for (const r of reqs) {
+        results.push({
+          id: r.id,
+          siteId: sId,
+          siteSlug: siteInfo.slug,
+          siteName: siteInfo.name,
+          module: "requests",
+          title: `Request #${r.id.slice(0, 8)}`,
+          subtitle: `Status: ${r.status.toUpperCase()} · Release: v${r.releaseVersion}${r.note ? ` · ${r.note}` : ""}`,
+          route: `/s/${siteInfo.slug}/requests?highlight=${r.id}`,
+        });
+      }
+
+      // 3. Repairs
+      const repairs = await tx
+        .select({ id: s.repairRecords.id, boardSerial: s.repairRecords.boardSerial, status: s.repairRecords.status })
+        .from(s.repairRecords)
+        .where(and(eq(s.repairRecords.siteId, sId), or(ilike(s.repairRecords.boardSerial, pattern), ilike(s.repairRecords.status, pattern))))
+        .limit(10);
+      for (const rep of repairs) {
+        results.push({
+          id: rep.id,
+          siteId: sId,
+          siteSlug: siteInfo.slug,
+          siteName: siteInfo.name,
+          module: "repairs",
+          title: `PCB Serial: ${rep.boardSerial}`,
+          subtitle: `Repair Status: ${rep.status.toUpperCase()}`,
+          route: `/s/${siteInfo.slug}/pcb-repair?highlight=${rep.id}`,
+        });
+      }
+
+      // 4. Returns
+      const returns = await tx
+        .select({ id: s.returnRecords.id, status: s.returnRecords.status, quantity: s.returnRecords.quantity })
+        .from(s.returnRecords)
+        .where(and(eq(s.returnRecords.siteId, sId), ilike(s.returnRecords.status, pattern)))
+        .limit(10);
+      for (const ret of returns) {
+        results.push({
+          id: ret.id,
+          siteId: sId,
+          siteSlug: siteInfo.slug,
+          siteName: siteInfo.name,
+          module: "returns",
+          title: `Return #${ret.id.slice(0, 8)}`,
+          subtitle: `Quantity: ${ret.quantity} · Status: ${ret.status.toUpperCase()}`,
+          route: `/s/${siteInfo.slug}/returns?highlight=${ret.id}`,
+        });
+      }
+    });
+  }
+
+  return results.slice(0, 40);
+}
+

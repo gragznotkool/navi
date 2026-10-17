@@ -47,3 +47,9 @@ configureAuthHandlers({
     useSession.setState({ session: null, status: "anonymous" });
   },
 });
+
+/**
+ * The website builder (templates, module library, deploy, access control) is for platform
+ * administrators only. Every UI entry point checks this one hook; the API enforces it independently.
+ */
+export const useCanBuildWebsites = (): boolean => useSession((s) => s.status === "authenticated" && s.session?.user.isPlatformAdmin === true);

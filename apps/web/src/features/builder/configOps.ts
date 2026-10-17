@@ -123,7 +123,8 @@ export function isolationProblem(registry: readonly ModuleDefinition[], config: 
     const names = missing.map((m) => registry.find((d) => d.type === m)?.displayName ?? m).join(", ");
     return `${def.displayName} needs ${names} in the graph first.`;
   }
-  const inputs = def.ports.filter((p) => p.direction === "input" && p.dataType !== "identity");
+  // Platform context (identity, shell navigation) is implicit; only data inputs make a module isolated.
+  const inputs = def.ports.filter((p) => p.direction === "input" && p.dataType !== "identity" && p.dataType !== "navigation");
   const fed = (portId: string) => config.modules.edges.some((e) => e.targetNodeId === nodeId && e.targetPortId === portId);
   if (inputs.length > 0 && inputs.every((p) => !fed(p.id))) {
     return `Isolated: ${def.displayName} has no incoming ${inputs.map((p) => p.label).join(" / ")} stream.`;

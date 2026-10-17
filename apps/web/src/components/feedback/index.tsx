@@ -4,21 +4,23 @@ import { ApiRequestError } from "../../lib/api";
 import { useToasts } from "../../stores/toast";
 import { Button } from "../ui";
 
-export function LoadingState({ label = "Loading…" }: { label?: string }) {
+export function LoadingState({ label = "Loading operational data…" }: { label?: string }) {
   return (
-    <div role="status" className="flex items-center gap-2 py-10 text-sm text-muted">
-      <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> {label}
+    <div role="status" className="flex items-center gap-2.5 py-10 font-mono text-xs uppercase tracking-wider text-[#A5A8A6]">
+      <Loader2 className="h-4 w-4 animate-spin text-[#FFE500]" aria-hidden /> {label}
     </div>
   );
 }
 
 export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-1 py-10 text-center">
-      <Inbox className="h-6 w-6 text-muted" aria-hidden />
-      <p className="text-sm font-medium text-ink">{title}</p>
-      {hint && <p className="max-w-md text-sm text-muted">{hint}</p>}
-      {action}
+    <div className="flex flex-col items-center gap-2 rounded-[4px] border border-dashed border-[#303432] bg-[#111313]/60 py-12 text-center">
+      <div className="flex h-10 w-10 items-center justify-center rounded-[3px] border border-[#303432] bg-[#171919] text-[#FFE500]">
+        <Inbox className="h-5 w-5" aria-hidden />
+      </div>
+      <p className="font-['Barlow_Condensed',sans-serif] text-base font-bold uppercase tracking-wider text-[#F5F5F0]">{title}</p>
+      {hint && <p className="max-w-md text-xs text-[#A5A8A6]">{hint}</p>}
+      {action && <div className="mt-2">{action}</div>}
     </div>
   );
 }
@@ -27,14 +29,14 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   const e = error instanceof ApiRequestError ? error : null;
   const unavailable = e?.unavailable;
   return (
-    <div role="alert" className="rounded-ui border border-line bg-surface p-4">
-      <div className="flex items-start gap-2">
-        {unavailable ? <Info className="mt-0.5 h-4 w-4 text-info" aria-hidden /> : <AlertCircle className="mt-0.5 h-4 w-4 text-danger" aria-hidden />}
+    <div role="alert" className="rounded-[4px] border border-[#FF5C5C]/40 bg-[#171919] p-4 shadow-md">
+      <div className="flex items-start gap-3">
+        {unavailable ? <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#63B3ED]" aria-hidden /> : <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#FF5C5C]" aria-hidden />}
         <div className="flex-1">
-          <p className="text-sm font-medium text-ink">{unavailable ? "Not available yet" : "Something went wrong"}</p>
-          <p className="mt-0.5 text-sm text-muted">{e?.message ?? "Unexpected error"}</p>
+          <p className="font-mono text-xs font-bold uppercase tracking-wider text-[#F5F5F0]">{unavailable ? "Not available yet" : "SYSTEM ALERT · FAULT DETECTED"}</p>
+          <p className="mt-1 text-xs text-[#A5A8A6]">{e?.message ?? "Unexpected system error"}</p>
           {onRetry && !unavailable && (
-            <Button className="mt-3" onClick={onRetry}>
+            <Button className="mt-3 uppercase font-mono" onClick={onRetry}>
               Try again
             </Button>
           )}
@@ -47,16 +49,16 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 export function Toaster() {
   const { toasts, dismiss } = useToasts();
   const icon = { success: CheckCircle2, error: AlertCircle, info: Info };
-  const color = { success: "text-success", error: "text-danger", info: "text-info" };
+  const color = { success: "text-[#39D98A]", error: "text-[#FF5C5C]", info: "text-[#63B3ED]" };
   return (
-    <div aria-live="polite" className="fixed bottom-4 right-4 z-50 flex w-80 flex-col gap-2">
+    <div aria-live="polite" className="fixed bottom-4 right-4 z-50 flex w-88 flex-col gap-2">
       {toasts.map((t) => {
         const Icon = icon[t.kind];
         return (
-          <div key={t.id} role={t.kind === "error" ? "alert" : "status"} className="flex items-start gap-2 rounded-ui border border-line bg-surface p-3 shadow-sm">
+          <div key={t.id} role={t.kind === "error" ? "alert" : "status"} className="flex items-start gap-2.5 rounded-[3px] border border-[#303432] bg-[#171919] p-3 shadow-xl">
             <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${color[t.kind]}`} aria-hidden />
-            <p className="flex-1 text-sm text-ink">{t.message}</p>
-            <button aria-label="Dismiss notification" onClick={() => dismiss(t.id)} className="text-muted hover:text-ink">
+            <p className="flex-1 text-xs text-[#F5F5F0]">{t.message}</p>
+            <button aria-label="Dismiss notification" onClick={() => dismiss(t.id)} className="text-[#777C79] hover:text-[#FFE500]">
               <X className="h-4 w-4" />
             </button>
           </div>
