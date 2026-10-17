@@ -287,14 +287,16 @@ export function PcbRepairModule({ page, layout }: ModuleProps) {
                               {n}
                             </button>
                           ))}
-                          <button
-                            type="button"
-                            onClick={() => setEsdValidation({ repair: r, nextStatus: next[0] })}
-                            title="Verify ESD grounding & multi-stage QC"
-                            className="rounded border border-[#FFE500]/40 bg-[#FFE500]/10 px-1.5 py-0.5 font-mono text-[10px] text-[#FFE500] hover:bg-[#FFE500]/20"
-                          >
-                            ⚡ QC Check
-                          </button>
+                          {next[0] && (
+                            <button
+                              type="button"
+                              onClick={() => setEsdValidation({ repair: r, nextStatus: next[0]! })}
+                              title="Verify ESD grounding & multi-stage QC"
+                              className="rounded border border-[#FFE500]/40 bg-[#FFE500]/10 px-1.5 py-0.5 font-mono text-[10px] text-[#FFE500] hover:bg-[#FFE500]/20"
+                            >
+                              ⚡ QC Check
+                            </button>
+                          )}
                         </div>
                       );
                     },

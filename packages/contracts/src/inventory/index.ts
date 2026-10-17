@@ -100,7 +100,13 @@ export const createRequestLinePayloadSchema = z.object({
 });
 export type CreateRequestLinePayload = z.infer<typeof createRequestLinePayloadSchema>;
 
-export const createRequestPayloadSchema = z.object({
+export const legacyCreateRequestPayloadSchema = z.object({
+  itemId: uuid,
+  quantity: z.number().int().min(1, "Quantity must be at least 1").max(1_000_000),
+  note: z.string().max(500).optional(),
+});
+
+export const standardCreateRequestPayloadSchema = z.object({
   lines: z
     .array(createRequestLinePayloadSchema)
     .min(1, "Add at least one item")
@@ -108,6 +114,12 @@ export const createRequestPayloadSchema = z.object({
     .refine((ls) => new Set(ls.map((l) => l.itemId)).size === ls.length, "Each item can appear only once"),
   note: z.string().max(500).optional(),
 });
+export type StandardCreateRequestPayload = z.infer<typeof standardCreateRequestPayloadSchema>;
+
+export const createRequestPayloadSchema = z.union([
+  standardCreateRequestPayloadSchema,
+  legacyCreateRequestPayloadSchema,
+]);
 export type CreateRequestPayload = z.infer<typeof createRequestPayloadSchema>;
 
 export const updateItemFieldsPayloadSchema = z.object({

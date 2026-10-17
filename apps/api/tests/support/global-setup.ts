@@ -11,6 +11,10 @@ let dataDir: string | undefined;
  * (e.g. the CI service container) when set; otherwise start a throwaway embedded PostgreSQL 16.
  */
 export async function setup(): Promise<void> {
+  if (process.platform === "win32") {
+    process.env.PATH = `${process.env.PATH};C:\\Windows\\System32;C:\\Windows`;
+    process.env.Path = `${process.env.Path};C:\\Windows\\System32;C:\\Windows`;
+  }
   const appPassword = "test-app-password";
   if (process.env.TEST_DATABASE_ADMIN_URL) {
     const admin = new URL(process.env.TEST_DATABASE_ADMIN_URL);

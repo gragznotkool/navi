@@ -1,7 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
-import { createRequestPayloadSchema, type CreateRequestPayload, type RequestRecord } from "@opshub/contracts";
+import { standardCreateRequestPayloadSchema, type StandardCreateRequestPayload, type RequestRecord } from "@opshub/contracts";
 import { ErrorState, LoadingState } from "../../components/feedback";
 import { parseFieldValue, visibleFields } from "../../components/FieldInputs";
 import { RecordView } from "../../components/tables/RecordView";
@@ -95,8 +95,8 @@ function RequestForm({ siteId, onDone }: { siteId: string; onDone: () => void })
   const { config } = useSiteRuntime();
   const lineFields = visibleFields(config.fields, "request_line");
   const items = useAsync(() => opsApi.items(siteId), [siteId]);
-  const form = useForm<CreateRequestPayload>({
-    resolver: zodResolver(createRequestPayloadSchema),
+  const form = useForm<StandardCreateRequestPayload>({
+    resolver: zodResolver(standardCreateRequestPayloadSchema),
     defaultValues: { lines: [{ itemId: "", quantity: 1 }] },
   });
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
