@@ -69,8 +69,16 @@ export const releasesApi = {
   rollback: (siteId: string, body: RollbackRequest) => call<ReleaseSummary>(http.post(`/sites/${siteId}/releases/rollback`, body)),
   diff: (siteId: string, releaseId: string) => call<ReleaseDiff>(http.get(`/sites/${siteId}/releases/${releaseId}/diff`)),
   audit: (siteId: string) => call<AuditEvent[]>(http.get(`/sites/${siteId}/audit-events`)),
+  // New: preview a historical release (read‑only)
+  preview: (siteId: string, releaseId: string) => call<{ version: number; configuration: unknown }>(http.get(`/sites/${siteId}/releases/${releaseId}/preview`)),
+  // New: check rollback eligibility
+  rollbackEligibility: (siteId: string, releaseId: string, baseVersion: number) => call<{ eligible: boolean; warnings?: string[]; blockingReasons?: string[] }>(http.get(`/sites/${siteId}/releases/${releaseId}/rollback-eligibility`, { params: { baseVersion } })),
 };
 
 export const trustApi = {
   checks: () => call<{ generatedAt: string | null; checks: TrustCheckResult[] }>(http.get("/trust/checks")),
+  summary: () => call<{ generatedAt: string; isolation: { passed: boolean; detail: string }; inventory: { passed: boolean; detail: string } }>(http.get("/trust/summary")),
+  isolationCheck: () => call<{ passed: boolean; detail: string }>(http.get("/trust/isolation-check")),
+  inventoryCheck: () => call<{ passed: boolean; detail: string }>(http.get("/trust/inventory-check")),
+  auditEvents: () => call<any[]>(http.get("/trust/audit-events")),
 };

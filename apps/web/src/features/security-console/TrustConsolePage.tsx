@@ -1,42 +1,93 @@
 import { Link } from "react-router-dom";
 import { ErrorState, LoadingState } from "../../components/feedback";
-import { Badge, Panel } from "../../components/ui";
+import { Badge, Button, Panel } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
 import { formatDateTime } from "../../lib/format";
 import { trustApi } from "../../services";
+import { useState } from "react";
 
 const tone = { "not-run": "neutral", passed: "success", failed: "danger" } as const;
 const label = { "not-run": "Not run", passed: "Passed", failed: "Failed" } as const;
 
 export function TrustConsolePage() {
-  const checks = useAsync(() => trustApi.checks(), []);
+  // Summary loads on mount
+  const summary = useAsync(() => trustApi.summary(), []);
+
+  // Isolation check trigger
+  const [isoTrigger, setIsoTrigger] = useState(0);
+  const isolation = useAsync(() => trustApi.isolationCheck(), [isoTrigger]);
+
+  // Inventory check trigger
+  const [invTrigger, setInvTrigger] = useState(0);
+  const inventory = useAsync(() => trustApi.inventoryCheck(), [invTrigger]);
+
+  // Audit events load on mount
+  const audit = useAsync(() => trustApi.auditEvents(), []);
+
   return (
     <main className="mx-auto w-full max-w-4xl p-6">
       <Link to="/" className="text-xs text-muted hover:underline">← Sites</Link>
       <h1 className="mt-1 text-lg font-semibold">Security and Trust Console</h1>
-      <p className="mb-4 mt-0.5 text-sm text-muted">
-        Results come from test runs recorded on the API host. A check shows “Not run” until its tests have actually been executed. These are test-environment results, not production monitoring.
-      </p>
-      {checks.loading && <LoadingState />}
-      {checks.error ? <ErrorState error={checks.error} onRetry={checks.reload} /> : null}
-      {checks.data && (
-        <Panel title={checks.data.generatedAt ? `Last recorded run: ${formatDateTime(checks.data.generatedAt)}` : "No test run has been recorded"}>
-          <ul className="divide-y divide-line">
-            {checks.data.checks.map((c) => (
-              <li key={c.id} className="flex items-start justify-between gap-3 py-2.5">
-                <div>
-                  <p className="text-sm font-medium">{c.label}</p>
-                  {c.detail && <p className="text-xs text-muted">{c.detail}</p>}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Badge>{c.environment === "test" ? "test environment" : "production"}</Badge>
-                  <Badge tone={tone[c.status]}>{label[c.status]}</Badge>
-                </div>
+
+      {/* Summary Panel */}
+      <Panel title="Trust Summary">
+        {summary.loading && <LoadingState />}
+        {summary.error && <ErrorState error={summary.error} onRetry={summary.reload} />}
+        {summary.data && (
+          <div className="space-y-2">
+            <p>Generated at: {formatDateTime(summary.data.generatedAt)}</p>
+            <p>Isolation: <Badge tone={tone[summary.data.isolation.passed ? "passed" : "failed"]}>{label[summary.data.isolation.passed ? "passed" : "failed"]}</Badge></p>
+            <p>Inventory: <Badge tone={tone[summary.data.inventory.passed ? "passed" : "failed"]}>{label[summary.data.inventory.passed ? "passed" : "failed"]}</Badge></p>
+          </div>
+        )}
+      </Panel>
+
+      {/* Tenant Isolation Panel */}
+      <Panel title="Tenant Isolation">
+        <div className="flex items-center gap-4 mb-2">
+          <Button onClick={() => setIsoTrigger((i) => i + 1)} disabled={isolation.loading}>Run Isolation Check</Button>
+        </div>
+        {isolation.loading && <LoadingState />}
+        {isolation.error && <ErrorState error={isolation.error} onRetry={isolation.reload} />}
+        {isolation.data && (
+          <div>
+            <Badge tone={tone[isolation.data.passed ? "passed" : "failed"]}>{label[isolation.data.passed ? "passed" : "failed"]}</Badge>
+            <p className="mt-2 text-sm text-muted">{isolation.data.detail}</p>
+          </div>
+        )}
+      </Panel>
+
+      {/* Inventory Integrity Panel */}
+      <Panel title="Inventory Integrity">
+        <div className="flex items-center gap-4 mb-2">
+          <Button onClick={() => setInvTrigger((i) => i + 1)} disabled={inventory.loading}>Run Inventory Check</Button>
+        </div>
+        {inventory.loading && <LoadingState />}
+        {inventory.error && <ErrorState error={inventory.error} onRetry={inventory.reload} />}
+        {inventory.data && (
+          <div>
+            <Badge tone={tone[inventory.data.passed ? "passed" : "failed"]}>{label[inventory.data.passed ? "passed" : "failed"]}</Badge>
+            <p className="mt-2 text-sm text-muted">{inventory.data.detail}</p>
+          </div>
+        )}
+      </Panel>
+
+      {/* Audit Activity Panel */}
+      <Panel title="Audit Activity (last 200 events)">
+        {audit.loading && <LoadingState />}
+        {audit.error && <ErrorState error={audit.error} onRetry={audit.reload} />}
+        {audit.data && (
+          <ul className="divide-y divide-line max-h-96 overflow-y-auto">
+            {audit.data.map((e) => (
+              <li key={e.id} className="py-2 text-sm">
+                <span className="font-medium">{e.action}</span> – {formatDateTime(e.createdAt)}
+                {e.siteId && <span> (site {e.siteId})</span>}
               </li>
             ))}
           </ul>
-        </Panel>
-      )}
+        )}
+      </Panel>
     </main>
   );
 }
+

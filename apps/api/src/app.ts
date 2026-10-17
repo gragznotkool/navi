@@ -36,6 +36,7 @@ import {
 } from "./middleware/core.js";
 import { dataTypes, moduleDefinitions } from "./modules/registry.js";
 import { readChecks } from "./trust/checks.js";
+import { tenantIsolationCheck, inventoryIntegrityCheck, recentAuditEvents } from "./trust/verification.js";
 import * as releases from "./releases/service.js";
 import { ValidationFailed } from "./releases/service.js";
 import { getActiveRelease, parseStoredConfig } from "./repositories/releases.js";
@@ -110,6 +111,53 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
     res.json({ data: readChecks() });
   });
 
+  // Trust console additional endpoints (platform admins only)
+  trust.get("/summary", auth, async (req, res) => {
+    if (!req.user!.isPlatformAdmin) throw forbidden();
+    const isolation = await tenantIsolationCheck(db, req.user!.id);
+    const inventory = await inventoryIntegrityCheck(db);
+    res.json({ data: { generatedAt: new Date().toISOString(), isolation, inventory } });
+  });
+
+  trust.get("/isolation-check", auth, async (req, res) => {
+    if (!req.user!.isPlatformAdmin) throw forbidden();
+    const result = await tenantIsolationCheck(db, req.user!.id);
+    // Record audit event
+    await db.withoutTenant(async (tx) => {
+      await recordAudit(tx, {
+        siteId: null,
+        actorId: req.user!.id,
+        action: "trust.isolation-check",
+        entityType: "trust",
+        metadata: { passed: result.passed, detail: result.detail },
+        requestId: req.requestId,
+      });
+    });
+    res.json({ data: result });
+  });
+
+  trust.get("/inventory-check", auth, async (req, res) => {
+    if (!req.user!.isPlatformAdmin) throw forbidden();
+    const result = await inventoryIntegrityCheck(db);
+    await db.withoutTenant(async (tx) => {
+      await recordAudit(tx, {
+        siteId: null,
+        actorId: req.user!.id,
+        action: "trust.inventory-check",
+        entityType: "trust",
+        metadata: { passed: result.passed, detail: result.detail },
+        requestId: req.requestId,
+      });
+    });
+    res.json({ data: result });
+  });
+
+  trust.get("/audit-events", auth, async (req, res) => {
+    if (!req.user!.isPlatformAdmin) throw forbidden();
+    const events = await recentAuditEvents(db);
+    res.json({ data: events });
+  });
+
   // ---------- sites
   const st = mount(api, "/sites");
   st.get("", auth, async (req, res) => {
@@ -162,6 +210,23 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   });
   st.get("/:siteId/releases/:releaseId/diff", auth, requireSite(db), async (req, res) => {
     res.json({ data: await releases.diff(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, String(req.params.releaseId)) });
+  });
+  // Preview a historical release (read‑only)
+  st.get("/:siteId/releases/:releaseId/preview", auth, requireSite(db), async (req, res) => {
+    const data = await releases.preview(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }, String(req.params.releaseId));
+    res.json({ data });
+  });
+  // Check rollback eligibility
+  st.get("/:siteId/releases/:releaseId/rollback-eligibility", auth, requireSite(db), async (req, res) => {
+    const baseVersion = Number(req.query.baseVersion);
+    if (Number.isNaN(baseVersion)) throw badRequest("baseVersion query param required");
+    const result = await releases.rollbackEligibility(
+      db,
+      { siteId: req.siteAccess!.siteId, userId: req.user!.id },
+      Number(req.params.releaseId),
+      baseVersion
+    );
+    res.json({ data: result });
   });
   st.get("/:siteId/audit-events", auth, requireSite(db, "config:manage"), async (req, res) => {
     const rows = await db.withTenant({ siteId: req.siteAccess!.siteId, userId: req.user!.id }, (tx) => tx.select().from(s.auditEvents).orderBy(s.auditEvents.createdAt).limit(200));

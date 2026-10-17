@@ -16,6 +16,7 @@ export function ReleasesPage() {
   const audit = useAsync(() => releasesApi.audit(siteId), [siteId]);
   const [diff, setDiff] = useState<ReleaseDiff | null>(null);
   const [busy, setBusy] = useState<number | null>(null);
+  const [preview, setPreview] = useState<{ version: number; configuration: unknown } | null>(null);
   const active = releases.data?.find((r) => r.isActive);
 
   const showDiff = async (r: ReleaseSummary) => {
