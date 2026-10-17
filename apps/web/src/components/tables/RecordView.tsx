@@ -28,14 +28,14 @@ export function RecordView<T>({ layout, caption, rows, rowKey, columns, groupBy,
   if (layout === "kanban" && groupBy && groups && card) {
     if (rows.length === 0) return <EmptyState title={emptyTitle ?? "No records"} {...(emptyHint ? { hint: emptyHint } : {})} />;
     return (
-      <div className="flex min-w-max gap-3 overflow-x-auto pb-4" role="group" aria-label={caption}>
+      <div className="flex min-w-max gap-4 overflow-x-auto pb-4" role="group" aria-label={caption}>
         {groups.map((g) => {
           const items = rows.filter((r) => groupBy(r) === g);
           return (
             <section
               key={g}
               aria-label={`${g} (${items.length})`}
-              className="w-72 shrink-0 rounded-[4px] border border-[#303432] bg-[#111313] transition-colors"
+              className="devfest-card w-72 shrink-0 overflow-hidden bg-slate-50 transition-colors"
               onDragOver={(e) => {
                 if (onMove) e.preventDefault();
               }}
@@ -46,35 +46,35 @@ export function RecordView<T>({ layout, caption, rows, rowKey, columns, groupBy,
                 if (row && groupBy(row) !== g) onMove(row, g);
               }}
             >
-              <h3 className="flex items-center justify-between border-b border-[#303432] bg-[#171919] px-3 py-2.5 font-['Barlow_Condensed',sans-serif] text-xs font-bold uppercase tracking-wider text-[#F5F5F0]">
+              <h3 className="flex items-center justify-between border-b-2 border-[#1E293B] bg-white px-4 py-3 font-['Outfit',sans-serif] text-sm font-black uppercase tracking-wider text-[#0F172A]">
                 <span>{g}</span>
-                <span className="rounded-[2px] border border-[#FFE500]/40 bg-[#FFE500]/10 px-2 py-0.5 font-mono text-[10px] font-bold text-[#FFE500] tabular-nums">
+                <span className="rounded-full border-2 border-[#1E293B] bg-[#FBBC04] px-2.5 py-0.5 font-mono text-[11px] font-black text-[#0F172A] tabular-nums shadow-[1px_1px_0px_#1E293B]">
                   {items.length}
                 </span>
               </h3>
-              <ul className="flex min-h-[140px] flex-col gap-2 p-2">
+              <ul className="flex min-h-[140px] flex-col gap-2.5 p-3">
                 {items.length === 0 && (
-                  <li className="grid place-items-center py-6 text-xs text-[#777C79]">Nothing in {g}</li>
+                  <li className="grid place-items-center py-6 text-xs font-bold text-slate-400">Nothing in {g}</li>
                 )}
                 {items.map((r) => (
                   <li
                     key={rowKey(r)}
                     draggable={Boolean(onMove)}
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", rowKey(r))}
-                    className={`rounded-[3px] border border-[#303432] bg-[#171919] p-3 shadow-sm transition-all hover:border-[#FFE500]/50 ${
+                    className={`rounded-xl border-2 border-[#1E293B] bg-white p-3.5 shadow-[2px_2px_0px_#1E293B] transition-all hover:translate-y-[-1px] ${
                       onMove ? "cursor-grab active:cursor-grabbing" : ""
                     }`}
                   >
                     {card(r)}
                     {onMove && (
-                      <div className="mt-2.5 flex items-center justify-between border-t border-[#303432] pt-2">
-                        <label className="font-mono text-[10px] uppercase text-[#A5A8A6]">Move to:</label>
+                      <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-2.5">
+                        <label className="font-mono text-[10px] uppercase font-bold text-slate-500">Move to:</label>
                         <select
                           value=""
                           onChange={(e) => {
                             if (e.target.value) onMove(r, e.target.value);
                           }}
-                          className="h-6 rounded-[2px] border border-[#303432] bg-[#111313] px-1.5 text-xs text-[#F5F5F0] focus:border-[#FFE500]"
+                          className="h-7 rounded-full border-2 border-[#1E293B] bg-slate-50 px-2 text-xs font-bold text-[#0F172A] focus:border-[#FBBC04]"
                         >
                           <option value="">Choose…</option>
                           {groups

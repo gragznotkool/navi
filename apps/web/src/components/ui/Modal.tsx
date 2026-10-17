@@ -17,16 +17,16 @@ export function Modal({ title, onClose, children, footer }: { title: string; onC
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-[4px] border border-[#303432] bg-[#171919] shadow-2xl outline-none">
-        <div className="flex items-center justify-between border-b border-[#303432] bg-[#111313] px-4 py-3">
-          <div className="flex items-center gap-2">
-            <span className="h-2 w-2 bg-[#FFE500]" aria-hidden="true" />
-            <h2 className="font-['Barlow_Condensed',sans-serif] text-base font-bold uppercase tracking-wider text-[#F5F5F0]">{title}</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="devfest-card flex max-h-[85vh] w-full max-w-xl flex-col overflow-hidden outline-none bg-white">
+        <div className="flex items-center justify-between border-b-2 border-[#1E293B] bg-slate-100 px-5 py-3.5">
+          <div className="flex items-center gap-2.5">
+            <span className="h-3 w-3 rounded-full bg-[#FBBC04] border border-[#1E293B]" aria-hidden="true" />
+            <h2 className="font-['Outfit',sans-serif] text-base font-black uppercase tracking-wider text-[#0F172A]">{title}</h2>
           </div>
         </div>
-        <div className="overflow-auto px-4 py-4 text-xs text-[#F5F5F0]">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-[#303432] bg-[#111313] px-4 py-3">{footer}</div>}
+        <div className="overflow-auto p-5 text-xs text-[#0F172A]">{children}</div>
+        {footer && <div className="flex justify-end gap-2.5 border-t-2 border-[#1E293B] bg-slate-50 px-5 py-3.5">{footer}</div>}
       </div>
     </div>
   );

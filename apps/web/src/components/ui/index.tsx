@@ -1,19 +1,23 @@
 import { forwardRef, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from "react";
 import { Loader2 } from "lucide-react";
 
-type Variant = "primary" | "secondary" | "danger" | "ghost" | "outline";
+type Variant = "primary" | "secondary" | "danger" | "ghost" | "outline" | "blue" | "green";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-[#FFE500] text-[#080909] font-bold hover:bg-[#E8D000] shadow-[0_0_15px_rgba(255,229,0,0.2)] active:scale-[0.99] disabled:opacity-40 disabled:hover:bg-[#FFE500]",
+    "border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A] font-bold hover:bg-[#F59E0B] shadow-[3px_3px_0px_#1E293B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#1E293B] disabled:opacity-40",
   secondary:
-    "border border-[#303432] bg-[#171919] text-[#F5F5F0] hover:bg-[#202422] hover:border-[#424845] disabled:opacity-40",
+    "border-2 border-[#1E293B] bg-[#FFFFFF] text-[#0F172A] font-semibold hover:bg-[#F8FAFC] shadow-[3px_3px_0px_#1E293B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#1E293B] disabled:opacity-40",
   outline:
-    "border border-[#FFE500] bg-transparent text-[#FFE500] hover:bg-[#FFE500]/10 disabled:opacity-40",
+    "border-2 border-[#1E293B] bg-transparent text-[#1E293B] font-bold hover:bg-white/20 shadow-[2px_2px_0px_#1E293B] disabled:opacity-40",
   danger:
-    "bg-[#FF5C5C] text-[#080909] font-bold hover:brightness-110 disabled:opacity-40",
+    "border-2 border-[#1E293B] bg-[#EA4335] text-white font-bold hover:bg-[#D93025] shadow-[3px_3px_0px_#1E293B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#1E293B] disabled:opacity-40",
+  blue:
+    "border-2 border-[#1E293B] bg-[#4285F4] text-white font-bold hover:bg-[#3367D6] shadow-[3px_3px_0px_#1E293B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#1E293B] disabled:opacity-40",
+  green:
+    "border-2 border-[#1E293B] bg-[#34A853] text-white font-bold hover:bg-[#2D9247] shadow-[3px_3px_0px_#1E293B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#1E293B] disabled:opacity-40",
   ghost:
-    "text-[#A5A8A6] hover:bg-[#171919] hover:text-[#F5F5F0] disabled:opacity-40",
+    "text-[#475569] hover:bg-black/5 hover:text-[#0F172A] font-semibold disabled:opacity-40",
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -27,7 +31,7 @@ export function Button({ variant = "secondary", loading, disabled, children, cla
       type="button"
       {...rest}
       disabled={disabled || loading}
-      className={`group relative inline-flex h-10 items-center justify-center gap-2 rounded-[3px] px-4 text-xs font-semibold tracking-wider uppercase transition-all duration-150 disabled:cursor-not-allowed select-none ${variants[variant]} ${className}`}
+      className={`group relative inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-bold tracking-wide transition-all duration-100 disabled:cursor-not-allowed select-none ${variants[variant]} ${className}`}
     >
       {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
       {children}
@@ -43,7 +47,7 @@ interface FieldProps {
 }
 
 const inputClass =
-  "h-10 w-full rounded-[3px] border border-[#303432] bg-[#111313] px-3 text-sm text-[#F5F5F0] placeholder:text-[#777C79] transition-all focus:border-[#FFE500] focus:ring-1 focus:ring-[#FFE500] focus:bg-[#151717] disabled:bg-[#080909] disabled:opacity-50 aria-[invalid=true]:border-[#FF5C5C]";
+  "h-10 w-full rounded-xl border-2 border-[#1E293B] bg-white px-3 text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] shadow-[2px_2px_0px_#1E293B] transition-all focus:border-[#4285F4] focus:ring-2 focus:ring-[#4285F4]/30 focus:shadow-[3px_3px_0px_#1E293B] disabled:bg-slate-100 disabled:opacity-60 aria-[invalid=true]:border-[#EA4335]";
 
 export const TextField = forwardRef<HTMLInputElement, FieldProps & InputHTMLAttributes<HTMLInputElement>>(function TextField(
   { label, error, hint, rightAction, className = "", ...rest },
@@ -52,7 +56,7 @@ export const TextField = forwardRef<HTMLInputElement, FieldProps & InputHTMLAttr
   const id = useId();
   return (
     <div className={className}>
-      <label htmlFor={id} className="mb-1.5 block font-mono text-[11px] font-semibold tracking-wider uppercase text-[#A5A8A6]">
+      <label htmlFor={id} className="mb-1.5 block font-['Outfit',sans-serif] text-xs font-bold text-[#0F172A]">
         {label}
       </label>
       <div className="relative">
@@ -63,9 +67,9 @@ export const TextField = forwardRef<HTMLInputElement, FieldProps & InputHTMLAttr
           </div>
         )}
       </div>
-      {hint && !error && <p className="mt-1 font-mono text-[11px] text-[#777C79]">{hint}</p>}
+      {hint && !error && <p className="mt-1 text-[11px] text-[#64748B]">{hint}</p>}
       {error && (
-        <p id={`${id}-err`} role="alert" className="mt-1 font-mono text-[11px] text-[#FF5C5C]">
+        <p id={`${id}-err`} role="alert" className="mt-1 font-bold text-[11px] text-[#EA4335]">
           {error}
         </p>
       )}
@@ -80,14 +84,14 @@ export const SelectField = forwardRef<HTMLSelectElement, FieldProps & SelectHTML
   const id = useId();
   return (
     <div className={className}>
-      <label htmlFor={id} className="mb-1 block font-mono text-[11px] font-semibold tracking-wider uppercase text-[#A5A8A6]">
+      <label htmlFor={id} className="mb-1 block font-['Outfit',sans-serif] text-xs font-bold text-[#0F172A]">
         {label}
       </label>
       <select ref={ref} id={id} aria-invalid={error ? true : undefined} className={inputClass} {...rest}>
         {children}
       </select>
       {error && (
-        <p role="alert" className="mt-1 font-mono text-[11px] text-[#FF5C5C]">
+        <p role="alert" className="mt-1 font-bold text-[11px] text-[#EA4335]">
           {error}
         </p>
       )}
@@ -97,17 +101,17 @@ export const SelectField = forwardRef<HTMLSelectElement, FieldProps & SelectHTML
 
 type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "yellow";
 const tones: Record<Tone, string> = {
-  neutral: "border border-[#303432] bg-[#111313] text-[#A5A8A6]",
-  yellow: "border border-[#FFE500]/40 bg-[#FFE500]/10 text-[#FFE500] font-bold",
-  success: "border border-[#39D98A]/30 bg-[#39D98A]/10 text-[#39D98A]",
-  warning: "border border-[#FFB547]/30 bg-[#FFB547]/10 text-[#FFB547]",
-  danger: "border border-[#FF5C5C]/30 bg-[#FF5C5C]/10 text-[#FF5C5C]",
-  info: "border border-[#63B3ED]/30 bg-[#63B3ED]/10 text-[#63B3ED]",
+  neutral: "border-2 border-[#1E293B] bg-slate-100 text-[#334155]",
+  yellow: "border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A]",
+  success: "border-2 border-[#1E293B] bg-[#34A853] text-white",
+  warning: "border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A]",
+  danger: "border-2 border-[#1E293B] bg-[#EA4335] text-white",
+  info: "border-2 border-[#1E293B] bg-[#4285F4] text-white",
 };
 
 /** Status is always conveyed by text, never colour alone. */
 export function Badge({ tone = "neutral", children }: { tone?: Tone; children: ReactNode }) {
-  return <span className={`inline-flex items-center rounded-[2px] px-2 py-0.5 font-mono text-[10px] font-semibold tracking-wider uppercase ${tones[tone]}`}>{children}</span>;
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 font-bold text-[11px] tracking-wide shadow-[1px_1px_0px_#1E293B] ${tones[tone]}`}>{children}</span>;
 }
 
 const statusTone: Record<string, Tone> = {
@@ -125,10 +129,10 @@ export function StatusBadge({ status }: { status: string }) {
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-3 border-b border-[#303432] pb-4">
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-3 rounded-2xl border-2 border-[#1E293B] bg-white p-4 shadow-[4px_4px_0px_#1E293B]">
       <div>
-        <h1 className="font-['Barlow_Condensed',sans-serif] text-2xl font-black uppercase tracking-wider text-[#F5F5F0]">{title}</h1>
-        {subtitle && <p className="mt-1 text-xs text-[#A5A8A6]">{subtitle}</p>}
+        <h1 className="font-['Outfit',sans-serif] text-2xl font-extrabold tracking-tight text-[#0F172A]">{title}</h1>
+        {subtitle && <p className="mt-1 text-xs font-medium text-[#64748B]">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
@@ -137,14 +141,15 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 
 export function Panel({ title, children, actions }: { title?: string; children?: ReactNode; actions?: ReactNode }) {
   return (
-    <section className="rounded-[4px] border border-[#303432] bg-[#171919] shadow-md">
+    <section className="rounded-2xl border-2 border-[#1E293B] bg-white shadow-[4px_4px_0px_#1E293B] overflow-hidden">
       {(title || actions) && (
-        <header className="flex items-center justify-between border-b border-[#303432] bg-[#111313] px-4 py-3">
-          <h2 className="font-['Barlow_Condensed',sans-serif] text-sm font-bold uppercase tracking-wider text-[#F5F5F0]">{title}</h2>
+        <header className="flex items-center justify-between border-b-2 border-[#1E293B] bg-slate-50 px-4 py-3">
+          <h2 className="font-['Outfit',sans-serif] text-sm font-bold tracking-tight text-[#0F172A]">{title}</h2>
           {actions}
         </header>
       )}
-      <div className="p-4">{children}</div>
+      <div className="p-4 text-[#0F172A]">{children}</div>
     </section>
   );
 }
+

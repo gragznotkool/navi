@@ -14,13 +14,13 @@ export function LoadingState({ label = "Loading operational data…" }: { label?
 
 export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-[4px] border border-dashed border-[#303432] bg-[#111313]/60 py-12 text-center">
-      <div className="flex h-10 w-10 items-center justify-center rounded-[3px] border border-[#303432] bg-[#171919] text-[#FFE500]">
-        <Inbox className="h-5 w-5" aria-hidden />
+    <div className="devfest-card flex flex-col items-center gap-2.5 bg-white/90 p-8 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A] shadow-[2px_2px_0px_#1E293B]">
+        <Inbox className="h-6 w-6" aria-hidden />
       </div>
-      <p className="font-['Barlow_Condensed',sans-serif] text-base font-bold uppercase tracking-wider text-[#F5F5F0]">{title}</p>
-      {hint && <p className="max-w-md text-xs text-[#A5A8A6]">{hint}</p>}
-      {action && <div className="mt-2">{action}</div>}
+      <p className="font-['Outfit',sans-serif] text-base font-black uppercase tracking-wider text-[#0F172A]">{title}</p>
+      {hint && <p className="max-w-md text-xs font-medium text-slate-600">{hint}</p>}
+      {action && <div className="mt-3">{action}</div>}
     </div>
   );
 }
@@ -29,14 +29,14 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   const e = error instanceof ApiRequestError ? error : null;
   const unavailable = e?.unavailable;
   return (
-    <div role="alert" className="rounded-[4px] border border-[#FF5C5C]/40 bg-[#171919] p-4 shadow-md">
-      <div className="flex items-start gap-3">
-        {unavailable ? <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#63B3ED]" aria-hidden /> : <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#FF5C5C]" aria-hidden />}
+    <div role="alert" className="devfest-card border-l-8 border-l-[#EA4335] p-5">
+      <div className="flex items-start gap-3.5">
+        {unavailable ? <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#2563EB]" aria-hidden /> : <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#EA4335]" aria-hidden />}
         <div className="flex-1">
-          <p className="font-mono text-xs font-bold uppercase tracking-wider text-[#F5F5F0]">{unavailable ? "Not available yet" : "SYSTEM ALERT · FAULT DETECTED"}</p>
-          <p className="mt-1 text-xs text-[#A5A8A6]">{e?.message ?? "Unexpected system error"}</p>
+          <p className="font-mono text-xs font-black uppercase tracking-wider text-[#0F172A]">{unavailable ? "Not available yet" : "SYSTEM ALERT · FAULT DETECTED"}</p>
+          <p className="mt-1 text-xs font-medium text-slate-600">{e?.message ?? "Unexpected system error"}</p>
           {onRetry && !unavailable && (
-            <Button className="mt-3 uppercase font-mono" onClick={onRetry}>
+            <Button className="mt-3 font-mono font-bold" onClick={onRetry}>
               Try again
             </Button>
           )}
@@ -49,16 +49,16 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
 export function Toaster() {
   const { toasts, dismiss } = useToasts();
   const icon = { success: CheckCircle2, error: AlertCircle, info: Info };
-  const color = { success: "text-[#39D98A]", error: "text-[#FF5C5C]", info: "text-[#63B3ED]" };
+  const color = { success: "text-[#34A853]", error: "text-[#EA4335]", info: "text-[#2563EB]" };
   return (
-    <div aria-live="polite" className="fixed bottom-4 right-4 z-50 flex w-88 flex-col gap-2">
+    <div aria-live="polite" className="fixed bottom-5 right-5 z-50 flex w-88 flex-col gap-2.5">
       {toasts.map((t) => {
         const Icon = icon[t.kind];
         return (
-          <div key={t.id} role={t.kind === "error" ? "alert" : "status"} className="flex items-start gap-2.5 rounded-[3px] border border-[#303432] bg-[#171919] p-3 shadow-xl">
-            <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${color[t.kind]}`} aria-hidden />
-            <p className="flex-1 text-xs text-[#F5F5F0]">{t.message}</p>
-            <button aria-label="Dismiss notification" onClick={() => dismiss(t.id)} className="text-[#777C79] hover:text-[#FFE500]">
+          <div key={t.id} role={t.kind === "error" ? "alert" : "status"} className="devfest-card flex items-start gap-3 p-3.5 bg-white">
+            <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${color[t.kind]}`} aria-hidden />
+            <p className="flex-1 text-xs font-bold text-[#0F172A]">{t.message}</p>
+            <button aria-label="Dismiss notification" onClick={() => dismiss(t.id)} className="text-slate-400 hover:text-[#0F172A]">
               <X className="h-4 w-4" />
             </button>
           </div>
