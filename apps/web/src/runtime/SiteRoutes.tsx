@@ -21,7 +21,7 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
   const { slug = "" } = useParams();
   const session = useSession((s) => s.session);
   const membership = session?.memberships.find((m) => m.siteSlug === slug);
-  const draft = usePreviewStore((s) => s.getDraft(slug) ?? s.drafts[slug]);
+  const draft = usePreviewStore((s) => s.getDraft(slug));
 
   useEffect(() => {
     if (slug && !preview) setLastSite(slug);

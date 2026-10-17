@@ -9,7 +9,14 @@ import { useSession } from "../src/stores/session";
 import { allPermissions, configs, renderInSite } from "./helpers";
 
 vi.mock("../src/services", () => ({
-  opsApi: { requests: vi.fn(), decide: vi.fn() },
+  opsApi: {
+    requests: vi.fn(),
+    decide: vi.fn(),
+    hubOverview: vi.fn().mockResolvedValue({
+      sites: [],
+      totals: { sites: 0, inventoryItems: 0, stockUnits: 0, pendingRequests: 0, pendingApprovals: 0, outstandingAssignments: 0 },
+    }),
+  },
   sitesApi: { list: vi.fn() },
   authApi: { logout: vi.fn(), login: vi.fn(), me: vi.fn() },
 }));

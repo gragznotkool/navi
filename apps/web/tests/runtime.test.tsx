@@ -1,7 +1,8 @@
-import { screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PageDefinition, SiteConfiguration } from "@opshub/contracts";
 import { ApiRequestError } from "../src/lib/api";
+import { UnavailableModule } from "../src/runtime/pages/UnavailableModule";
 import { SiteShell } from "../src/runtime/SiteShell";
 import { UniversalRenderer } from "../src/runtime/UniversalRenderer";
 import { allPermissions, configs, renderInSite } from "./helpers";
@@ -18,6 +19,7 @@ vi.mock("../src/services", () => ({
   },
   sitesApi: { modules: vi.fn().mockResolvedValue([]) },
   reportsApi: { list: vi.fn().mockResolvedValue([]) },
+  membersApi: { list: vi.fn().mockResolvedValue([]), add: vi.fn(), setRoles: vi.fn(), remove: vi.fn() },
 }));
 import { opsApi, reportsApi } from "../src/services";
 
@@ -73,8 +75,8 @@ describe("UniversalRenderer", () => {
     expect(opsApi.items).not.toHaveBeenCalled();
   });
 
-  it("explains modules that are enabled but not implemented", () => {
-    renderInSite(<UniversalRenderer page={pageFor(configs.service, "users")} />, { config: configs.service, permissions: allPermissions(configs.service) });
+  it("a module without a screen is explained honestly instead of faked", () => {
+    render(<UnavailableModule title="Platform module" reason="Managed by the platform; it has no page of its own." />);
     expect(screen.getByRole("status")).toHaveTextContent("Not implemented yet");
   });
 });

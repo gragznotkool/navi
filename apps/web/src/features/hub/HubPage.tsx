@@ -202,7 +202,11 @@ export function HubPage({ view = "sites" }: { view?: "sites" | "builder" }) {
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span aria-hidden className="h-3 w-3 rounded-full" style={{ background: s.accent }} />
-                          <h3 className="text-sm font-semibold text-ink group-hover:text-accent">{s.name}</h3>
+                          <h3 className="text-sm font-semibold text-ink group-hover:text-accent">
+                            <Link to={`/s/${s.slug}`} className="hover:underline">
+                              {s.name}
+                            </Link>
+                          </h3>
                         </div>
                         <Badge>release v{s.activeReleaseVersion ?? "—"}</Badge>
                       </div>

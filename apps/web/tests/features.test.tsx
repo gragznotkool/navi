@@ -44,6 +44,7 @@ const dummyNode: ModuleNode = {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(opsApi.items).mockResolvedValue({ items: [], page: 1, pageSize: 50, total: 0 });
+  vi.mocked(opsApi.assignments).mockResolvedValue([]);
   vi.mocked(opsApi.stockSummary).mockResolvedValue({ totalItems: 0, belowReorderLevel: 0, source: "database" });
   vi.mocked(opsApi.downloadExcel).mockResolvedValue(new Blob([]));
 });
