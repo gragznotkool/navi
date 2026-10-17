@@ -140,11 +140,12 @@ describe("site membership and tenancy", () => {
     expect((await agent.get("/api/v1/modules")).body.data).toHaveLength(13);
   });
 
-  it("returns honest 501s for unbuilt endpoints", async () => {
+  it("serves persisted repairs for sites with repair:view permission", async () => {
     const { agent } = await loginAs("admin@opshub.local");
     const res = await agent.get(`/api/v1/sites/${SITES.serviceCentre}/repairs`);
-    expect(res.status).toBe(501);
-    expect(res.body.error.code).toBe("not_implemented");
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveProperty("items");
+    expect(Array.isArray(res.body.data.items)).toBe(true);
   });
 });
 
@@ -234,7 +235,7 @@ describe("configuration validation and release lifecycle", () => {
     expect(diff.body.data.entries.some((e: { path: string; change: string }) => e.path.includes("return-management") && e.change === "added")).toBe(true);
 
     // Rollback creates a NEW release; history is preserved.
-    const rb = await agent.post(`${base}/releases/rollback`).set(H).send({ baseVersion: 2, targetVersion: 1 });
+    const rb = await agent.post(`${base}/releases/rollback`).set(H).send({ baseVersion: 2, targetVersion: 1, confirmDestructive: true });
     expect(rb.status).toBe(201);
     expect(rb.body.data.version).toBe(3);
     expect(rb.body.data.rolledBackToVersion).toBe(1);
@@ -321,7 +322,8 @@ describe("request, approval and assignment flow", () => {
     const dispatcher = (await loginAs("dispatcher@opshub.local")).agent;
     const admin = adminPool();
     const item = (await admin.query("select id from inventory_items where site_id = $1 limit 1", [SITES.centralStores])).rows[0];
-    const req = (await admin.query("insert into requests (site_id, item_id, quantity, status, requested_by, release_version) values ($1,$2,1,'submitted','10000000-0000-4000-8000-000000000002',1) returning id", [SITES.centralStores, item.id])).rows[0];
+    const req = (await admin.query("insert into requests (site_id, status, requested_by, release_version) values ($1,'submitted','10000000-0000-4000-8000-000000000002',1) returning id", [SITES.centralStores])).rows[0];
+    await admin.query("insert into request_lines (site_id, request_id, item_id, quantity) values ($1, $2, $3, 1)", [SITES.centralStores, req.id, item.id]);
     await admin.end();
     // dispatcher is a member of distribution only
     expect((await dispatcher.get(`/api/v1/sites/${SITES.distribution}/requests/${req.id}`)).status).toBe(404);

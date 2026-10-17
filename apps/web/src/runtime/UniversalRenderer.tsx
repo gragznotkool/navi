@@ -7,12 +7,12 @@ import { resolveRenderer } from "./registry";
 function Notice({ icon, title, children }: { icon: "forbidden" | "invalid"; title: string; children: string }) {
   const Icon = icon === "forbidden" ? ShieldAlert : TriangleAlert;
   return (
-    <div role="alert" className="rounded-ui border border-line bg-surface p-4">
-      <div className="flex items-start gap-2">
-        <Icon className="mt-0.5 h-4 w-4 text-warning" aria-hidden />
+    <div role="alert" className="rounded-2xl border-2 border-[#1E293B] bg-white p-5 shadow-[4px_4px_0px_#1E293B]">
+      <div className="flex items-start gap-3">
+        <Icon className="mt-0.5 h-5 w-5 text-[#FBBC04] shrink-0" aria-hidden />
         <div>
-          <p className="text-sm font-medium text-ink">{title}</p>
-          <p className="mt-0.5 text-sm text-muted">{children}</p>
+          <p className="font-['Outfit',sans-serif] text-base font-extrabold text-[#0F172A]">{title}</p>
+          <p className="mt-1 text-sm font-medium text-slate-600">{children}</p>
         </div>
       </div>
     </div>

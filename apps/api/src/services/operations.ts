@@ -682,4 +682,3 @@ export async function searchCrossSite(db: Database, userId: string, query: strin
 
   return results.slice(0, 40);
 }
-

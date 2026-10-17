@@ -33,25 +33,25 @@ function ModuleNodeView({ data, selected }: NodeProps<Node<ModuleNodeData>>) {
   const c = moduleColor(data.moduleType);
   const inputs = def?.ports.filter((p) => p.direction === "input") ?? [];
   const outputs = def?.ports.filter((p) => p.direction === "output") ?? [];
-  const handle = { width: 12, height: 12, background: c.accent, border: "2px solid #FFFFFF", borderRadius: 999, boxShadow: `0 0 0 1px ${c.accent}` };
-  const ring = data.problem ? "0 0 0 2px #FF5C5C" : selected ? "0 0 0 3px #FFE500, 0 10px 28px -8px rgba(255,229,0,0.45)" : "0 6px 18px -8px rgba(0,0,0,0.6)";
+  const handle = { width: 12, height: 12, background: c.accent, border: "2px solid #1E293B", borderRadius: 999, boxShadow: "0 0 0 1px #1E293B" };
+  const ring = data.problem ? "0 0 0 2px #EA4335" : selected ? "4px 4px 0px #FBBC04, 0 0 0 2px #1E293B" : "4px 4px 0px #1E293B";
 
   return (
     <div
-      className={`w-64 overflow-visible rounded-[6px] text-left transition-shadow ${data.shake ? "ops-shake" : ""}`}
-      style={{ background: c.bg, border: `1.5px ${data.problem ? "dashed #FF5C5C" : `solid ${c.accent}`}`, boxShadow: ring }}
+      className={`w-64 overflow-visible rounded-2xl text-left transition-all ${data.shake ? "ops-shake" : ""}`}
+      style={{ background: c.bg, border: `2px ${data.problem ? "dashed #EA4335" : "solid #1E293B"}`, boxShadow: ring }}
       data-testid={`node-${data.moduleType}`}
     >
-      <div className="flex items-center justify-between gap-2 rounded-t-[5px] px-3.5 py-2.5" style={{ background: c.head, borderBottom: `1px solid ${c.accent}55` }}>
+      <div className="flex items-center justify-between gap-2 rounded-t-[14px] px-3.5 py-2.5" style={{ background: c.head, borderBottom: "2px solid #1E293B" }}>
         <span className="flex min-w-0 items-center gap-2">
-          <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.accent }} />
-          <span className="truncate text-[15px] font-semibold leading-tight" style={{ color: c.ink }}>{def?.displayName ?? data.moduleType}</span>
+          <span aria-hidden className="h-3 w-3 shrink-0 rounded-full border border-[#1E293B]" style={{ background: c.accent }} />
+          <span className="truncate font-['Outfit',sans-serif] text-[15px] font-bold leading-tight text-[#0F172A]">{def?.displayName ?? data.moduleType}</span>
         </span>
-        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ background: "#FFFFFFB3", color: c.ink }}>
+        <span className="shrink-0 rounded-full border border-[#1E293B] px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide bg-white text-[#0F172A] shadow-[1px_1px_0px_#1E293B]">
           {def?.platformModule ? "Core" : "Module"}
         </span>
       </div>
-      <div className="flex justify-between gap-3 px-3.5 py-3 text-[13px] font-medium" style={{ color: c.ink }}>
+      <div className="flex justify-between gap-3 px-3.5 py-3 text-[13px] font-medium" style={{ color: "#0F172A" }}>
         <ul className="space-y-1.5">
           {inputs.map((p) => (
             <li key={p.id} className="relative text-left">
@@ -69,7 +69,7 @@ function ModuleNodeView({ data, selected }: NodeProps<Node<ModuleNodeData>>) {
           ))}
         </ul>
       </div>
-      {data.problem && <p role="status" className="rounded-b-[5px] border-t border-dashed border-[#FF5C5C] bg-[#FFF1F2] px-3.5 py-2 text-[12px] font-medium text-[#B91C1C]">{data.problem}</p>}
+      {data.problem && <p role="status" className="rounded-b-[14px] border-t-2 border-dashed border-[#EA4335] bg-[#FFF1F2] px-3.5 py-2 text-[12px] font-medium text-[#EA4335]">{data.problem}</p>}
     </div>
   );
 }
@@ -309,14 +309,13 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
     setTimeout(() => flow.current?.fitView({ duration: 300, padding: 0.15 }), 60);
   };
   const onCanvasDragOver = (e: DragEvent) => {
-    if (!e.dataTransfer.types.includes(MODULE_DRAG_TYPE)) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
   };
   const onCanvasDrop = (e: DragEvent) => {
-    const type = e.dataTransfer.getData(MODULE_DRAG_TYPE);
-    if (!type) return;
     e.preventDefault();
+    const type = e.dataTransfer.getData(MODULE_DRAG_TYPE) || e.dataTransfer.getData("text/plain");
+    if (!type) return;
     const pos = flow.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY });
     addFromGallery(type, pos ? { x: Math.round(pos.x - 120), y: Math.round(pos.y - 40) } : undefined);
   };
@@ -420,10 +419,10 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
         </div>
       )}
       {web ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[4px] border border-[#303432] bg-[#111313] p-2.5" role="toolbar" aria-label="Website workspace">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border-2 border-[#1E293B] bg-white p-3 shadow-[4px_4px_0px_#1E293B]" role="toolbar" aria-label="Website workspace">
           <Button variant="ghost" onClick={exitWebsite}><ArrowLeft className="h-4 w-4" aria-hidden /> Back to site configuration</Button>
-          <span className="inline-flex items-center gap-2 border-l border-[#303432] px-3 text-xs font-semibold text-[#F5F5F0]">
-            <span aria-hidden className="h-3 w-3 rounded-full" style={{ background: web.theme.palette.primary }} />
+          <span className="inline-flex items-center gap-2 border-l-2 border-[#1E293B] px-3 text-xs font-bold text-[#0F172A]">
+            <span aria-hidden className="h-3 w-3 rounded-full border border-[#1E293B]" style={{ background: web.theme.palette.primary }} />
             {web.templateName}
           </span>
           {locked ? (
@@ -431,30 +430,50 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           ) : (
             <Badge tone="yellow"><LockOpen className="mr-1 h-3 w-3" aria-hidden /> Free editing</Badge>
           )}
-          <div className="ml-auto flex items-center gap-1 border-l border-[#303432] pl-2">
+          <div className="ml-auto flex items-center gap-1 border-l-2 border-[#1E293B] pl-2">
             <Button onClick={validate} loading={busy === "validate"} className="uppercase font-mono">Validate</Button>
-            <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4 text-[#A5A8A6]" /></Button>
-            <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#A5A8A6]" /></Button>
+            <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4 text-[#0F172A]" /></Button>
+            <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#0F172A]" /></Button>
           </div>
         </div>
       ) : (
       <>
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[4px] border border-[#303432] bg-[#111313] p-2.5" role="toolbar" aria-label="Starter layouts">
-        <span className="inline-flex items-center gap-1.5 px-2 font-mono text-xs font-bold uppercase tracking-wider text-[#FFE500]"><Sparkles className="h-3.5 w-3.5" aria-hidden /> TEMPLATES</span>
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border-2 border-[#1E293B] bg-white p-3 shadow-[4px_4px_0px_#1E293B]" role="toolbar" aria-label="Starter layouts">
+        <span className="inline-flex items-center gap-1.5 px-2 font-mono text-xs font-black uppercase tracking-wider text-[#0F172A]"><Sparkles className="h-4 w-4 text-[#FBBC04]" aria-hidden /> TEMPLATES</span>
         {PRESETS.map((p) => (
           <Button key={p.id} title={p.description} onClick={() => runPreset(p)}>{p.name}</Button>
         ))}
-        <div className="ml-auto flex items-center gap-1 border-l border-[#303432] pl-2">
-          <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4 text-[#A5A8A6]" /></Button>
-          <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#A5A8A6]" /></Button>
+        <div className="ml-auto flex items-center gap-1 border-l-2 border-[#1E293B] pl-2">
+          <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4 text-[#0F172A]" /></Button>
+          <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#0F172A]" /></Button>
         </div>
       </div>
-      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-[4px] border border-[#303432] bg-[#171919] p-3">
-        <SelectField label="Add module" value={toAdd} onChange={(e) => setToAdd(e.target.value)} className="w-64">
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-[#1E293B] bg-white p-4 shadow-[4px_4px_0px_#1E293B]">
+        <SelectField label="Add module" value={toAdd} onChange={(e) => setToAdd(e.target.value)} className="w-56">
           <option value="">Select a module…</option>
           {available.map((d) => <option key={d.type} value={d.type}>{d.displayName}</option>)}
         </SelectField>
         <Button disabled={!toAdd} onClick={addSelected} variant="primary">Add</Button>
+        <div className="hidden lg:flex items-center gap-2 border-l-2 border-[#1E293B] pl-3">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#64748B] mr-1">Drag & Drop:</span>
+          {available.slice(0, 5).map((d) => (
+            <button
+              key={d.type}
+              type="button"
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(MODULE_DRAG_TYPE, d.type);
+                e.dataTransfer.setData("text/plain", d.type);
+                e.dataTransfer.effectAllowed = "copy";
+              }}
+              onClick={() => placeModule(d.type)}
+              title={`Drag onto canvas or click to add ${d.displayName}`}
+              className="cursor-grab active:cursor-grabbing rounded-xl border-2 border-[#1E293B] bg-slate-50 px-3 py-1.5 font-['Outfit',sans-serif] text-xs font-bold text-[#0F172A] shadow-[2px_2px_0px_#1E293B] transition hover:bg-[#FBBC04] hover:shadow-[3px_3px_0px_#1E293B]"
+            >
+              + {d.displayName}
+            </button>
+          ))}
+        </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <Button onClick={validate} loading={busy === "validate"} className="uppercase font-mono">Validate</Button>
           <Button onClick={saveDraft} loading={busy === "draft"} disabled={!dirty} className="uppercase font-mono">Save draft</Button>
@@ -489,9 +508,9 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
             ) : (
               <>
                 {!web && (
-                  <div className="mb-3 rounded-[3px] border border-[#FFE500]/30 bg-[#FFE500]/5 p-2.5 text-[11px] text-[#A5A8A6]">
-                    Modules added here change <strong className="text-[#F5F5F0]">this site’s</strong> draft.
-                    <button type="button" onClick={startCustomWebsite} className="ml-1 font-semibold text-[#FFE500] underline underline-offset-2">Design a custom website instead</button>
+                  <div className="mb-3 rounded-xl border-2 border-[#1E293B] bg-[#FEF3C7] p-2.5 text-[11px] font-bold text-[#0F172A] shadow-[2px_2px_0px_#1E293B]">
+                    Modules added here change <strong className="text-[#0F172A]">this site’s</strong> draft.
+                    <button type="button" onClick={startCustomWebsite} className="ml-1 font-bold text-[#2563EB] underline underline-offset-2">Design a custom website instead</button>
                   </div>
                 )}
                 <ModuleGallery defs={defs} config={config} query={sideQuery} locked={locked} onAdd={(t) => addFromGallery(t)} onUnlock={locked ? unlock : undefined} />
@@ -500,14 +519,14 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           </WebsiteBuilderSidebar>
         )}
         <div
-          className={`relative h-[580px] min-w-0 flex-1 rounded-[4px] xl:h-full border bg-[#0c0e0e] ${locked ? "border-[#FFE500]/50" : "border-[#303432]"}`}
+          className={`relative h-[580px] min-w-0 flex-1 rounded-2xl xl:h-full border-2 border-[#1E293B] bg-[#F8FAFC] shadow-[4px_4px_0px_#1E293B] overflow-hidden`}
           aria-label="Module graph"
           onDragOver={onCanvasDragOver}
           onDrop={onCanvasDrop}
         >
           {locked && (
-            <span className="pointer-events-none absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-[2px] bg-[#FFE500] px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-[#080909]">
-              <Lock className="h-3 w-3" aria-hidden /> Template structure is read-only
+            <span className="pointer-events-none absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full border-2 border-[#1E293B] bg-[#FBBC04] px-3 py-1 font-mono text-xs font-bold uppercase tracking-wider text-[#0F172A] shadow-[2px_2px_0px_#1E293B]">
+              <Lock className="h-3.5 w-3.5" aria-hidden /> Template structure is read-only
             </span>
           )}
           <ReactFlow
@@ -520,15 +539,17 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
             onConnect={onConnect}
             isValidConnection={isValidConnection}
             onInit={(i) => { flow.current = i; }}
-            defaultEdgeOptions={{ style: { stroke: "#C9CDD1", strokeWidth: 2 } }}
+            onDragOver={onCanvasDragOver}
+            onDrop={onCanvasDrop}
+            defaultEdgeOptions={{ style: { stroke: "#1E293B", strokeWidth: 2 } }}
             fitView
             nodesDraggable={!locked}
             nodesConnectable={!locked}
             edgesFocusable={!locked}
             deleteKeyCode={locked ? null : ["Backspace", "Delete"]}
           >
-            <Background color="#303432" gap={24} size={1} />
-            <Controls className="bg-[#171919] border border-[#303432] text-[#F5F5F0] rounded-[2px]" />
+            <Background color="#CBD5E1" gap={24} size={1.5} />
+            <Controls className="bg-white border-2 border-[#1E293B] text-[#0F172A] rounded-xl shadow-[2px_2px_0px_#1E293B] overflow-hidden [&>button]:border-b-2 [&>button]:border-[#1E293B] [&>button]:bg-white hover:[&>button]:bg-[#FBBC04]" />
           </ReactFlow>
         </div>
         <div className="flex w-full shrink-0 flex-col gap-4 xl:h-full xl:w-[360px] xl:overflow-y-auto xl:pr-1 [&>*]:shrink-0">

@@ -14,7 +14,7 @@ import { WebsitePreview } from "./WebsitePreview";
 /** Steps the provisioning log reports for a website deploy; drives the progress bar. */
 const EXPECTED_EVENTS = 15;
 
-const field = "h-9 w-full rounded-[3px] border border-[#303432] bg-[#171919] px-2.5 text-sm text-[#F5F5F0] placeholder:text-[#777C79] focus:border-[#FFE500] focus:outline-none focus:ring-2 focus:ring-[#FFE500]/20 aria-[invalid=true]:border-[#FF5C5C]";
+const field = "h-10 w-full rounded-xl border-2 border-[#1E293B] bg-white px-3 text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] shadow-[2px_2px_0px_#1E293B] focus:border-[#4285F4] focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30 aria-[invalid=true]:border-[#EA4335]";
 
 /** Identity is assigned by the server; strip the builder's placeholders before sending. */
 function deployable(config: SiteConfiguration): Record<string, unknown> {
@@ -95,19 +95,19 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
   const pages = config.navigation.map((n) => n.label);
 
   return (
-    <section aria-label="Deploy website" className="overflow-hidden rounded-[3px] border border-[#303432] bg-[#171919] text-[#F5F5F0]">
-      <header className="flex items-center justify-between gap-2 border-b border-[#303432] bg-[#111313] px-4 py-3">
+    <section aria-label="Deploy website" className="overflow-hidden rounded-2xl border-2 border-[#1E293B] bg-white text-[#0F172A] shadow-[4px_4px_0px_#1E293B]">
+      <header className="flex items-center justify-between gap-2 border-b-2 border-[#1E293B] bg-slate-50 px-4 py-3">
         <div className="min-w-0">
-          <h2 className="font-['Barlow_Condensed',sans-serif] uppercase tracking-wider text-base font-bold">Deploy website</h2>
-          <p className="truncate text-[11px] text-[#A5A8A6]">From {templateName}</p>
+          <h2 className="font-['Outfit',sans-serif] uppercase tracking-wider text-base font-extrabold text-[#0F172A]">Deploy website</h2>
+          <p className="truncate text-[11px] font-medium text-slate-500">From {templateName}</p>
         </div>
-        <span className="rounded-full bg-[#FFE500]/10 px-2 py-0.5 text-[10px] font-semibold text-[#FFE500]">{config.modules.nodes.length} modules</span>
+        <span className="rounded-full border border-[#1E293B] bg-[#FBBC04] px-2.5 py-0.5 text-[10px] font-bold text-[#0F172A] shadow-[1px_1px_0px_#1E293B]">{config.modules.nodes.length} modules</span>
       </header>
 
       <div className="flex flex-col gap-4 p-4">
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
-            <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#A5A8A6]">Website name</span>
+            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">Website name</span>
             <input
               value={name}
               onChange={(e) => {
@@ -119,12 +119,12 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
               className={field}
               maxLength={80}
             />
-            {nameError && <span role="alert" className="text-[11px] text-[#FF5C5C]">{nameError}</span>}
+            {nameError && <span role="alert" className="text-[11px] font-bold text-[#EA4335]">{nameError}</span>}
           </label>
           <label className="flex flex-col gap-1">
-            <span className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#A5A8A6]">URL slug</span>
-            <span className="flex items-center overflow-hidden rounded-[3px] border border-[#303432] bg-[#111313] focus-within:border-[#FFE500] focus-within:ring-2 focus-within:ring-[#FFE500]/20">
-              <span className="shrink-0 pl-2.5 font-mono text-xs text-[#A5A8A6]">/w/</span>
+            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">URL slug</span>
+            <span className="flex items-center overflow-hidden rounded-xl border-2 border-[#1E293B] bg-white shadow-[2px_2px_0px_#1E293B] focus-within:border-[#4285F4] focus-within:ring-2 focus-within:ring-[#4285F4]/30">
+              <span className="shrink-0 pl-3 font-mono text-xs font-bold text-slate-500">/w/</span>
               <input
                 value={slug}
                 onChange={(e) => {
@@ -134,15 +134,15 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
                 placeholder="my-site"
                 aria-label="URL slug"
                 aria-invalid={slugError ? true : undefined}
-                className="h-9 min-w-0 flex-1 bg-transparent px-1 font-mono text-sm text-[#F5F5F0] placeholder:text-[#777C79] focus:outline-none"
+                className="h-10 min-w-0 flex-1 bg-transparent px-2 font-mono text-sm font-bold text-[#0F172A] placeholder:text-slate-400 focus:outline-none"
               />
             </span>
-            {slugError && <span role="alert" className="text-[11px] text-[#FF5C5C]">{slugError}</span>}
+            {slugError && <span role="alert" className="text-[11px] font-bold text-[#EA4335]">{slugError}</span>}
           </label>
         </div>
 
         <div>
-          <p className="mb-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#A5A8A6]">Theme</p>
+          <p className="mb-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">Theme</p>
           <div role="radiogroup" aria-label="Website theme" className="grid grid-cols-3 gap-1.5">
             {WEBSITE_THEMES.map((t) => (
               <button
@@ -151,33 +151,37 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
                 role="radio"
                 aria-checked={t.id === theme.id}
                 onClick={() => onTheme(t)}
-                className={`flex items-center gap-1.5 rounded-[3px] border px-2 py-1.5 text-left text-[11px] font-medium transition-all ${t.id === theme.id ? "border-[#FFE500] bg-[#FFE500]/5 shadow-[0_0_0_3px_rgba(255,229,0,0.18)]" : "border-[#303432] hover:border-[#424845]"}`}
+                className={`flex items-center gap-1.5 rounded-xl border-2 px-2 py-1.5 text-left text-[11px] font-bold transition-all ${
+                  t.id === theme.id
+                    ? "border-[#1E293B] bg-[#FBBC04] text-[#0F172A] shadow-[2px_2px_0px_#1E293B]"
+                    : "border-slate-200 bg-slate-50 text-slate-700 hover:border-[#1E293B] hover:bg-white"
+                }`}
               >
-                <span aria-hidden className="h-3.5 w-3.5 shrink-0 rounded-full ring-2 ring-[#171919]" style={{ background: t.palette.primary, boxShadow: `0 0 0 1px ${t.palette.border}` }} />
+                <span aria-hidden className="h-3.5 w-3.5 shrink-0 rounded-full border border-[#1E293B]" style={{ background: t.palette.primary }} />
                 <span className="truncate">{t.name}</span>
               </button>
             ))}
           </div>
-          <div className="mt-2.5 rounded-[3px] border border-[#303432] p-1.5">
+          <div className="mt-2.5 rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2 shadow-[2px_2px_0px_#1E293B]">
             <WebsitePreview theme={theme} siteName={name || templateName} pages={pages.length ? pages : undefined} />
-            <p className="mt-1.5 px-0.5 text-[10px] text-[#A5A8A6]">
+            <p className="mt-1.5 px-0.5 text-[10px] font-medium text-slate-600">
               {THEME_EMOJI[theme.id]} {theme.name} · {theme.shell} · {theme.fontFamily} · {theme.cardStyle} cards · {theme.navPosition} nav
             </p>
           </div>
         </div>
 
         <div>
-          <p className="mb-1.5 font-mono text-[11px] font-semibold uppercase tracking-wider text-[#A5A8A6]">Access control</p>
+          <p className="mb-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">Access control</p>
           {users.loading ? (
-            <p className="flex items-center gap-2 text-xs text-[#A5A8A6]"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading people…</p>
+            <p className="flex items-center gap-2 text-xs text-slate-500 font-bold"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading people…</p>
           ) : users.error ? (
-            <p role="alert" className="text-xs text-[#FF5C5C]">{toRequestError(users.error).message}</p>
+            <p role="alert" className="text-xs font-bold text-[#EA4335]">{toRequestError(users.error).message}</p>
           ) : (
             <AccessControl value={access} onChange={setAccess} users={users.data ?? []} roles={roles} alwaysIds={me} />
           )}
         </div>
 
-        {error && <p role="alert" className="rounded-[3px] border border-[#FF5C5C]/30 bg-[#FF5C5C]/10 p-2.5 text-xs text-[#FF5C5C]">{error}</p>}
+        {error && <p role="alert" className="rounded-xl border-2 border-[#EA4335] bg-[#FFF1F2] p-2.5 text-xs font-bold text-[#EA4335] shadow-[2px_2px_0px_#EA4335]">{error}</p>}
 
         {job && <DeployProgress key={job.jobId} jobId={job.jobId} onFinished={finished} />}
 
@@ -185,7 +189,7 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
           type="button"
           onClick={() => void deploy()}
           disabled={running}
-          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-[3px] bg-[#FFE500] font-mono text-xs font-bold uppercase tracking-wider text-[#080909] shadow-[0_8px_20px_-8px_rgba(255,229,0,0.25)] transition-all hover:bg-[#E8D000] active:scale-[0.99] disabled:cursor-wait disabled:opacity-70"
+          className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-[#1E293B] bg-[#FBBC04] font-mono text-xs font-black uppercase tracking-wider text-[#0F172A] shadow-[3px_3px_0px_#1E293B] transition-all hover:bg-[#F59E0B] active:translate-x-[1px] active:translate-y-[1px] disabled:cursor-wait disabled:opacity-70"
         >
           {running ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Rocket className="h-4 w-4" aria-hidden />}
           {running ? "Deploying…" : "Deploy"}
@@ -208,16 +212,16 @@ function DeployProgress({ jobId, onFinished }: { jobId: string; onFinished: (ok:
 
   const pct = Math.min(95, Math.round((log.events.length / EXPECTED_EVENTS) * 100));
   return (
-    <div aria-live="polite" className="rounded-[3px] border border-[#303432] bg-[#111313] p-3">
-      <div className="h-1.5 overflow-hidden rounded-full bg-[#303432]">
-        <div className="h-full rounded-full bg-[#FFE500] transition-all duration-300" style={{ width: `${pct}%` }} />
+    <div aria-live="polite" className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-3 shadow-[2px_2px_0px_#1E293B]">
+      <div className="h-2 overflow-hidden rounded-full border border-[#1E293B] bg-slate-200">
+        <div className="h-full rounded-full bg-[#FBBC04] transition-all duration-300" style={{ width: `${pct}%` }} />
       </div>
       <ol aria-label="Deploy log" className="mt-2.5 flex flex-col gap-1">
         {log.events.slice(-4).map((e) => {
           const Icon = e.level === "success" ? CheckCircle2 : e.level === "error" ? XCircle : CircleDashed;
           return (
-            <li key={e.seq} className="ws-fade-up flex items-start gap-1.5 text-[11px] text-[#A5A8A6]">
-              <Icon className={`mt-px h-3.5 w-3.5 shrink-0 ${e.level === "success" ? "text-[#39D98A]" : e.level === "error" ? "text-[#FF5C5C]" : "text-[#777C79]"}`} aria-hidden />
+            <li key={e.seq} className="ws-fade-up flex items-start gap-1.5 text-[11px] font-medium text-slate-700">
+              <Icon className={`mt-px h-3.5 w-3.5 shrink-0 ${e.level === "success" ? "text-[#34A853]" : e.level === "error" ? "text-[#EA4335]" : "text-slate-400"}`} aria-hidden />
               <span>{e.message}</span>
             </li>
           );

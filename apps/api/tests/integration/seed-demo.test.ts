@@ -49,9 +49,9 @@ describe("120-request demo dataset", () => {
   });
 
   it("is deterministic and idempotent", async () => {
-    const before = (await pool.query("select md5(string_agg(id::text || quantity || status, ',' order by id)) h from requests")).rows[0].h;
+    const before = (await pool.query("select md5(string_agg(r.id::text || rl.quantity || r.status, ',' order by r.id)) h from requests r join request_lines rl on rl.request_id = r.id")).rows[0].h;
     await seed(adminUrl(), { demoData: true });
-    const after = (await pool.query("select md5(string_agg(id::text || quantity || status, ',' order by id)) h, count(*)::int n from requests")).rows[0];
+    const after = (await pool.query("select md5(string_agg(r.id::text || rl.quantity || r.status, ',' order by r.id)) h, count(distinct r.id)::int n from requests r join request_lines rl on rl.request_id = r.id")).rows[0];
     expect(after.h).toBe(before);
     expect(after.n).toBe(120);
   });

@@ -2,40 +2,44 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
+  /* Google DevFest Vibrant Theme Design System */
+  --bg: #3B82F6; /* Vibrant Royal DevFest Blue */
+  --bg-secondary: #2563EB;
+  --surface: #FFFFFF;
+  --surface-elevated: #F8FAFC;
+  --text: #0F172A;
+  --text-secondary: #475569;
+  --muted: #64748B;
+  --border: #1E293B; /* Crisp bold black outlines */
+  --border-subtle: #E2E8F0;
 
-  /* Black & Industrial Yellow Design System */
-  --bg: #080909;
-  --bg-secondary: #111313;
-  --surface: #171919;
-  --surface-elevated: #1f2222;
-  --text: #F5F5F0;
-  --text-secondary: #A5A8A6;
-  --muted: #777C79;
-  --border: #303432;
-  --border-subtle: #202422;
+  /* DevFest Geometric Primary Colors */
+  --google-blue: #4285F4;
+  --google-red: #EA4335;
+  --google-yellow: #FBBC04;
+  --google-green: #34A853;
 
-  /* Industrial Yellow Core Accents */
-  --yellow: #FFE500;
-  --yellow-hover: #E8D000;
-  --yellow-subtle: rgba(255, 229, 0, 0.12);
-  --yellow-glow: rgba(255, 229, 0, 0.25);
+  /* Brand Accents */
+  --yellow: #FBBC04;
+  --yellow-hover: #F59E0B;
+  --yellow-subtle: #FEF3C7;
+  --yellow-glow: rgba(251, 188, 4, 0.4);
 
   /* Semantic status colors */
-  --success: #39D98A;
-  --warning: #FFB547;
-  --error: #FF5C5C;
-  --info: #63B3ED;
+  --success: #34A853;
+  --warning: #FBBC04;
+  --error: #EA4335;
+  --info: #4285F4;
 
   /* Operational runtime theme bindings */
-  --accent: #FFE500;
-  --accent-2: #FFB547;
+  --accent: #4285F4;
+  --accent-2: #FBBC04;
 }
 
 @theme inline {
-  --font-sans: "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-display: "Barlow Condensed", sans-serif;
-  --font-mono: "IBM Plex Mono", monospace;
+  --font-sans: "Plus Jakarta Sans", "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Outfit", "Barlow Condensed", sans-serif;
+  --font-mono: "Space Mono", monospace;
 
   --color-bg: var(--bg);
   --color-surface: var(--surface);
@@ -48,102 +52,127 @@
   --color-warning: var(--warning);
   --color-danger: var(--error);
   --color-info: var(--info);
-  --radius-ui: 4px;
-}
-
-html {
-  color-scheme: dark;
+  --radius-ui: 16px;
 }
 
 html,
 body,
 #root {
   height: 100%;
-  background: var(--bg);
-  color: var(--text);
+  background: #3B82F6;
+  color: #0F172A;
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
+  background: #3B82F6;
+  color: #0F172A;
   font-family: var(--font-sans);
   font-size: 14px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom Industrial Dark Scrollbar */
+/* Custom DevFest Neo-Brutalist Scrollbar */
 *, *::before, *::after {
   scrollbar-width: thin;
-  scrollbar-color: #303432 #080909;
+  scrollbar-color: #94A3B8 #F1F5F9;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #080909;
-  border-left: 1px solid #202422;
+  background: #F1F5F9;
+  border-left: 2px solid #1E293B;
+  border-top: 2px solid #1E293B;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #252827;
-  border-radius: 2px;
-  border: 1px solid #303432;
+  background: #CBD5E1;
+  border-radius: 9999px;
+  border: 2px solid #1E293B;
+  box-shadow: 1px 1px 0px #1E293B;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #FFE500;
-  border-color: #FFE500;
-  box-shadow: 0 0 6px rgba(255, 229, 0, 0.4);
+  background: #FBBC04;
+  border-color: #1E293B;
+  box-shadow: 2px 2px 0px #1E293B;
 }
 
 ::-webkit-scrollbar-corner {
-  background: #080909;
+  background: #F1F5F9;
 }
 
 /* Subtle clean scroll for horizontal navigation rails */
-nav.overflow-x-auto {
+nav.overflow-x-auto,
+nav [class*="overflow-x-auto"],
+.toolrail {
   scrollbar-width: none;
 }
-nav.overflow-x-auto::-webkit-scrollbar {
+nav.overflow-x-auto::-webkit-scrollbar,
+nav [class*="overflow-x-auto"]::-webkit-scrollbar,
+.toolrail::-webkit-scrollbar {
   display: none;
 }
 
+/* DevFest Playful Sticker / Notebook Shadows & Outlines */
+.devfest-card {
+  background: #FFFFFF;
+  border: 2.5px solid #1E293B;
+  border-radius: 20px;
+  box-shadow: 4px 4px 0px #1E293B;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
 
-/* Subtle industrial tech grid background utility */
+.devfest-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 6px 6px 0px #1E293B;
+}
+
+.devfest-btn {
+  border: 2px solid #1E293B;
+  box-shadow: 3px 3px 0px #1E293B;
+  font-weight: 700;
+  transition: all 0.1s ease;
+}
+
+.devfest-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 4px 4px 0px #1E293B;
+}
+
+.devfest-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0px #1E293B;
+}
+
+/* Spiral Notebook Ring Bindings (DevFest style) */
+.notebook-rings {
+  background-image: radial-gradient(circle, #CBD5E1 5px, transparent 6px), radial-gradient(circle, #0F172A 7px, transparent 8px);
+  background-size: 100% 36px;
+  background-position: 8px 12px;
+}
+
+/* Playful grid background utility */
 .industrial-grid-bg {
-  background-color: #080909;
+  background-color: #3B82F6;
   background-image: 
-    linear-gradient(to right, rgba(48, 52, 50, 0.25) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(48, 52, 50, 0.25) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, 0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.15) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 
-/* Luminous yellow circular dot grid (halftone matrix style) fading smoothly into deep black */
 .industrial-dot-grid {
-  background-color: #080909;
-  background-image: radial-gradient(#FFE500 1.25px, transparent 1.25px);
+  background-color: #3B82F6;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.35) 1.5px, transparent 1.5px);
   background-size: 24px 24px;
-  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 60%, transparent 100%);
-  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 60%, transparent 100%);
-}
-
-/* Industrial stripes accent */
-.hazard-stripe {
-  background: repeating-linear-gradient(
-    -45deg,
-    #FFE500,
-    #FFE500 10px,
-    #080909 10px,
-    #080909 20px
-  );
 }
 
 :focus-visible {
-  outline: 2px solid var(--yellow);
+  outline: 3px solid #FBBC04;
   outline-offset: 2px;
 }
 

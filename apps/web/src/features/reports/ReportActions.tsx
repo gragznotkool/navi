@@ -100,18 +100,18 @@ export function ImportDialog({ siteId, report, onClose }: { siteId: string; repo
   const busy = phase.kind === "checking" || phase.kind === "importing";
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label={`Import ${report.title}`} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-ui bg-surface p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-3 flex items-start justify-between">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={`Import ${report.title}`} className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border-2 border-[#1E293B] bg-white p-6 shadow-[6px_6px_0px_#1E293B]" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="text-base font-semibold">Import {report.title}</h2>
-            <p className="text-sm text-muted">All-or-nothing: if any cell is invalid, nothing is written.</p>
+            <h2 className="font-['Outfit',sans-serif] text-xl font-black text-[#0F172A]">Import {report.title}</h2>
+            <p className="mt-0.5 text-xs font-medium text-slate-500">All-or-nothing: if any cell is invalid, nothing is written.</p>
           </div>
-          <button aria-label="Close" onClick={onClose} className="text-muted hover:text-ink"><X className="h-5 w-5" /></button>
+          <button aria-label="Close" onClick={onClose} className="rounded-lg border border-[#1E293B] p-1 text-slate-500 hover:bg-slate-100 hover:text-[#0F172A]"><X className="h-5 w-5" /></button>
         </div>
 
-        <div className="mb-3 rounded-ui border border-line bg-slate-50 p-3 text-xs">
-          <p className="mb-1 font-medium">Format: first worksheet, header in row 1, max {REPORT_MAX_ROWS.toLocaleString()} rows, .xlsx up to 5 MB. New SKUs only.</p>
+        <div className="mb-4 rounded-xl border-2 border-[#1E293B] bg-slate-50 p-4 text-xs shadow-[2px_2px_0px_#1E293B]">
+          <p className="mb-2 font-bold text-[#0F172A]">Format: first worksheet, header in row 1, max {REPORT_MAX_ROWS.toLocaleString()} rows, .xlsx up to 5 MB. New SKUs only.</p>
           <ul className="flex flex-wrap gap-1.5">
             {importable.map((c) => (
               <li key={c.key}>

@@ -26,10 +26,10 @@ export function FieldsPanel({ config, onChange }: { config: SiteConfiguration; o
       ) : (
         <ul className="mb-3 flex flex-col gap-2 text-sm" aria-label="Configured fields">
           {config.fields.map((f) => (
-            <li key={f.id} className="flex items-center justify-between gap-2 rounded-ui border border-line px-2 py-1.5">
+            <li key={f.id} className="flex items-center justify-between gap-2 rounded-xl border-2 border-[#1E293B] bg-slate-50 px-3 py-2 shadow-[2px_2px_0px_#1E293B]">
               <span className="min-w-0">
-                <span className="font-medium">{f.label}</span>{" "}
-                <span className="text-xs text-muted">{ENTITIES.find((e) => e.value === f.entity)?.label} · {f.type}</span>
+                <span className="font-bold text-[#0F172A]">{f.label}</span>{" "}
+                <span className="text-xs font-medium text-slate-500">{ENTITIES.find((e) => e.value === f.entity)?.label} · {f.type}</span>
                 {f.hidden && <> <Badge tone="warning">hidden</Badge></>}
               </span>
               <span className="flex shrink-0 gap-1">

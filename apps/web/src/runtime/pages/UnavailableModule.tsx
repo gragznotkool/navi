@@ -6,11 +6,11 @@ export function UnavailableModule({ title, reason }: { title: string; reason: st
   return (
     <>
       <PageHeader title={title} />
-      <div role="status" className="flex items-start gap-2 rounded-ui border border-line bg-surface p-4">
-        <Info className="mt-0.5 h-4 w-4 text-info" aria-hidden />
+      <div role="status" className="flex items-start gap-3 rounded-2xl border-2 border-[#1E293B] bg-white p-5 shadow-[4px_4px_0px_#1E293B]">
+        <Info className="mt-0.5 h-5 w-5 text-[#4285F4] shrink-0" aria-hidden />
         <div>
-          <p className="text-sm font-medium">Not implemented yet</p>
-          <p className="mt-0.5 text-sm text-muted">{reason}</p>
+          <p className="font-['Outfit',sans-serif] text-base font-extrabold text-[#0F172A]">Not implemented yet</p>
+          <p className="mt-1 text-sm font-medium text-slate-600">{reason}</p>
         </div>
       </div>
     </>
