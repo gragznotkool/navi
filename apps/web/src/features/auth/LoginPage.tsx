@@ -41,12 +41,7 @@ export function LoginPage() {
         aria-hidden="true"
       />
 
-      {/* Floating DevFest Playful Sticker Elements */}
-      <div className="pointer-events-none absolute top-10 right-12 z-0 hidden lg:block rotate-12">
-        <div className="flex items-center gap-1.5 rounded-full border-2 border-[#1E293B] bg-[#EA4335] px-4 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-[4px_4px_0px_#1E293B]">
-          ★ DevFest 2026
-        </div>
-      </div>
+
       <div className="pointer-events-none absolute bottom-12 left-10 z-0 hidden lg:block -rotate-6">
         <div className="flex items-center gap-2 rounded-2xl border-2 border-[#1E293B] bg-[#34A853] p-3 text-xs font-black text-white shadow-[4px_4px_0px_#1E293B]">
           <span>⚡ MULTI-SITE FLEET</span>
