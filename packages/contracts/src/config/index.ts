@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { moduleTypeSchema } from "../modules/index.js";
 import { permissionSchema } from "../auth/index.js";
+import { websiteThemeSchema } from "../websites/index.js";
 
 export const CURRENT_SCHEMA_VERSION = 2;
 
@@ -148,6 +149,8 @@ export const siteConfigurationSchema = z.object({
   customFields: z.array(customFieldDefinitionSchema).default([]),
   /** Keyed by report key (e.g. "inventory"). Absent in older releases, which therefore expose no reports. */
   reports: z.record(z.string().regex(/^[a-z0-9-]+$/), reportDefinitionSchema).default({}),
+  /** Present on sites deployed from the website builder: their full visual identity. */
+  website: websiteThemeSchema.optional(),
   metadata: z.record(z.string(), z.string()),
 });
 export type SiteConfiguration = z.infer<typeof siteConfigurationSchema>;

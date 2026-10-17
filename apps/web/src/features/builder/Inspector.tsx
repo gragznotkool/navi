@@ -26,10 +26,12 @@ interface Props {
   defs: readonly ModuleDefinition[];
   onEdit: (next: SiteConfiguration) => void;
   onRemoved: () => void;
+  /** Locked templates: only module settings are editable; structure, fields and roles are fixed. */
+  settingsOnly?: boolean;
 }
 
 /** Right-hand properties sidebar: module settings, custom fields, role access, SLA and calculated fields. */
-export function Inspector({ config, node, def, defs, onEdit, onRemoved }: Props) {
+export function Inspector({ config, node, def, defs, onEdit, onRemoved, settingsOnly = false }: Props) {
   return (
     <div className="flex flex-col gap-4">
       <Panel title={def ? def.displayName : "Module settings"}>
@@ -53,6 +55,10 @@ export function Inspector({ config, node, def, defs, onEdit, onRemoved }: Props)
             {def.type === "approval" && Number(node.config.reminderHours) > Number(node.config.slaHours) && node.config.slaHours !== undefined && (
               <p role="alert" className="text-xs text-danger">Reminder is later than the SLA timeout, so it would never fire.</p>
             )}
+            {settingsOnly ? (
+              <p className="text-xs text-muted">Template structure is locked. Switch to the Modules tab to add, remove or rewire modules.</p>
+            ) : (
+            <>
             <Button
               variant="danger"
               disabled={def.platformModule}
@@ -65,11 +71,13 @@ export function Inspector({ config, node, def, defs, onEdit, onRemoved }: Props)
               Remove module
             </Button>
             {def.platformModule && <p className="text-xs text-muted">Platform modules are mandatory and cannot be removed.</p>}
+            </>
+            )}
           </div>
         )}
       </Panel>
 
-      {node && def && (
+      {node && def && !settingsOnly && (
         <>
           <Panel title="Custom fields">
             <div className="flex flex-col gap-3">
@@ -126,6 +134,7 @@ export function Inspector({ config, node, def, defs, onEdit, onRemoved }: Props)
         </>
       )}
 
+      {!settingsOnly && (
       <Panel title="Formula builder" actions={<Badge tone="info">site-wide</Badge>}>
         <div className="flex flex-col gap-3">
           {config.calculatedFieldDefinitions.map((f) => (
@@ -157,6 +166,7 @@ export function Inspector({ config, node, def, defs, onEdit, onRemoved }: Props)
           <Button onClick={() => onEdit(addCalculatedField(config))}><Plus className="h-4 w-4" aria-hidden /> Add calculated field</Button>
         </div>
       </Panel>
+      )}
     </div>
   );
 }

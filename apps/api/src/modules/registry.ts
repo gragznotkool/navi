@@ -7,13 +7,14 @@ import type { DataTypeDefinition, ModuleDefinition, ModuleType } from "@opshub/c
 export const dataTypes: readonly DataTypeDefinition[] = [
   { id: "identity", label: "Identity & permissions", assignableTo: [] },
   { id: "navigation", label: "Navigation / shell context", assignableTo: [] },
-  { id: "stock-item", label: "Stock items", assignableTo: [] },
-  { id: "request", label: "Requests", assignableTo: [] },
-  { id: "approved-request", label: "Approved requests", assignableTo: ["request"] },
-  { id: "assignment", label: "Assignments", assignableTo: [] },
-  { id: "consumption", label: "Consumption records", assignableTo: [] },
-  { id: "return", label: "Returns", assignableTo: [] },
-  { id: "repair", label: "Repair records", assignableTo: [] },
+  // Operational records can also be aggregated: they feed Analytics' "Source data" (metric) input.
+  { id: "stock-item", label: "Stock items", assignableTo: ["metric"] },
+  { id: "request", label: "Requests", assignableTo: ["metric"] },
+  { id: "approved-request", label: "Approved requests", assignableTo: ["request", "metric"] },
+  { id: "assignment", label: "Assignments", assignableTo: ["metric"] },
+  { id: "consumption", label: "Consumption records", assignableTo: ["metric"] },
+  { id: "return", label: "Returns", assignableTo: ["metric"] },
+  { id: "repair", label: "Repair records", assignableTo: ["metric"] },
   { id: "metric", label: "Aggregated metrics", assignableTo: [] },
 ];
 
@@ -78,7 +79,10 @@ export const moduleDefinitions: readonly ModuleDefinition[] = [
     category: "core",
     description: "Stock items, on-hand levels and the stock ledger.",
     version: "1.0.0",
-    ports: [{ id: "stock-out", label: "Stock items", direction: "output", dataType: "stock-item" }],
+    ports: [
+      { id: "shell-in", label: "Navigation", direction: "input", dataType: "navigation" },
+      { id: "stock-out", label: "Stock items", direction: "output", dataType: "stock-item" },
+    ],
     dependencies: ["dashboard-shell"],
     configFields: [{ key: "lowStockThreshold", label: "Low-stock threshold", type: "number", required: false }],
     permissions: ["inventory:view", "inventory:manage"],
@@ -208,7 +212,10 @@ export const moduleDefinitions: readonly ModuleDefinition[] = [
     category: "workflow",
     description: "Track circuit boards through diagnosis, repair and testing.",
     version: "1.0.0",
-    ports: [{ id: "repair-out", label: "Repair records", direction: "output", dataType: "repair" }],
+    ports: [
+      { id: "shell-in", label: "Navigation", direction: "input", dataType: "navigation" },
+      { id: "repair-out", label: "Repair records", direction: "output", dataType: "repair" },
+    ],
     dependencies: ["dashboard-shell"],
     configFields: [],
     permissions: ["repair:view", "repair:update"],

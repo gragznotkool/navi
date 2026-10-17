@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { and, asc, eq, gt, inArray, sql } from "drizzle-orm";
 import type { ProvisioningEvent, ProvisioningJob, ProvisioningSnapshot, ProvisionSiteRequest, SiteConfiguration } from "@opshub/contracts";
 import { recordAudit } from "../audit/audit.js";
@@ -23,12 +23,25 @@ export interface ProvisionActor {
   requestId: string;
 }
 
-type StoredInput = { name: string; preset: string; adminEmail: string | null; demoStock: boolean };
+/**
+ * Website deploys supply their own configuration (a template graph the admin tweaked or rewired)
+ * and the visitors who may open the site. Both still go through the same compile/validate steps.
+ */
+export interface ProvisionOptions {
+  configuration?: Record<string, unknown>;
+  members?: { userIds: string[]; roleKey: string };
+  /** Shown in the log instead of the preset label, e.g. the website template name. */
+  sourceLabel?: string;
+}
+
+type StoredInput = { name: string; preset: string; adminEmail: string | null; demoStock: boolean; configHash?: string | null };
 /** jsonb does not preserve key order, so compare field by field. */
 const sameInput = (a: unknown, b: StoredInput): boolean => {
   const x = a as StoredInput;
-  return x.name === b.name && x.preset === b.preset && x.adminEmail === b.adminEmail && x.demoStock === b.demoStock;
+  return x.name === b.name && x.preset === b.preset && x.adminEmail === b.adminEmail && x.demoStock === b.demoStock && (x.configHash ?? null) === (b.configHash ?? null);
 };
+const hashOf = (o: ProvisionOptions): string | null =>
+  o.configuration || o.members ? createHash("sha256").update(JSON.stringify({ c: o.configuration ?? null, m: o.members ?? null })).digest("hex") : null;
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 type JobRow = typeof s.provisioningJobs.$inferSelect;
@@ -88,7 +101,7 @@ const DEMO_STOCK = [
  * Creates the job (idempotent by slug) and starts it in the background. Returns immediately so the
  * caller can follow the live log. `created` is false when an identical request is already known.
  */
-export async function requestProvisioning(deps: ProvisionDeps, actor: ProvisionActor, input: ProvisionSiteRequest): Promise<{ job: ProvisioningJob; created: boolean }> {
+export async function requestProvisioning(deps: ProvisionDeps, actor: ProvisionActor, input: ProvisionSiteRequest, options: ProvisionOptions = {}): Promise<{ job: ProvisioningJob; created: boolean }> {
   const preset = getPreset(input.preset);
   if (!preset) throw new AppError(422, "unknown_preset", `Unknown preset “${input.preset}”`);
 
@@ -98,7 +111,7 @@ export async function requestProvisioning(deps: ProvisionDeps, actor: ProvisionA
 
   // Sites the acting admin can see (RLS hides the rest; the database unique constraint is the backstop).
   const taken = await deps.db.withUser(actor.userId, async (tx) => (await tx.select({ id: s.sites.id }).from(s.sites).where(eq(s.sites.slug, input.slug)).limit(1))[0]);
-  const stored = { name: input.name, preset: input.preset, adminEmail: email ?? null, demoStock: input.demoStock };
+  const stored: StoredInput = { name: input.name, preset: input.preset, adminEmail: email ?? null, demoStock: input.demoStock, configHash: hashOf(options) };
 
   const inserted = await deps.db.withoutTenant(async (tx) => {
     if (taken) {
@@ -118,11 +131,11 @@ export async function requestProvisioning(deps: ProvisionDeps, actor: ProvisionA
     throw conflict("slug_taken", `The address “${input.slug}” is already being used by another provisioning request.`);
   });
 
-  if (inserted.created) void execute(deps, inserted.row.id, actor, input, adminUser?.id).catch((e) => deps.log?.("provisioning crashed", { jobId: inserted.row.id, message: String(e) }));
+  if (inserted.created) void execute(deps, inserted.row.id, actor, input, adminUser?.id, options).catch((e) => deps.log?.("provisioning crashed", { jobId: inserted.row.id, message: String(e) }));
   return { job: toJob(inserted.row), created: inserted.created };
 }
 
-async function execute(deps: ProvisionDeps, jobId: string, actor: ProvisionActor, input: ProvisionSiteRequest, extraAdminId: string | undefined): Promise<void> {
+async function execute(deps: ProvisionDeps, jobId: string, actor: ProvisionActor, input: ProvisionSiteRequest, extraAdminId: string | undefined, options: ProvisionOptions): Promise<void> {
   const { db } = deps;
   const preset = getPreset(input.preset)!;
   const siteId = randomUUID();
@@ -130,7 +143,8 @@ async function execute(deps: ProvisionDeps, jobId: string, actor: ProvisionActor
   const pause = () => (deps.stepDelayMs > 0 ? sleep(deps.stepDelayMs) : Promise.resolve());
 
   try {
-    await say("info", `Starting: “${input.name}” (${input.slug}) from the “${preset.label}” preset.`);
+    const source = options.sourceLabel ? `the “${options.sourceLabel}” template` : `the “${preset.label}” preset`;
+    await say("info", `Starting: “${input.name}” (${input.slug}) from ${source}.`);
     await db.withTenant({ siteId, userId: actor.userId }, async (tx) => {
       // 1. Site record.
       await say("info", "Creating the site record…");
@@ -140,7 +154,8 @@ async function execute(deps: ProvisionDeps, jobId: string, actor: ProvisionActor
 
       // 2. Compile and validate the preset BEFORE anything depends on it.
       await say("info", "Compiling and validating the preset configuration…");
-      const { result, compiled } = compileConfiguration(buildConfiguration(preset, { siteId, slug: input.slug, name: input.name }));
+      const identity = { siteId, slug: input.slug, name: input.name };
+      const { result, compiled } = compileConfiguration(options.configuration ? { ...options.configuration, ...identity } : buildConfiguration(preset, identity));
       if (!compiled) throw new ValidationFailed(result);
       await pause();
       await say("success", `Configuration is valid (${compiled.modules.nodes.length} modules, ${result.warnings.length} warnings).`);
@@ -148,6 +163,7 @@ async function execute(deps: ProvisionDeps, jobId: string, actor: ProvisionActor
       // 3. Roles referenced by the configuration must exist.
       await say("info", "Checking roles…");
       const wanted = roleIdsOf(compiled);
+      if (options.members && !wanted.includes(options.members.roleKey)) throw new AppError(422, "unknown_roles", `The visitor role “${options.members.roleKey}” is not defined in this configuration.`);
       const known = await tx.select().from(s.roles).where(inArray(s.roles.key, wanted));
       const missing = wanted.filter((k) => !known.some((r) => r.key === k));
       if (missing.length) throw new AppError(422, "unknown_roles", `The preset uses roles that are not defined on this platform: ${missing.join(", ")}.`);
@@ -171,6 +187,16 @@ async function execute(deps: ProvisionDeps, jobId: string, actor: ProvisionActor
       await pause();
       await say("success", `${admins.length} administrator${admins.length === 1 ? "" : "s"} added.`);
 
+      // 5b. Website visitors (access control). Administrators already have access.
+      if (options.members) {
+        const visitors = [...new Set(options.members.userIds)].filter((id) => !admins.includes(id));
+        const role = known.find((r) => r.key === options.members!.roleKey)!;
+        await say("info", `Granting “${role.name}” access to ${visitors.length} user${visitors.length === 1 ? "" : "s"}…`);
+        if (visitors.length > 0) await tx.insert(s.userSiteRoles).values(visitors.map((userId) => ({ userId, siteId, roleId: role.id })));
+        await pause();
+        await say("success", "Access control applied.");
+      }
+
       // 6. Optional demo stock, each with an opening-balance ledger row.
       if (input.demoStock) {
         await say("info", "Adding demo stock…");
@@ -184,7 +210,7 @@ async function execute(deps: ProvisionDeps, jobId: string, actor: ProvisionActor
         await say("info", "Demo stock skipped.");
       }
 
-      await recordAudit(tx, { siteId, actorId: actor.userId, action: "site.provisioned", entityType: "site", entityId: siteId, metadata: { preset: preset.id, slug: input.slug, demoStock: input.demoStock }, configVersion: 1, requestId: actor.requestId });
+      await recordAudit(tx, { siteId, actorId: actor.userId, action: "site.provisioned", entityType: "site", entityId: siteId, metadata: { preset: preset.id, slug: input.slug, demoStock: input.demoStock, website: Boolean(options.configuration) }, configVersion: 1, requestId: actor.requestId });
     });
 
     // The final event comes first so a reader that sees "succeeded" has already seen the whole log.

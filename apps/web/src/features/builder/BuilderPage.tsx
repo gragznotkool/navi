@@ -1,72 +1,127 @@
 import "@xyflow/react/dist/style.css";
 import { Background, Controls, Handle, Position, ReactFlow, applyEdgeChanges, type Connection, type Edge, type EdgeChange, type Node, type NodeChange, type NodeProps, type ReactFlowInstance } from "@xyflow/react";
-import { Redo2, Sparkles, Undo2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Lock, LockOpen, Redo2, Sparkles, Undo2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type RefObject } from "react";
 import { useNavigate } from "react-router-dom";
-import type { ConfigurationValidationResult, ModuleDefinition, SiteConfiguration } from "@opshub/contracts";
+import { CUSTOM_TEMPLATE_ID, type ConfigurationValidationResult, type ModuleDefinition, type SiteConfiguration, type WebsiteTemplate, type WebsiteTheme } from "@opshub/contracts";
 import { ErrorState, LoadingState } from "../../components/feedback";
 import { Badge, Button, PageHeader, Panel, SelectField, TextField } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
 import { toRequestError } from "../../lib/api";
 import { useSiteRuntime } from "../../runtime/context";
-import { configApi, releasesApi, sitesApi } from "../../services";
+import { configApi, releasesApi, sitesApi, websiteApi } from "../../services";
+import { useCanBuildWebsites } from "../../stores/session";
 import { notify } from "../../stores/toast";
 import { addEdge, addModule, edgeIdOf, explainConnection, isolationProblem, moveNode, removeEdge } from "./configOps";
-import { checkpoint, commit, createHistory, redo, replace, undo } from "./history";
+import { checkpoint, commit, createHistory, redo, replace, undo, type History } from "./history";
 import { Inspector } from "./Inspector";
 import { PRESETS, applyPreset, type Preset } from "./presets";
 import { usePreviewStore } from "./previewStore";
 import { ImpactDialog } from "../releases/ImpactDialog";
 import { FieldsPanel } from "./FieldsPanel";
+import { moduleColor } from "./moduleColors";
+import { ModuleGallery, MODULE_DRAG_TYPE } from "./website-builder/ModuleGallery";
+import { DeployedWebsites, TemplateGallery } from "./website-builder/TemplateGallery";
+import { WEBSITE_THEMES } from "./website-builder/themes";
+import { WebsiteBuilderSidebar, type SidebarTab } from "./website-builder/WebsiteBuilderSidebar";
+import { WebsiteDeployPanel } from "./website-builder/WebsiteDeployPanel";
 
 type ModuleNodeData = { def: ModuleDefinition | undefined; moduleType: string; shake: boolean; problem: string | null };
 
 function ModuleNodeView({ data, selected }: NodeProps<Node<ModuleNodeData>>) {
   const def = data.def;
+  const c = moduleColor(data.moduleType);
   const inputs = def?.ports.filter((p) => p.direction === "input") ?? [];
   const outputs = def?.ports.filter((p) => p.direction === "output") ?? [];
-  const border = data.problem
-    ? "border-[#FF5C5C] border-dashed"
-    : selected
-    ? "border-[#FFE500] ring-2 ring-[#FFE500]/40 shadow-[0_0_15px_rgba(255,229,0,0.25)]"
-    : "border-[#303432] hover:border-[#FFE500]/60";
+  const handle = { width: 12, height: 12, background: c.accent, border: "2px solid #FFFFFF", borderRadius: 999, boxShadow: `0 0 0 1px ${c.accent}` };
+  const ring = data.problem ? "0 0 0 2px #FF5C5C" : selected ? "0 0 0 3px #FFE500, 0 10px 28px -8px rgba(255,229,0,0.45)" : "0 6px 18px -8px rgba(0,0,0,0.6)";
 
   return (
-    <div className={`w-60 rounded-[3px] border bg-[#171919] text-xs transition-all ${border} ${data.shake ? "ops-shake" : ""}`} data-testid={`node-${data.moduleType}`}>
-      <div className="flex items-center justify-between border-b border-[#303432] bg-[#111313] px-3 py-2">
-        <span className="font-['Barlow_Condensed',sans-serif] text-sm font-bold uppercase tracking-wider text-[#F5F5F0]">
-          {def?.displayName ?? data.moduleType}
+    <div
+      className={`w-64 overflow-visible rounded-[6px] text-left transition-shadow ${data.shake ? "ops-shake" : ""}`}
+      style={{ background: c.bg, border: `1.5px ${data.problem ? "dashed #FF5C5C" : `solid ${c.accent}`}`, boxShadow: ring }}
+      data-testid={`node-${data.moduleType}`}
+    >
+      <div className="flex items-center justify-between gap-2 rounded-t-[5px] px-3.5 py-2.5" style={{ background: c.head, borderBottom: `1px solid ${c.accent}55` }}>
+        <span className="flex min-w-0 items-center gap-2">
+          <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: c.accent }} />
+          <span className="truncate text-[15px] font-semibold leading-tight" style={{ color: c.ink }}>{def?.displayName ?? data.moduleType}</span>
         </span>
-        {def?.platformModule ? (
-          <Badge tone="yellow">CORE</Badge>
-        ) : (
-          <span className="font-mono text-[9px] text-[#777C79] uppercase">MOD</span>
-        )}
+        <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide" style={{ background: "#FFFFFFB3", color: c.ink }}>
+          {def?.platformModule ? "Core" : "Module"}
+        </span>
       </div>
-      <div className="flex justify-between gap-3 p-3 font-mono text-[11px] text-[#A5A8A6]">
-        <ul className="space-y-1">
+      <div className="flex justify-between gap-3 px-3.5 py-3 text-[13px] font-medium" style={{ color: c.ink }}>
+        <ul className="space-y-1.5">
           {inputs.map((p) => (
-            <li key={p.id} className="relative py-0.5 text-left">
-              <Handle type="target" id={p.id} position={Position.Left} style={{ left: -15, width: 8, height: 8, background: "#FFE500", borderRadius: 1 }} />
-              <span className="text-[#FFE500]">«</span> {p.label}
+            <li key={p.id} className="relative text-left">
+              <Handle type="target" id={p.id} position={Position.Left} style={{ ...handle, left: -21 }} />
+              <span style={{ color: c.accent }} aria-hidden>●</span> {p.label}
             </li>
           ))}
         </ul>
-        <ul className="space-y-1 text-right">
+        <ul className="space-y-1.5 text-right">
           {outputs.map((p) => (
-            <li key={p.id} className="relative py-0.5">
-              <Handle type="source" id={p.id} position={Position.Right} style={{ right: -15, width: 8, height: 8, background: "#FFE500", borderRadius: 1 }} />
-              {p.label} <span className="text-[#FFE500]">»</span>
+            <li key={p.id} className="relative">
+              <Handle type="source" id={p.id} position={Position.Right} style={{ ...handle, right: -21 }} />
+              {p.label} <span style={{ color: c.accent }} aria-hidden>●</span>
             </li>
           ))}
         </ul>
       </div>
-      {data.problem && <p role="status" className="border-t border-dashed border-[#FF5C5C] bg-[#FF5C5C]/10 px-3 py-1.5 font-mono text-[10px] text-[#FF5C5C]">{data.problem}</p>}
+      {data.problem && <p role="status" className="rounded-b-[5px] border-t border-dashed border-[#FF5C5C] bg-[#FFF1F2] px-3.5 py-2 text-[12px] font-medium text-[#B91C1C]">{data.problem}</p>}
     </div>
   );
 }
 
 const nodeTypes = { module: ModuleNodeView };
+
+/**
+ * Height that makes `ref` reach the bottom of its scrolling container (the shell's <main>), so the
+ * builder panes fill the screen without the page scrolling. Only on wide screens, where the panes sit
+ * side by side; narrow screens stack them and scroll normally.
+ */
+function useFillHeight(ref: RefObject<HTMLElement | null>, deps: unknown[]): number | null {
+  const [height, setHeight] = useState<number | null>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const scroller = (el.closest("main") as HTMLElement | null) ?? document.documentElement;
+    const measure = () => {
+      if (window.innerWidth < 1280) return setHeight(null);
+      const top = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+      const padBottom = parseFloat(getComputedStyle(scroller).paddingBottom) || 0;
+      setHeight(Math.max(480, Math.floor(scroller.clientHeight - top - padBottom)));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    ro?.observe(scroller);
+    return () => {
+      window.removeEventListener("resize", measure);
+      ro?.disconnect();
+    };
+  }, deps);
+  return height;
+}
+
+/**
+ * A website being designed in the builder. It has its own undo history and never touches the site's
+ * draft or releases; deploying creates a new site. Templates start `locked` (settings only).
+ */
+interface WebsiteWorkspace {
+  templateId: string;
+  templateName: string;
+  theme: WebsiteTheme;
+  hist: History<SiteConfiguration>;
+  locked: boolean;
+}
+
+/** Fills optional sections and placeholder identity so builder edits work; the server assigns the real identity. */
+function workspaceConfig(source: unknown, name: string): SiteConfiguration {
+  const c = source as Partial<SiteConfiguration>;
+  return { fields: [], customFields: [], reports: {}, calculatedFieldDefinitions: [], workflowDefinitions: [], metadata: {}, ...c, siteId: "website-draft", slug: "website-draft", name } as SiteConfiguration;
+}
 const REJECT_MS = 1500;
 const PULSE_MS = 1400;
 
@@ -76,8 +131,28 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
   const setPreview = usePreviewStore((s) => s.setDraft);
   const registry = useAsync(async () => ({ modules: await sitesApi.modules(), dataTypes: await sitesApi.dataTypes() }), []);
 
+  // The website builder appears only for platform admins, and only in the host site's builder.
+  const isPlatformAdmin = useCanBuildWebsites();
+  const host = useAsync(() => (isPlatformAdmin ? websiteApi.host() : Promise.resolve(null)), [isPlatformAdmin]);
+  const canBuildWebsites = isPlatformAdmin && Boolean(host.data?.siteId) && host.data?.siteId === siteId;
+  const templates = useAsync(() => (canBuildWebsites ? websiteApi.templates() : Promise.resolve([])), [canBuildWebsites]);
+  const websites = useAsync(() => (canBuildWebsites ? websiteApi.listDeployed() : Promise.resolve([])), [canBuildWebsites]);
+  const [sideTab, setSideTab] = useState<SidebarTab>("templates");
+  const [sideCollapsed, setSideCollapsed] = useState(false);
+  const [sideQuery, setSideQuery] = useState("");
+
   // Working config lives in an undo/redo history; server verdict, selection and release state are separate.
-  const [hist, setHist] = useState(() => createHistory(activeConfig));
+  // The site's history and a website workspace's history are kept apart; `setHist` edits whichever is open.
+  const [siteHist, setSiteHist] = useState(() => createHistory(activeConfig));
+  const [webState, setWeb] = useState<WebsiteWorkspace | null>(null);
+  const web = canBuildWebsites ? webState : null;
+  const inWebsite = web !== null;
+  const locked = web?.locked ?? false;
+  const hist = web ? web.hist : siteHist;
+  const setHist = useCallback(
+    (fn: (h: History<SiteConfiguration>) => History<SiteConfiguration>) => (inWebsite ? setWeb((w) => w && { ...w, hist: fn(w.hist) }) : setSiteHist(fn)),
+    [inWebsite],
+  );
   const config = hist.present;
   const [validation, setValidation] = useState<ConfigurationValidationResult | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -86,7 +161,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
   const [busy, setBusy] = useState<"validate" | "draft" | "preview" | "publish" | null>(null);
   const [stale, setStale] = useState(false);
   const [reviewing, setReviewing] = useState(false);
-  const dirty = useMemo(() => JSON.stringify(config) !== JSON.stringify(activeConfig), [config, activeConfig]);
+  const dirty = useMemo(() => JSON.stringify(siteHist.present) !== JSON.stringify(activeConfig), [siteHist.present, activeConfig]);
 
   // Visual feedback state: valid-edge pulses, rejected "ghost" edges and shaking nodes.
   const [pulsing, setPulsing] = useState<ReadonlySet<string>>(new Set());
@@ -94,20 +169,22 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
   const [shaking, setShaking] = useState<ReadonlySet<string>>(new Set());
   const [problems, setProblems] = useState<Record<string, string>>({});
   const flow = useRef<ReactFlowInstance<Node<ModuleNodeData>, Edge> | null>(null);
+  const workspace = useRef<HTMLDivElement>(null);
+  const fillHeight = useFillHeight(workspace, [inWebsite, stale, registry.loading]);
 
   const edit = useCallback((next: SiteConfiguration) => {
     setHist((h) => commit(h, next));
     setValidation(null); // any edit invalidates the previous server verdict
-  }, []);
-  const doUndo = useCallback(() => { setHist(undo); setValidation(null); }, []);
-  const doRedo = useCallback(() => { setHist(redo); setValidation(null); }, []);
+  }, [setHist]);
+  const doUndo = useCallback(() => { setHist(undo); setValidation(null); }, [setHist]);
+  const doRedo = useCallback(() => { setHist(redo); setValidation(null); }, [setHist]);
 
   useEffect(() => {
     let active = true;
     configApi.draft(siteId).then((d) => {
       if (!active || !d || !d.configuration) return;
       if (d.baseVersion === activeVersion) {
-        setHist(createHistory(d.configuration));
+        setSiteHist(createHistory(d.configuration));
         notify.info("Restored saved draft");
       }
     }).catch(() => undefined);
@@ -143,6 +220,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
     position: n.position,
     selected: n.id === selected,
     deletable: false,
+    draggable: !locked,
     data: { def: defs.find((d) => d.type === n.moduleType), moduleType: n.moduleType, shake: shaking.has(n.id), problem: problems[n.id] ?? null },
   }));
   const flowEdges: Edge[] = [
@@ -158,6 +236,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
     }
   };
   const onEdgesChange = (changes: EdgeChange[]) => {
+    if (locked) return;
     const removed = applyEdgeChanges(changes, flowEdges);
     const kept = new Set(removed.map((e) => e.id));
     for (const e of config.modules.edges) if (!kept.has(e.id)) return edit(removeEdge(config, e.id));
@@ -165,6 +244,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
   // Every handle pair may be *attempted*; onConnect explains and animates refusals.
   const isValidConnection = (c: Connection | Edge): boolean => Boolean(registry.data && c.sourceHandle && c.targetHandle);
   const onConnect = (c: Connection) => {
+    if (locked) return;
     if (!registry.data || !c.sourceHandle || !c.targetHandle) return;
     const attempt = { sourceNodeId: c.source, sourcePortId: c.sourceHandle, targetNodeId: c.target, targetPortId: c.targetHandle };
     const reason = explainConnection(defs, registry.data.dataTypes, attempt, config);
@@ -179,19 +259,66 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
     pulse([edgeIdOf(attempt)]);
   };
 
-  const addSelected = () => {
-    const def = defs.find((d) => d.type === toAdd);
+  const placeModule = (type: string, position?: { x: number; y: number }) => {
+    const def = defs.find((d) => d.type === type);
     if (!def) return;
-    const next = addModule(config, def, { x: 80 + (config.modules.nodes.length % 4) * 260, y: 60 + Math.floor(config.modules.nodes.length / 4) * 170 });
+    const next = addModule(config, def, position ?? { x: 80 + (config.modules.nodes.length % 4) * 300, y: 60 + Math.floor(config.modules.nodes.length / 4) * 190 });
     edit(next);
     setSelected(def.type);
-    setToAdd("");
     const problem = registry.data ? isolationProblem(defs, next, def.type) : null;
     if (problem) {
       setProblems((p) => ({ ...p, [def.type]: problem }));
       shake(def.type);
       notify.error(problem);
     }
+  };
+  const addSelected = () => {
+    placeModule(toAdd);
+    setToAdd("");
+  };
+
+  // ---------- website builder (platform admins)
+  const openTemplate = (t: WebsiteTemplate) => {
+    setWeb({ templateId: t.id, templateName: t.name, theme: t.theme, hist: createHistory(workspaceConfig(t.configuration, t.name)), locked: true });
+    setSelected(null);
+    setValidation(null);
+    setProblems({});
+    notify.info(`${t.name} loaded. Structure is locked; tweak module settings, then deploy.`);
+    setTimeout(() => flow.current?.fitView({ duration: 400, padding: 0.15 }), 60);
+  };
+  const startCustomWebsite = () => {
+    const { website: _w, ...rest } = config;
+    setWeb({ templateId: CUSTOM_TEMPLATE_ID, templateName: "Custom website", theme: config.website ?? WEBSITE_THEMES[0]!, hist: createHistory(workspaceConfig(rest, "Custom website")), locked: false });
+    setSelected(null);
+    setValidation(null);
+    notify.info("Custom website started from this site’s modules. Everything is editable.");
+  };
+  const unlock = () => {
+    setWeb((w) => w && { ...w, locked: false });
+    notify.info("Template unlocked: add, remove and rewire modules freely.");
+  };
+  const addFromGallery = (type: string, position?: { x: number; y: number }) => {
+    if (locked) unlock();
+    placeModule(type, position);
+  };
+  const exitWebsite = () => {
+    setWeb(null);
+    setSelected(null);
+    setValidation(null);
+    setProblems({});
+    setTimeout(() => flow.current?.fitView({ duration: 300, padding: 0.15 }), 60);
+  };
+  const onCanvasDragOver = (e: DragEvent) => {
+    if (!e.dataTransfer.types.includes(MODULE_DRAG_TYPE)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  };
+  const onCanvasDrop = (e: DragEvent) => {
+    const type = e.dataTransfer.getData(MODULE_DRAG_TYPE);
+    if (!type) return;
+    e.preventDefault();
+    const pos = flow.current?.screenToFlowPosition({ x: e.clientX, y: e.clientY });
+    addFromGallery(type, pos ? { x: Math.round(pos.x - 120), y: Math.round(pos.y - 40) } : undefined);
   };
 
   // Keep "isolated" badges honest as wiring changes: recompute for every node with a recorded problem.
@@ -247,7 +374,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
   const discardDraft = () =>
     run("draft", async () => {
       await configApi.discardDraft(siteId);
-      setHist(createHistory(activeConfig));
+      setSiteHist(createHistory(activeConfig));
       setValidation(null);
       notify.info("Draft discarded");
     });
@@ -283,8 +410,8 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
     <>
       <PageHeader
         title="Configuration builder"
-        subtitle={`Active release: v${activeVersion}. Only the server decides whether a draft can be published.`}
-        actions={<Badge tone={validation === null ? "neutral" : validation.valid ? "success" : "danger"}>{validation === null ? (dirty ? "Unvalidated changes" : "No changes") : validation.valid ? "Valid draft" : `${validation.errors.length} error(s)`}</Badge>}
+        subtitle={web ? `Designing a new website from “${web.templateName}”. Deploying creates a separate site; this site is not changed.` : `Active release: v${activeVersion}. Only the server decides whether a draft can be published.`}
+        actions={<Badge tone={validation === null ? "neutral" : validation.valid ? "success" : "danger"}>{validation === null ? (web ? "Website draft" : dirty ? "Unvalidated changes" : "No changes") : validation.valid ? "Valid draft" : `${validation.errors.length} error(s)`}</Badge>}
       />
       {stale && (
         <div role="alert" className="mb-3 flex items-center justify-between rounded-ui border border-amber-300 bg-amber-50 p-3 text-sm">
@@ -292,6 +419,26 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           <Button onClick={() => window.location.reload()}>Reload</Button>
         </div>
       )}
+      {web ? (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[4px] border border-[#303432] bg-[#111313] p-2.5" role="toolbar" aria-label="Website workspace">
+          <Button variant="ghost" onClick={exitWebsite}><ArrowLeft className="h-4 w-4" aria-hidden /> Back to site configuration</Button>
+          <span className="inline-flex items-center gap-2 border-l border-[#303432] px-3 text-xs font-semibold text-[#F5F5F0]">
+            <span aria-hidden className="h-3 w-3 rounded-full" style={{ background: web.theme.palette.primary }} />
+            {web.templateName}
+          </span>
+          {locked ? (
+            <Button onClick={unlock} title="Unlock to add, remove and rewire modules"><Lock className="h-3.5 w-3.5" aria-hidden /> Structure locked</Button>
+          ) : (
+            <Badge tone="yellow"><LockOpen className="mr-1 h-3 w-3" aria-hidden /> Free editing</Badge>
+          )}
+          <div className="ml-auto flex items-center gap-1 border-l border-[#303432] pl-2">
+            <Button onClick={validate} loading={busy === "validate"} className="uppercase font-mono">Validate</Button>
+            <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4 text-[#A5A8A6]" /></Button>
+            <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#A5A8A6]" /></Button>
+          </div>
+        </div>
+      ) : (
+      <>
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-[4px] border border-[#303432] bg-[#111313] p-2.5" role="toolbar" aria-label="Starter layouts">
         <span className="inline-flex items-center gap-1.5 px-2 font-mono text-xs font-bold uppercase tracking-wider text-[#FFE500]"><Sparkles className="h-3.5 w-3.5" aria-hidden /> TEMPLATES</span>
         {PRESETS.map((p) => (
@@ -316,8 +463,53 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           <Button variant="primary" onClick={() => setReviewing(true)} loading={busy === "publish"} disabled={!validation?.valid || !dirty || stale} className="uppercase font-mono">Review & publish</Button>
         </div>
       </div>
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="h-[580px] rounded-[4px] border border-[#303432] bg-[#0c0e0e]" aria-label="Module graph">
+      </>
+      )}
+      <div ref={workspace} className="flex flex-col gap-4 xl:flex-row" style={fillHeight ? { height: fillHeight } : undefined}>
+        {canBuildWebsites && (
+          <WebsiteBuilderSidebar
+            tab={sideTab}
+            onTab={(t) => { setSideTab(t); setSideQuery(""); }}
+            collapsed={sideCollapsed}
+            onCollapsed={setSideCollapsed}
+            query={sideQuery}
+            onQuery={setSideQuery}
+          >
+            {sideTab === "templates" ? (
+              templates.error ? (
+                <ErrorState error={templates.error} onRetry={templates.reload} />
+              ) : templates.loading ? (
+                <p className="py-6 text-center text-xs text-[#697386]">Loading templates…</p>
+              ) : (
+                <>
+                  <TemplateGallery templates={templates.data ?? []} query={sideQuery} selectedId={web?.templateId ?? null} onSelect={openTemplate} />
+                  <DeployedWebsites websites={websites.data ?? []} onChanged={websites.reload} />
+                </>
+              )
+            ) : (
+              <>
+                {!web && (
+                  <div className="mb-3 rounded-[3px] border border-[#FFE500]/30 bg-[#FFE500]/5 p-2.5 text-[11px] text-[#A5A8A6]">
+                    Modules added here change <strong className="text-[#F5F5F0]">this site’s</strong> draft.
+                    <button type="button" onClick={startCustomWebsite} className="ml-1 font-semibold text-[#FFE500] underline underline-offset-2">Design a custom website instead</button>
+                  </div>
+                )}
+                <ModuleGallery defs={defs} config={config} query={sideQuery} locked={locked} onAdd={(t) => addFromGallery(t)} onUnlock={locked ? unlock : undefined} />
+              </>
+            )}
+          </WebsiteBuilderSidebar>
+        )}
+        <div
+          className={`relative h-[580px] min-w-0 flex-1 rounded-[4px] xl:h-full border bg-[#0c0e0e] ${locked ? "border-[#FFE500]/50" : "border-[#303432]"}`}
+          aria-label="Module graph"
+          onDragOver={onCanvasDragOver}
+          onDrop={onCanvasDrop}
+        >
+          {locked && (
+            <span className="pointer-events-none absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-[2px] bg-[#FFE500] px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-[#080909]">
+              <Lock className="h-3 w-3" aria-hidden /> Template structure is read-only
+            </span>
+          )}
           <ReactFlow
             nodes={flowNodes}
             edges={flowEdges}
@@ -328,38 +520,52 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
             onConnect={onConnect}
             isValidConnection={isValidConnection}
             onInit={(i) => { flow.current = i; }}
+            defaultEdgeOptions={{ style: { stroke: "#C9CDD1", strokeWidth: 2 } }}
             fitView
-            deleteKeyCode={["Backspace", "Delete"]}
+            nodesDraggable={!locked}
+            nodesConnectable={!locked}
+            edgesFocusable={!locked}
+            deleteKeyCode={locked ? null : ["Backspace", "Delete"]}
           >
             <Background color="#303432" gap={24} size={1} />
             <Controls className="bg-[#171919] border border-[#303432] text-[#F5F5F0] rounded-[2px]" />
           </ReactFlow>
         </div>
-        <div className="flex flex-col gap-4">
-          <Inspector config={config} node={selectedNode} def={selectedDef} defs={defs} onEdit={edit} onRemoved={() => setSelected(null)} />
-          <FieldsPanel config={config} onChange={edit} />
-          <Panel title="Release note">
-            <TextField label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
+        <div className="flex w-full shrink-0 flex-col gap-4 xl:h-full xl:w-[360px] xl:overflow-y-auto xl:pr-1 [&>*]:shrink-0">
+          {web && (
+            <WebsiteDeployPanel
+              templateId={web.templateId}
+              templateName={web.templateName}
+              theme={web.theme}
+              onTheme={(theme) => setWeb((w) => w && { ...w, theme })}
+              config={config}
+              onDeployed={websites.reload}
+            />
+          )}
+          <Inspector config={config} node={selectedNode} def={selectedDef} defs={defs} onEdit={edit} onRemoved={() => setSelected(null)} settingsOnly={locked} />
+          {!locked && <FieldsPanel config={config} onChange={edit} />}
+          {!web && (
+            <Panel title="Release note">
+              <TextField label="Note (optional)" value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} />
+            </Panel>
+          )}
+          <Panel title="Validation">
+            {!validation ? (
+              <p className="text-sm text-muted">Run “Validate” to check this draft with the server-side compiler.</p>
+            ) : validation.errors.length === 0 && validation.warnings.length === 0 ? (
+              <p className="text-sm text-success">No errors or warnings.</p>
+            ) : (
+              <ul className="flex flex-col gap-1.5 text-sm">
+                {[...validation.errors, ...validation.warnings].map((i, idx) => (
+                  <li key={idx} className="flex items-start gap-2">
+                    <Badge tone={i.severity === "error" ? "danger" : "warning"}>{i.severity}</Badge>
+                    <span><span className="text-muted">[{i.stage}]</span> {i.message}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </Panel>
         </div>
-      </div>
-      <div className="mt-4">
-        <Panel title="Validation">
-          {!validation ? (
-            <p className="text-sm text-muted">Run “Validate” to check this draft with the server-side compiler.</p>
-          ) : validation.errors.length === 0 && validation.warnings.length === 0 ? (
-            <p className="text-sm text-success">No errors or warnings.</p>
-          ) : (
-            <ul className="flex flex-col gap-1.5 text-sm">
-              {[...validation.errors, ...validation.warnings].map((i, idx) => (
-                <li key={idx} className="flex items-start gap-2">
-                  <Badge tone={i.severity === "error" ? "danger" : "warning"}>{i.severity}</Badge>
-                  <span><span className="text-muted">[{i.stage}]</span> {i.message}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Panel>
       </div>
       {reviewing && (
         <ImpactDialog

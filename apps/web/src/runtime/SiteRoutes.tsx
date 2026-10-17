@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Navigate, Route, Routes, useParams, Link } from "react-router-dom";
+import { websitePath } from "@opshub/contracts";
 import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
 import { useAsync } from "../hooks/useAsync";
 import { BuilderPage } from "../features/builder/BuilderPage";
@@ -11,6 +12,7 @@ import { useSession } from "../stores/session";
 import { SiteRuntimeProvider } from "./context";
 import { SiteShell } from "./SiteShell";
 import { UniversalRenderer } from "./UniversalRenderer";
+import { WebsiteShell } from "./WebsiteShell";
 import { useSiteRuntime } from "./context";
 import { usePreviewStore } from "../features/builder/previewStore";
 
@@ -76,11 +78,23 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
   );
 }
 
+/**
+ * Pages of a deployed website always render in the website's own theme. A live website opened at
+ * /s/<slug> (site switcher, hub, bookmarks) moves to its canonical /w/<slug> address; a draft preview
+ * stays on /preview but still uses the website shell. Admin screens keep the OpsHub shell.
+ */
+function PageShell({ title, path, children }: { title: string; path?: string; children: ReactNode }) {
+  const { config, preview, slug } = useSiteRuntime();
+  if (!config.website) return <SiteShell title={title}>{children}</SiteShell>;
+  if (!preview) return <Navigate to={path ? `${websitePath(slug)}/${path}` : websitePath(slug)} replace />;
+  return <WebsiteShell theme={config.website} title={title}>{children}</WebsiteShell>;
+}
+
 function FirstPage() {
   const { config, permissions, basePath } = useSiteRuntime();
   const first = config.navigation.map((n) => config.pages.find((p) => p.id === n.pageId)).find((p) => p && (!p.requiredPermission || permissions.has(p.requiredPermission)));
   if (!first) {
-    return <SiteShell title="No pages"><EmptyState title="No pages available" hint="Your role does not include access to any page in this site." /></SiteShell>;
+    return <PageShell title="No pages"><EmptyState title="No pages available" hint="Your role does not include access to any page in this site." /></PageShell>;
   }
   return <Navigate to={`${basePath}/${first.path}`} replace />;
 }
@@ -90,7 +104,7 @@ function PageRoute() {
   const { config } = useSiteRuntime();
   const page = config.pages.find((p) => p.path === pagePath);
   if (!page) {
-    return <SiteShell title="Page not found"><EmptyState title="Page not found" hint={`This site has no page at “${pagePath}”.`} /></SiteShell>;
+    return <PageShell title="Page not found"><EmptyState title="Page not found" hint={`This site has no page at “${pagePath}”.`} /></PageShell>;
   }
-  return <SiteShell title={page.title}><UniversalRenderer page={page} /></SiteShell>;
+  return <PageShell title={page.title} path={page.path}><UniversalRenderer page={page} /></PageShell>;
 }

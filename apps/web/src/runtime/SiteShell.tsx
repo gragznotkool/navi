@@ -22,7 +22,7 @@ import { OfflineBanner } from "../components/feedback";
 import { useSession } from "../stores/session";
 import { useSiteRuntime } from "./context";
 
-const icons: Partial<Record<ModuleType, LucideIcon>> = {
+export const moduleIcons: Partial<Record<ModuleType, LucideIcon>> = {
   "dashboard-shell": LayoutDashboard,
   inventory: Boxes,
   request: ClipboardList,
@@ -51,7 +51,7 @@ function useNav(): { main: NavEntry[]; platform: NavEntry[] } {
     // Role-aware navigation: hide entries the user's permissions cannot open.
     if (page.requiredPermission && !permissions.has(page.requiredPermission)) return [];
     const node = config.modules.nodes.find((m) => m.id === page.nodeId);
-    return [{ to: `${basePath}/${page.path}`, label: n.label, icon: (node && icons[node.moduleType]) || LayoutDashboard }];
+    return [{ to: `${basePath}/${page.path}`, label: n.label, icon: (node && moduleIcons[node.moduleType]) || LayoutDashboard }];
   });
   const platform: NavEntry[] = [];
   if (permissions.has("config:manage")) {
@@ -61,12 +61,12 @@ function useNav(): { main: NavEntry[]; platform: NavEntry[] } {
   return { main, platform };
 }
 
-function NavItem({ entry, variant }: { entry: NavEntry; variant: "side" | "top" | "bench" }) {
+function NavItem({ entry, variant, iconOnly }: { entry: NavEntry; variant: "side" | "top" | "bench"; iconOnly?: boolean }) {
   const Icon = entry.icon;
   const base = "inline-flex items-center gap-2 text-xs font-bold tracking-wide uppercase transition-all duration-150";
   const styles = {
     side: (a: boolean) =>
-      `${base} rounded-xl px-3.5 py-2.5 ${
+      `${base} rounded-xl ${iconOnly ? "p-2.5 justify-center" : "px-3.5 py-2.5"} ${
         a
           ? "bg-[#FBBC04] text-[#0F172A] border-2 border-[#1E293B] shadow-[2px_2px_0px_#1E293B]"
           : "text-slate-600 hover:bg-slate-100 hover:text-[#0F172A]"
@@ -85,9 +85,9 @@ function NavItem({ entry, variant }: { entry: NavEntry; variant: "side" | "top" 
       }`,
   }[variant];
   return (
-    <NavLink to={entry.to} end className={({ isActive }) => styles(isActive)}>
+    <NavLink to={entry.to} end title={iconOnly ? entry.label : undefined} className={({ isActive }) => styles(isActive)}>
       <Icon className="h-4 w-4 shrink-0" aria-hidden />
-      {entry.label}
+      {iconOnly ? <span className="sr-only">{entry.label}</span> : entry.label}
     </NavLink>
   );
 }
@@ -117,22 +117,27 @@ function SiteSwitcher({ dark }: { dark?: boolean }) {
   );
 }
 
-function UserMenu({ dark }: { dark?: boolean }) {
+function UserMenu({ dark, iconOnly }: { dark?: boolean; iconOnly?: boolean }) {
   const { session, logout } = useSession();
   const navigate = useNavigate();
   return (
-    <div className="flex items-center gap-3 font-mono text-xs font-bold">
-      <span className="hidden text-slate-600 sm:inline">
-        {session?.user.displayName}
-      </span>
+    <div className={`flex items-center gap-3 font-mono text-xs font-bold ${iconOnly ? "justify-center" : ""}`}>
+      {!iconOnly && (
+        <span className="hidden text-slate-600 sm:inline">
+          {session?.user.displayName}
+        </span>
+      )}
       <button
         onClick={async () => {
           await logout();
           navigate("/login");
         }}
-        className="devfest-btn inline-flex h-8 items-center gap-1.5 rounded-full bg-[#EA4335] px-3 text-xs font-bold uppercase tracking-wider text-white hover:bg-red-600 transition"
+        title={iconOnly ? "Sign out" : undefined}
+        className={`devfest-btn inline-flex h-8 items-center gap-1.5 rounded-full bg-[#EA4335] text-xs font-bold uppercase tracking-wider text-white hover:bg-red-600 transition ${
+          iconOnly ? "p-2 justify-center" : "px-3"
+        }`}
       >
-        <LogOut className="h-3.5 w-3.5" aria-hidden /> Sign out
+        <LogOut className="h-3.5 w-3.5" aria-hidden /> {!iconOnly && "Sign out"}
       </button>
     </div>
   );
@@ -227,23 +232,25 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
                 <span className="font-extrabold text-[#2563EB]">{roleName}</span>
               </div>
             )}
-            <nav aria-label="Main" className="flex w-full flex-col gap-1.5">
+            <nav aria-label="Main" className={`flex w-full flex-col gap-1.5 ${compact ? "items-center" : ""}`}>
               {main.map((e) => (
-                <NavItem key={e.to} entry={e} variant="side" />
+                <NavItem key={e.to} entry={e} variant="side" iconOnly={compact} />
               ))}
             </nav>
-            {platform.length > 0 && !compact && (
-              <nav aria-label="Platform administration" className="flex flex-col gap-1.5 border-t-2 border-slate-100 pt-3">
-                <p className="px-3 font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  // PLATFORM ADMIN
-                </p>
+            {platform.length > 0 && (
+              <nav aria-label="Platform administration" className={`flex w-full flex-col gap-1.5 border-t-2 border-slate-100 pt-3 ${compact ? "items-center" : ""}`}>
+                {!compact && (
+                  <p className="px-3 font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    // PLATFORM ADMIN
+                  </p>
+                )}
                 {platform.map((e) => (
-                  <NavItem key={e.to} entry={e} variant="side" />
+                  <NavItem key={e.to} entry={e} variant="side" iconOnly={compact} />
                 ))}
               </nav>
             )}
             <div className="mt-auto w-full border-t-2 border-slate-100 pt-3">
-              <UserMenu />
+              <UserMenu iconOnly={compact} />
             </div>
           </aside>
           <main className="devfest-card min-w-0 flex-1 overflow-auto p-6 text-[#0F172A]">

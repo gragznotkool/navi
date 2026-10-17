@@ -22,6 +22,8 @@ import {
   updateItemFieldsPayloadSchema,
   updateRepairStatusPayloadSchema,
   updateReturnStatusPayloadSchema,
+  updateWebsiteAccessRequestSchema,
+  websiteDeployRequestSchema,
   configurationDraftSchema,
   REPORT_MAX_BYTES,
   type PaginationRequest,
@@ -61,7 +63,13 @@ import * as authSvc from "./services/auth.js";
 import * as reportSvc from "./reports/service.js";
 import { XLSX_MIME } from "./reports/excel.js";
 import * as ops from "./services/operations.js";
+import { getWebsiteAccess, listPlatformUsers, listWebsites, updateWebsiteAccess } from "./websites/access.js";
+import { deployWebsite } from "./websites/deploy.js";
+import { listWebsiteTemplates } from "./websites/templates.js";
 import { AppError, badRequest, forbidden, notFound, unauthorized } from "./utils/errors.js";
+
+/** Every website-builder endpoint lives under one of these prefixes (see the guard in createApp). */
+export const WEBSITE_BUILDER_PATHS = ["/hub/website-builder", "/hub/website-templates", "/hub/users", "/hub/websites"];
 
 export interface AppDeps {
   db: Database;
@@ -282,6 +290,37 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
     const q = String(req.query.q ?? "").trim();
     res.json({ data: await ops.searchCrossSite(db, req.user!.id, q) });
   });
+
+  // ---------- website builder: templates, one-click deploy, access control
+  // PLATFORM ADMINS ONLY. One guard covers every path (and any added later) under these prefixes,
+  // so a new website-builder endpoint cannot be exposed to other users by forgetting a middleware.
+  api.use(WEBSITE_BUILDER_PATHS, auth, adminOnly);
+  // Which site's builder shows the website builder. Only that site, and only for platform admins.
+  hub.get("/website-builder", auth, adminOnly, async (req, res) => {
+    // Read as the admin: site rows are visible to their members only (RLS).
+    const [host] = await db.withUser(req.user!.id, (tx) => tx.select({ id: s.sites.id, slug: s.sites.slug }).from(s.sites).where(eq(s.sites.slug, env.WEBSITE_BUILDER_SITE)).limit(1));
+    res.json({ data: { siteId: host?.id ?? null, slug: env.WEBSITE_BUILDER_SITE } });
+  });
+  hub.get("/website-templates", auth, adminOnly, (_req, res) => {
+    res.json({ data: listWebsiteTemplates() });
+  });
+  hub.get("/users", auth, adminOnly, async (_req, res) => {
+    res.json({ data: await listPlatformUsers(db) });
+  });
+  hub.get("/websites", auth, adminOnly, async (req, res) => {
+    res.json({ data: await listWebsites(db, req.user!.id) });
+  });
+  hub.post("/websites/deploy", auth, adminOnly, validateBody(websiteDeployRequestSchema), async (req, res) => {
+    const out = await deployWebsite(provDeps, { userId: req.user!.id, requestId: req.requestId }, req.body);
+    res.status(out.created ? 202 : 200).json({ data: out });
+  });
+  hub.get("/websites/:siteId/access", auth, adminOnly, requireSite(db, "config:manage"), async (req, res) => {
+    res.json({ data: await getWebsiteAccess(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id }) });
+  });
+  hub.patch("/websites/:siteId/access", auth, adminOnly, requireSite(db, "config:manage"), validateBody(updateWebsiteAccessRequestSchema), async (req, res) => {
+    res.json({ data: await updateWebsiteAccess(db, { siteId: req.siteAccess!.siteId, userId: req.user!.id, requestId: req.requestId }, req.body.access) });
+  });
+
 
   // ---------- sites
   const st = mount(api, "/sites");

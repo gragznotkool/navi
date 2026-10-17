@@ -39,6 +39,13 @@ import type {
   StockSummary,
   TrustCheckResult,
   UpdateItemFieldsPayload,
+  DeployedWebsite,
+  PlatformUser,
+  WebsiteAccess,
+  WebsiteAccessEntry,
+  WebsiteDeployRequest,
+  WebsiteDeployResponse,
+  WebsiteTemplate,
 } from "@opshub/contracts";
 import { call, http, toRequestErrorFromBlob } from "../lib/api";
 
@@ -180,4 +187,15 @@ export const provisioningApi = {
   presets: () => call<PresetSummary[]>(http.get("/provisioning/presets")),
   start: (body: ProvisionSiteRequest) => call<ProvisioningJob>(http.post("/sites", body)),
   snapshot: (jobId: string, after = 0) => call<ProvisioningSnapshot>(http.get(`/provisioning/${jobId}/events`, { params: { after } })),
+};
+
+export const websiteApi = {
+  /** The site whose builder hosts the website builder (platform admins only). */
+  host: () => call<{ siteId: string | null; slug: string }>(http.get("/hub/website-builder")),
+  templates: () => call<WebsiteTemplate[]>(http.get("/hub/website-templates")),
+  users: () => call<PlatformUser[]>(http.get("/hub/users")),
+  deploy: (body: WebsiteDeployRequest) => call<WebsiteDeployResponse>(http.post("/hub/websites/deploy", body)),
+  listDeployed: () => call<DeployedWebsite[]>(http.get("/hub/websites")),
+  access: (siteId: string) => call<WebsiteAccessEntry[]>(http.get(`/hub/websites/${siteId}/access`)),
+  updateAccess: (siteId: string, access: WebsiteAccess) => call<WebsiteAccessEntry[]>(http.patch(`/hub/websites/${siteId}/access`, { access })),
 };

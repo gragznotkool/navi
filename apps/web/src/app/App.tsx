@@ -5,6 +5,7 @@ import { LoginPage } from "../features/auth/LoginPage";
 import { HubPage } from "../features/hub/HubPage";
 import { TrustConsolePage } from "../features/security-console/TrustConsolePage";
 import { SiteRoute } from "../runtime/SiteRoutes";
+import { WebsiteRoute } from "../runtime/WebsiteRenderer";
 import { useSession } from "../stores/session";
 import { EmptyState } from "../components/feedback";
 
@@ -27,6 +28,7 @@ export function AppRoutes() {
       <Route path="/admin/provision" element={<RequireAuth><NewSitePage /></RequireAuth>} />
       <Route path="/trust" element={<RequireAuth><TrustConsolePage /></RequireAuth>} />
       <Route path="/s/:slug/*" element={<RequireAuth><SiteRoute /></RequireAuth>} />
+      <Route path="/w/:slug/*" element={<RequireAuth><WebsiteRoute /></RequireAuth>} />
       <Route path="/preview/:slug/*" element={<RequireAuth><SiteRoute preview /></RequireAuth>} />
       <Route path="*" element={<div className="p-8"><EmptyState title="Page not found" hint="That address does not exist." /></div>} />
     </Routes>

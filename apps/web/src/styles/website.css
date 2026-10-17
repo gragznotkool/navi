@@ -1,0 +1,170 @@
+/* ---------------------------------------------------------------------------------------------
+   Deployed websites. Everything is scoped under [data-website] and driven by --ws-* tokens set
+   from the website theme (see features/builder/website-builder/themes.ts). Colour remapping of the
+   admin palette is generated at runtime (runtime/websiteAdapterCss.ts); this file holds typography,
+   shape and the component variants (cards, buttons, tables, density).
+   --------------------------------------------------------------------------------------------- */
+
+[data-website] {
+  color-scheme: light;
+  background: var(--ws-bg);
+  color: var(--ws-text);
+  font-family: var(--ws-font);
+  font-size: 14px;
+}
+[data-website] *,
+[data-website] *::before,
+[data-website] *::after {
+  scrollbar-color: var(--ws-border) transparent;
+}
+[data-website] :focus-visible {
+  outline: 2px solid var(--ws-primary);
+  outline-offset: 2px;
+}
+
+/* Typography: the admin UI's condensed uppercase look gives way to the theme's fonts. */
+[data-website] .font-mono {
+  font-family: var(--ws-font);
+}
+[data-website] [class*="Barlow_Condensed"],
+[data-website] h1,
+[data-website] h2,
+[data-website] h3 {
+  font-family: var(--ws-heading-font) !important;
+  letter-spacing: -0.01em;
+}
+[data-website] .uppercase {
+  text-transform: none;
+}
+[data-website] [class*="tracking-"] {
+  letter-spacing: normal;
+}
+[data-website] thead .uppercase,
+[data-website] .ws-caps {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+[data-website] .tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Shape. */
+[data-website] [class*="rounded-["],
+[data-website] .rounded-ui,
+[data-website] .rounded,
+[data-website] .rounded-md,
+[data-website] .rounded-lg {
+  border-radius: var(--ws-radius);
+}
+[data-website] button[class*="rounded-["],
+[data-website] a[class*="rounded-["] {
+  border-radius: var(--ws-btn-radius);
+}
+[data-website] [class*="shadow-[0_0"] {
+  box-shadow: none;
+}
+[data-website] input[class],
+[data-website] select[class],
+[data-website] textarea[class] {
+  background-color: var(--ws-surface);
+}
+
+/* Cards (Panel and other shadowed sections). */
+[data-website] section.shadow-md,
+[data-website] .ws-card {
+  transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+[data-website][data-card="elevated"] section.shadow-md,
+[data-website][data-card="elevated"] .ws-card {
+  border-color: transparent;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 10px 28px -10px rgb(15 23 42 / 0.16);
+}
+[data-website][data-card="bordered"] section.shadow-md,
+[data-website][data-card="bordered"] .ws-card {
+  border-width: 1.5px;
+  box-shadow: none;
+}
+[data-website][data-card="flat"] section.shadow-md,
+[data-website][data-card="flat"] .ws-card {
+  border-color: transparent;
+  box-shadow: none;
+  background-color: var(--ws-surface);
+}
+[data-website][data-card="glassmorphic"] section.shadow-md,
+[data-website][data-card="glassmorphic"] .ws-card {
+  background-color: color-mix(in srgb, var(--ws-surface) 62%, transparent);
+  border-color: color-mix(in srgb, var(--ws-surface) 70%, var(--ws-border));
+  box-shadow: 0 8px 32px -12px rgb(46 16 101 / 0.18);
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
+}
+[data-website] section.shadow-md > header {
+  background-color: transparent;
+}
+
+/* Buttons. "soft" turns primary buttons into tinted ones; the others only change the shape. */
+[data-website] button.bg-\[\#FFE500\] {
+  color: var(--ws-on-primary);
+}
+[data-website][data-button="soft"] button.bg-\[\#FFE500\] {
+  background-color: var(--ws-primary-soft);
+  color: var(--ws-secondary);
+}
+[data-website][data-button="soft"] button.bg-\[\#FFE500\]:hover {
+  background-color: color-mix(in srgb, var(--ws-primary) 24%, var(--ws-surface));
+}
+
+/* Tables. */
+[data-website] td,
+[data-website] th {
+  padding-top: var(--ws-cell-pad);
+  padding-bottom: var(--ws-cell-pad);
+}
+[data-website][data-table="striped"] tbody tr:nth-child(even) {
+  background-color: var(--ws-surface-2);
+}
+[data-website][data-table="hoverable"] tbody tr {
+  transition: background-color 120ms ease;
+}
+[data-website][data-table="hoverable"] tbody tr:hover {
+  background-color: var(--ws-primary-soft);
+}
+[data-website][data-table="bordered"] td,
+[data-website][data-table="bordered"] th {
+  border: 1px solid var(--ws-border);
+}
+[data-website][data-table="minimal"] thead tr {
+  background-color: transparent;
+}
+[data-website][data-table="minimal"] tbody tr {
+  border-color: transparent;
+}
+
+/* Decorative plain-colour shapes behind glass cards (no gradients). */
+.ws-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(64px);
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+@keyframes ws-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes ws-confetti {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; }
+}
+@keyframes ws-fade-up {
+  from { transform: translateY(6px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.ws-pop { animation: ws-pop 520ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.ws-confetti { animation: ws-confetti 900ms ease-out forwards; }
+.ws-fade-up { animation: ws-fade-up 220ms ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .ws-pop, .ws-confetti, .ws-fade-up { animation: none; }
+}
