@@ -55,15 +55,17 @@ export function LoginPage() {
         {/* Top Header Section */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-[3px] bg-[#FFE500] font-black text-[#080909] text-lg shadow-[0_0_20px_rgba(255,229,0,0.3)]">
-              OH
-            </div>
+            <img
+              src="/navi-logo.png"
+              alt="NAVI"
+              className="h-11 w-auto object-contain rounded-[3px] shadow-[0_0_20px_rgba(255,229,0,0.25)]"
+            />
             <div className="flex flex-col">
               <span className="font-['Barlow_Condensed',sans-serif] text-xl font-black uppercase tracking-wider text-[#F5F5F0]">
-                OpsHub <span className="text-[#FFE500]">Command</span>
+                NAVI <span className="text-[#FFE500]">Operations</span>
               </span>
               <span className="font-mono text-[10px] uppercase tracking-widest text-[#777C79]">
-                MULTI-SITE OPERATIONS FLEET
+                MULTI-SITE COMMAND CENTER
               </span>
             </div>
           </div>
@@ -161,11 +163,13 @@ export function LoginPage() {
         <div className="relative z-10 w-full max-w-[420px]">
           {/* Mobile brand mark */}
           <div className="mb-6 lg:hidden text-center">
-            <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-[3px] bg-[#FFE500] text-[#080909] font-black shadow-md">
-              OH
-            </div>
+            <img
+              src="/navi-logo.png"
+              alt="NAVI"
+              className="mx-auto mb-3 h-12 w-auto object-contain rounded-[3px] shadow-[0_0_15px_rgba(255,229,0,0.3)]"
+            />
             <h1 className="font-['Barlow_Condensed',sans-serif] text-2xl font-black uppercase tracking-wider text-[#F5F5F0]">
-              OpsHub Command
+              NAVI Operations
             </h1>
             <p className="font-mono text-[10px] text-[#A5A8A6] uppercase tracking-wider">
               Stores / Service / Distribution

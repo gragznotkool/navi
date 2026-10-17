@@ -63,12 +63,14 @@ export function HubPage() {
       {/* Industrial Top Command Header */}
       <header className="flex h-14 items-center justify-between border-b border-[#303432] bg-[#111313] px-6 text-[#F5F5F0] shadow-md">
         <div className="flex items-center gap-3">
-          <span className="flex h-7 w-7 items-center justify-center rounded-[2px] bg-[#FFE500] font-black text-[#080909] text-xs shadow-[0_0_12px_rgba(255,229,0,0.4)]">
-            OH
-          </span>
+          <img
+            src="/navi-logo.png"
+            alt="NAVI"
+            className="h-8 w-auto object-contain rounded-[2px] shadow-[0_0_12px_rgba(255,229,0,0.35)]"
+          />
           <div className="flex items-center gap-2.5">
             <span className="font-['Barlow_Condensed',sans-serif] text-base font-extrabold tracking-wider uppercase text-[#F5F5F0]">
-              OpsHub Command
+              NAVI Command
             </span>
             <span className="rounded-[2px] border border-[#FFE500]/40 bg-[#FFE500]/10 px-2 py-0.5 font-mono text-[10px] font-bold tracking-wider text-[#FFE500] uppercase">
               MULTI-SITE FLEET

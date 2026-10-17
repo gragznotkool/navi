@@ -179,13 +179,15 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
   const style = { "--accent": config.theme.primary, "--accent-2": config.theme.secondary } as CSSProperties;
   const Brand = (
     <Link to="/" className="flex items-center gap-2.5 text-sm font-semibold">
-      <div className="flex h-6 w-6 items-center justify-center rounded-[2px] bg-[#FFE500] text-[11px] font-black text-[#080909] shadow-[0_0_10px_rgba(255,229,0,0.4)]">
-        OH
-      </div>
+      <img
+        src="/navi-logo.png"
+        alt="NAVI"
+        className="h-7 w-auto object-contain rounded-[2px] shadow-[0_0_10px_rgba(255,229,0,0.3)]"
+      />
       {!compact && (
         <div className="flex flex-col">
           <span className="font-['Barlow_Condensed',sans-serif] text-base font-extrabold tracking-wider uppercase text-[#F5F5F0]">
-            OpsHub
+            NAVI
           </span>
         </div>
       )}
