@@ -75,6 +75,15 @@ body {
   background-size: 32px 32px;
 }
 
+/* Luminous yellow circular dot grid (halftone matrix style) fading smoothly into deep black */
+.industrial-dot-grid {
+  background-color: #080909;
+  background-image: radial-gradient(#FFE500 1.25px, transparent 1.25px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 60%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 30%, #000 60%, transparent 100%);
+}
+
 /* Industrial stripes accent */
 .hazard-stripe {
   background: repeating-linear-gradient(

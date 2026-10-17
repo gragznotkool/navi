@@ -35,14 +35,20 @@ export function LoginPage() {
 
   return (
     <main className="relative min-h-screen grid lg:grid-cols-12 bg-[#080909] text-[#F5F5F0] overflow-hidden">
+      {/* Background Dot Grid Layer (Halftone matrix style with smooth radial gradient fadeout) */}
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(#FFE500_1.2px,transparent_1.2px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_75%_65%_at_50%_40%,#000_65%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_75%_65%_at_50%_40%,#000_65%,transparent_100%)] opacity-30 z-0"
+        aria-hidden="true"
+      />
+
       {/* Subtle background radial glow around the central divider */}
       <div
-        className="pointer-events-none absolute -top-40 left-1/3 h-96 w-96 rounded-full bg-[#FFE500]/5 blur-3xl"
+        className="pointer-events-none absolute -top-40 left-1/3 h-96 w-96 rounded-full bg-[#FFE500]/5 blur-3xl z-0"
         aria-hidden="true"
       />
 
       {/* Brand Panel (54% on desktop) */}
-      <div className="relative hidden lg:flex lg:col-span-7 flex-col justify-between border-r border-[#303432] bg-[#0c0e0e] p-10 xl:p-14 overflow-hidden industrial-grid-bg">
+      <div className="relative z-10 hidden lg:flex lg:col-span-7 flex-col justify-between border-r border-[#303432] bg-[#0c0e0e]/90 p-10 xl:p-14 overflow-hidden industrial-grid-bg">
         {/* Top hazard accent line */}
         <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-[#FFE500] via-[#FFE500]/60 to-transparent" />
 
@@ -145,8 +151,14 @@ export function LoginPage() {
       </div>
 
       {/* Authentication Panel (46% on desktop) */}
-      <div className="flex lg:col-span-5 flex-col justify-center items-center p-6 sm:p-12 lg:p-14 bg-[#080909]">
-        <div className="w-full max-w-[420px]">
+      <div className="relative z-10 flex lg:col-span-5 flex-col justify-center items-center p-6 sm:p-12 lg:p-14 bg-[#080909]">
+        {/* Subtle luminous yellow halftone dot grid within the auth area */}
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(#FFE500_1.25px,transparent_1.25px)] [background-size:24px_24px] [mask-image:radial-gradient(ellipse_65%_55%_at_50%_48%,#000_50%,transparent_100%)] [-webkit-mask-image:radial-gradient(ellipse_65%_55%_at_50%_48%,#000_50%,transparent_100%)] opacity-35"
+          aria-hidden="true"
+        />
+
+        <div className="relative z-10 w-full max-w-[420px]">
           {/* Mobile brand mark */}
           <div className="mb-6 lg:hidden text-center">
             <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-[3px] bg-[#FFE500] text-[#080909] font-black shadow-md">
