@@ -158,6 +158,39 @@ export async function diff(db: Database, actor: { siteId: string; userId: string
   });
 }
 
+// Preview a release configuration (read‑only)
+export async function preview(db: Database, actor: { siteId: string; userId: string }, releaseId: string): Promise<{ version: number; configuration: unknown }> {
+  return db.withTenant(actor, async (tx) => {
+    const release = await getReleaseById(tx, actor.siteId, releaseId);
+    if (!release) throw notFound("Release not found");
+    return { version: release.version, configuration: release.configuration };
+  });
+}
+
+// Determine if a rollback is allowed for a target release
+export async function rollbackEligibility(
+  db: Database,
+  actor: { siteId: string; userId: string },
+  targetVersion: number,
+  baseVersion: number
+): Promise<{ eligible: boolean; warnings?: string[]; blockingReasons?: string[] }> {
+  return db.withTenant(actor, async (tx) => {
+    const active = await getActiveRelease(tx, actor.siteId);
+    if ((active?.version ?? null) !== baseVersion) {
+      return { eligible: false, blockingReasons: ["Active version mismatch – reload before attempting rollback."] };
+    }
+    const target = await getReleaseByVersion(tx, actor.siteId, targetVersion);
+    if (!target) {
+      return { eligible: false, blockingReasons: [`Target release version ${targetVersion} not found`] };
+    }
+    const { result, compiled } = compileConfiguration(target.configuration);
+    if (!compiled) {
+      return { eligible: false, blockingReasons: result.errors.map((e) => `${e.code}: ${e.message}`) };
+    }
+    return { eligible: true };
+  });
+}
+
 export async function saveDraft(db: Database, actor: { siteId: string; userId: string }, baseVersion: number | null, configuration: unknown): Promise<{ savedAt: string; validation: ConfigurationValidationResult }> {
   const { result } = compileConfiguration(configuration);
   return db.withTenant(actor, async (tx) => {

@@ -135,7 +135,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
   );
 }
 
-export function Panel({ title, children, actions }: { title?: string; children: ReactNode; actions?: ReactNode }) {
+export function Panel({ title, children, actions }: { title?: string; children?: ReactNode; actions?: ReactNode }) {
   return (
     <section className="rounded-[4px] border border-[#303432] bg-[#171919] shadow-md">
       {(title || actions) && (

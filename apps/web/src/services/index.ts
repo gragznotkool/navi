@@ -126,12 +126,19 @@ export const releasesApi = {
   summary: (siteId: string, releaseId: string) => call<{ version: number; sentences: string[] }>(http.get(`/sites/${siteId}/releases/${releaseId}/summary`)),
   diff: (siteId: string, releaseId: string) => call<ReleaseDiff>(http.get(`/sites/${siteId}/releases/${releaseId}/diff`)),
   audit: (siteId: string) => call<AuditEvent[]>(http.get(`/sites/${siteId}/audit-events`)),
+  preview: (siteId: string, releaseId: string) => call<{ version: number; configuration: unknown }>(http.get(`/sites/${siteId}/releases/${releaseId}/preview`)),
+  rollbackEligibility: (siteId: string, releaseId: string, baseVersion: number) => call<{ eligible: boolean; warnings?: string[]; blockingReasons?: string[] }>(http.get(`/sites/${siteId}/releases/${releaseId}/rollback-eligibility`, { params: { baseVersion } })),
 };
 
 export const trustApi = {
   checks: () => call<{ generatedAt: string | null; checks: TrustCheckResult[] }>(http.get("/trust/checks")),
   proofs: () => call<ProofList>(http.get("/trust/proofs")),
   runProof: (id: string) => call<ProofResult>(http.post(`/trust/proofs/${id}/run`)),
+  summary: () => call<{ generatedAt: string; isolation: { passed: boolean; detail: string }; inventory: { passed: boolean; detail: string } }>(http.get("/trust/summary")),
+  isolationCheck: () => call<{ passed: boolean; detail: string }>(http.get("/trust/isolation-check")),
+  inventoryCheck: () => call<{ passed: boolean; detail: string }>(http.get("/trust/inventory-check")),
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  auditEvents: () => call<any[]>(http.get("/trust/audit-events")),
 };
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";

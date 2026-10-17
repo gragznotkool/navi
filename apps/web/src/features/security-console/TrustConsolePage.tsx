@@ -76,6 +76,23 @@ function ProofRow({ definition, result, running, onRun }: { definition: ProofLis
 export function TrustConsolePage() {
   const proofs = useAsync(() => trustApi.proofs(), []);
   const checks = useAsync(() => trustApi.checks(), []);
+  const [isoTrigger, setIsoTrigger] = useState(0);
+  const isolation = useAsync(async () => {
+    if (!trustApi.isolationCheck || isoTrigger === 0) return null;
+    return trustApi.isolationCheck();
+  }, [isoTrigger]);
+
+  const [invTrigger, setInvTrigger] = useState(0);
+  const inventory = useAsync(async () => {
+    if (!trustApi.inventoryCheck || invTrigger === 0) return null;
+    return trustApi.inventoryCheck();
+  }, [invTrigger]);
+
+  const audit = useAsync(async () => {
+    if (!trustApi.auditEvents) return null;
+    return trustApi.auditEvents();
+  }, []);
+
   const [running, setRunning] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<Record<string, ProofResult>>({});
   const [failure, setFailure] = useState<string | null>(null);
@@ -178,6 +195,73 @@ export function TrustConsolePage() {
                     <Badge>{c.environment === "test" ? "TEST ENV" : "PROD"}</Badge>
                     <Badge tone={tone[c.status]}>{label[c.status].toUpperCase()}</Badge>
                   </div>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        </div>
+      )}
+
+      {/* Tenant Isolation Panel */}
+      <div className="mt-4">
+        <Panel
+          title="Tenant Isolation Live Invariant"
+          actions={
+            <Button onClick={() => setIsoTrigger((i) => i + 1)} loading={isolation.loading} aria-label="Run isolation check">
+              Run isolation check
+            </Button>
+          }
+        >
+          {isolation.loading && !isolation.data ? <LoadingState /> : null}
+          {isolation.error ? <ErrorState error={isolation.error} onRetry={isolation.reload} /> : null}
+          {isolation.data ? (
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge tone={tone[isolation.data.passed ? "passed" : "failed"]}>{label[isolation.data.passed ? "passed" : "failed"]}</Badge>
+                <span className="text-sm font-medium">{isolation.data.detail}</span>
+              </div>
+              <p className="mt-1 text-xs text-muted">Proves that the active platform user is strictly blocked from resolving tenant access or querying unauthorized site data.</p>
+            </div>
+          ) : null}
+        </Panel>
+      </div>
+
+      {/* Inventory Integrity Invariant Panel */}
+      <div className="mt-4">
+        <Panel
+          title="Inventory Integrity Live Invariant"
+          actions={
+            <Button onClick={() => setInvTrigger((i) => i + 1)} loading={inventory.loading} aria-label="Run inventory check">
+              Run inventory check
+            </Button>
+          }
+        >
+          {inventory.loading && !inventory.data ? <LoadingState /> : null}
+          {inventory.error ? <ErrorState error={inventory.error} onRetry={inventory.reload} /> : null}
+          {inventory.data ? (
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge tone={tone[inventory.data.passed ? "passed" : "failed"]}>{label[inventory.data.passed ? "passed" : "failed"]}</Badge>
+                <span className="text-sm font-medium">{inventory.data.detail}</span>
+              </div>
+              <p className="mt-1 text-xs text-muted">Verifies zero negative onHand levels, zero ledger sum mismatches, and zero duplicate ledger entries.</p>
+            </div>
+          ) : null}
+        </Panel>
+      </div>
+
+      {/* Audit Activity Stream */}
+      {audit.data && audit.data.length > 0 && (
+        <div className="mt-4">
+          <Panel title="System Audit Stream (last 200 events)">
+            <ul className="divide-y divide-line max-h-72 overflow-y-auto">
+              {audit.data.map((e) => (
+                <li key={e.id} className="py-2 text-sm flex items-center justify-between gap-2">
+                  <span>
+                    <span className="font-semibold text-ink">{e.action}</span>
+                    {e.entityType && <span className="text-xs text-muted ml-2">({e.entityType})</span>}
+                  </span>
+                  <span className="text-xs text-muted">{formatDateTime(e.createdAt)}</span>
                 </li>
               ))}
             </ul>
