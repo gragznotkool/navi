@@ -261,7 +261,7 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
       <div style={style} className="flex h-full flex-col bg-[#080909]" data-shell="workbench">
         <OfflineBanner />
         <PreviewBanner />
-        <header className="border-b border-[#303432] bg-[#111313] text-[#F5F5F0]">
+        <header className="border-b border-[#303432] bg-[#111313] bg-slate-900 text-[#F5F5F0]">
           <div className="flex h-12 items-center gap-4 px-4">
             {Brand}
             <SiteSwitcher dark />

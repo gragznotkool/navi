@@ -33,11 +33,11 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
       <div className="flex items-start gap-3">
         {unavailable ? <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#63B3ED]" aria-hidden /> : <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[#FF5C5C]" aria-hidden />}
         <div className="flex-1">
-          <p className="font-mono text-xs font-bold uppercase tracking-wider text-[#F5F5F0]">{unavailable ? "SYSTEM STATUS · UNAVAILABLE" : "SYSTEM ALERT · FAULT DETECTED"}</p>
+          <p className="font-mono text-xs font-bold uppercase tracking-wider text-[#F5F5F0]">{unavailable ? "Not available yet" : "SYSTEM ALERT · FAULT DETECTED"}</p>
           <p className="mt-1 text-xs text-[#A5A8A6]">{e?.message ?? "Unexpected system error"}</p>
           {onRetry && !unavailable && (
-            <Button className="mt-3" onClick={onRetry}>
-              Retry Operation
+            <Button className="mt-3 uppercase font-mono" onClick={onRetry}>
+              Try again
             </Button>
           )}
         </div>

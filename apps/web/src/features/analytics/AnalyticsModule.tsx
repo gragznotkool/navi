@@ -57,11 +57,11 @@ function Chart({ data, unit }: { data: { label: string; value: number }[]; unit:
           <YAxis allowDecimals={false} stroke="#777C79" tick={{ fontSize: 10, fill: "#A5A8A6", fontFamily: "var(--font-mono)" }} tickLine={{ stroke: "#303432" }} />
           <Tooltip
             content={({ active, payload }) => {
-              if (active && payload && payload.length) {
-                const item = payload[0];
+              const item = active && payload && payload.length > 0 ? payload[0] : null;
+              if (item) {
                 return (
                   <div className="rounded border border-[#303432] bg-[#111313] px-3 py-2 text-xs shadow-xl">
-                    <p className="font-mono uppercase text-[#A5A8A6]">{String(item.payload.label)}</p>
+                    <p className="font-mono uppercase text-[#A5A8A6]">{String(item.payload?.label ?? "")}</p>
                     <p className="font-mono text-base font-bold text-[#FFE500]">
                       {item.value} <span className="text-xs font-normal text-[#F5F5F0]">{unit}</span>
                     </p>

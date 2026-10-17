@@ -27,9 +27,9 @@ export function Button({ variant = "secondary", loading, disabled, children, cla
       type="button"
       {...rest}
       disabled={disabled || loading}
-      className={`inline-flex h-9 items-center justify-center gap-2 rounded-[3px] px-3.5 text-xs font-semibold tracking-wider uppercase transition-all duration-150 disabled:cursor-not-allowed ${variants[variant]} ${className}`}
+      className={`group relative inline-flex h-10 items-center justify-center gap-2 rounded-[3px] px-4 text-xs font-semibold tracking-wider uppercase transition-all duration-150 disabled:cursor-not-allowed select-none ${variants[variant]} ${className}`}
     >
-      {loading && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+      {loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
       {children}
     </button>
   );
@@ -39,22 +39,30 @@ interface FieldProps {
   label: string;
   error?: string | undefined;
   hint?: string;
+  rightAction?: ReactNode;
 }
 
 const inputClass =
-  "h-9 w-full rounded-[3px] border border-[#303432] bg-[#111313] px-3 text-sm text-[#F5F5F0] placeholder:text-[#777C79] transition-colors focus:border-[#FFE500] focus:ring-1 focus:ring-[#FFE500] focus:bg-[#171919] disabled:bg-[#080909] disabled:opacity-50 aria-[invalid=true]:border-[#FF5C5C]";
+  "h-10 w-full rounded-[3px] border border-[#303432] bg-[#111313] px-3 text-sm text-[#F5F5F0] placeholder:text-[#777C79] transition-all focus:border-[#FFE500] focus:ring-1 focus:ring-[#FFE500] focus:bg-[#151717] disabled:bg-[#080909] disabled:opacity-50 aria-[invalid=true]:border-[#FF5C5C]";
 
 export const TextField = forwardRef<HTMLInputElement, FieldProps & InputHTMLAttributes<HTMLInputElement>>(function TextField(
-  { label, error, hint, className = "", ...rest },
+  { label, error, hint, rightAction, className = "", ...rest },
   ref,
 ) {
   const id = useId();
   return (
     <div className={className}>
-      <label htmlFor={id} className="mb-1 block font-mono text-[11px] font-semibold tracking-wider uppercase text-[#A5A8A6]">
+      <label htmlFor={id} className="mb-1.5 block font-mono text-[11px] font-semibold tracking-wider uppercase text-[#A5A8A6]">
         {label}
       </label>
-      <input ref={ref} id={id} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-err` : undefined} className={inputClass} {...rest} />
+      <div className="relative">
+        <input ref={ref} id={id} aria-invalid={error ? true : undefined} aria-describedby={error ? `${id}-err` : undefined} className={`${inputClass} ${rightAction ? "pr-10" : ""}`} {...rest} />
+        {rightAction && (
+          <div className="absolute inset-y-0 right-0 flex items-center pr-2.5">
+            {rightAction}
+          </div>
+        )}
+      </div>
       {hint && !error && <p className="mt-1 font-mono text-[11px] text-[#777C79]">{hint}</p>}
       {error && (
         <p id={`${id}-err`} role="alert" className="mt-1 font-mono text-[11px] text-[#FF5C5C]">

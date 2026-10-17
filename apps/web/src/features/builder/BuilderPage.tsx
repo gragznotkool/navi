@@ -303,17 +303,17 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
         </div>
       </div>
       <div className="mb-4 flex flex-wrap items-end gap-3 rounded-[4px] border border-[#303432] bg-[#171919] p-3">
-        <SelectField label="DEPLOY NEW MODULE" value={toAdd} onChange={(e) => setToAdd(e.target.value)} className="w-64">
+        <SelectField label="Add module" value={toAdd} onChange={(e) => setToAdd(e.target.value)} className="w-64">
           <option value="">Select a module…</option>
           {available.map((d) => <option key={d.type} value={d.type}>{d.displayName}</option>)}
         </SelectField>
-        <Button disabled={!toAdd} onClick={addSelected} variant="primary">+ ADD TO CANVAS</Button>
+        <Button disabled={!toAdd} onClick={addSelected} variant="primary">Add</Button>
         <div className="ml-auto flex flex-wrap items-center gap-2">
-          <Button onClick={validate} loading={busy === "validate"}>VALIDATE GRAPH</Button>
-          <Button onClick={saveDraft} loading={busy === "draft"} disabled={!dirty}>SAVE DRAFT</Button>
-          {dirty && <Button variant="ghost" onClick={discardDraft} loading={busy === "draft"}>DISCARD</Button>}
-          <Button onClick={preview} loading={busy === "preview"}>PREVIEW</Button>
-          <Button variant="primary" onClick={() => setReviewing(true)} loading={busy === "publish"} disabled={!validation?.valid || !dirty || stale}>REVIEW & PUBLISH</Button>
+          <Button onClick={validate} loading={busy === "validate"} className="uppercase font-mono">Validate</Button>
+          <Button onClick={saveDraft} loading={busy === "draft"} disabled={!dirty} className="uppercase font-mono">Save draft</Button>
+          {dirty && <Button variant="ghost" onClick={discardDraft} loading={busy === "draft"} className="uppercase font-mono">Discard</Button>}
+          <Button onClick={preview} loading={busy === "preview"} className="uppercase font-mono">Preview</Button>
+          <Button variant="primary" onClick={() => setReviewing(true)} loading={busy === "publish"} disabled={!validation?.valid || !dirty || stale} className="uppercase font-mono">Review & publish</Button>
         </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
