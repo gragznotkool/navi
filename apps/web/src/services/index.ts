@@ -32,6 +32,7 @@ import type {
   ReturnRecord,
   ReturnStatus,
   RollbackRequest,
+  SearchResultItem,
   SiteConfiguration,
   SiteSummary,
   StockItem,
@@ -99,6 +100,8 @@ export const opsApi = {
   },
   hubOverview: () =>
     call<HubOverviewResponse>(http.get("/hub/overview")),
+  search: (query: string) =>
+    call<SearchResultItem[]>(http.get("/hub/search", { params: { q: query } })),
 };
 
 export const configApi = {

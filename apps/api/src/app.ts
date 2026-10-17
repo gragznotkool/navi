@@ -278,6 +278,10 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined 
   hub.get("/overview", auth, async (req, res) => {
     res.json({ data: await ops.getHubOverview(db, req.user!.id) });
   });
+  hub.get("/search", auth, async (req, res) => {
+    const q = String(req.query.q ?? "").trim();
+    res.json({ data: await ops.searchCrossSite(db, req.user!.id, q) });
+  });
 
   // ---------- sites
   const st = mount(api, "/sites");

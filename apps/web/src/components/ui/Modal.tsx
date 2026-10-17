@@ -17,13 +17,16 @@ export function Modal({ title, onClose, children, footer }: { title: string; onC
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-ui border border-line bg-surface shadow-xl outline-none">
-        <div className="border-b border-line px-4 py-3">
-          <h2 className="text-base font-semibold">{title}</h2>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={ref} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} className="flex max-h-[85vh] w-full max-w-xl flex-col rounded-[4px] border border-[#303432] bg-[#171919] shadow-2xl outline-none">
+        <div className="flex items-center justify-between border-b border-[#303432] bg-[#111313] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 bg-[#FFE500]" aria-hidden="true" />
+            <h2 className="font-['Barlow_Condensed',sans-serif] text-base font-bold uppercase tracking-wider text-[#F5F5F0]">{title}</h2>
+          </div>
         </div>
-        <div className="overflow-auto px-4 py-3">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-line px-4 py-3">{footer}</div>}
+        <div className="overflow-auto px-4 py-4 text-xs text-[#F5F5F0]">{children}</div>
+        {footer && <div className="flex justify-end gap-2 border-t border-[#303432] bg-[#111313] px-4 py-3">{footer}</div>}
       </div>
     </div>
   );

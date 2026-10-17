@@ -114,7 +114,7 @@ function CreateForm({ onStarted }: { onStarted: (jobId: string, request: Provisi
           <input type="checkbox" {...form.register("demoStock")} /> Add demo stock (three items with opening balances)
         </label>
       </Panel>
-      {serverError && <p role="alert" className="rounded-ui bg-red-50 p-2 text-sm text-danger">{serverError}</p>}
+      {serverError && <p role="alert" className="rounded-ui border border-danger/40 bg-danger/10 p-2.5 text-sm text-danger">{serverError}</p>}
       <div className="flex justify-end">
         <Button type="submit" variant="primary" loading={isSubmitting}>Create site</Button>
       </div>
@@ -128,10 +128,10 @@ const iconTone = { info: "text-muted", success: "text-success", error: "text-dan
 function LogLine({ e }: { e: ProvisioningEvent }) {
   const Icon = icon[e.level];
   return (
-    <li className="flex items-start gap-2 py-1 text-sm">
-      <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${iconTone[e.level]}`} aria-hidden />
+    <li className="flex items-start gap-2 py-1.5 text-sm font-mono text-xs">
+      <Icon className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${iconTone[e.level]}`} aria-hidden />
       <span className="sr-only">{e.level}: </span>
-      <span className={e.level === "error" ? "text-danger" : ""}>{e.message}</span>
+      <span className={e.level === "error" ? "text-danger" : "text-secondary"}>{e.message}</span>
     </li>
   );
 }
@@ -164,25 +164,25 @@ function ProgressView({ job, onRestart }: { job: { jobId: string; request: Provi
 
   return (
     <Panel
-      title={`Creating “${job.request.name}”`}
-      actions={<Badge tone={view.status === "succeeded" ? "success" : view.status === "failed" ? "danger" : "info"}>{view.status === "running" ? "Running" : view.status === "succeeded" ? "Done" : "Failed"}</Badge>}
+      title={`CREATING “${job.request.name.toUpperCase()}”`}
+      actions={<Badge tone={view.status === "succeeded" ? "success" : view.status === "failed" ? "danger" : "yellow"}>{view.status === "running" ? "RUNNING" : view.status === "succeeded" ? "DONE" : "FAILED"}</Badge>}
     >
-      <ol aria-label="Provisioning log" aria-live="polite" className="divide-y divide-line">
+      <ol aria-label="Provisioning log" aria-live="polite" className="divide-y divide-border rounded border border-border bg-[#111313] p-3 font-mono">
         {view.events.map((e) => <LogLine key={e.seq} e={e} />)}
       </ol>
       {view.status === "running" && view.events.length === 0 && <LoadingState label="Starting…" />}
-      {view.transport === "polling" && view.status === "running" && <p className="mt-2 text-xs text-muted">Live stream unavailable; updating every second.</p>}
+      {view.transport === "polling" && view.status === "running" && <p className="mt-2 text-xs text-muted font-mono">Live stream unavailable; updating every second.</p>}
       {view.status === "succeeded" && (
-        <div className="mt-4 flex items-center justify-between rounded-ui border border-line bg-surface p-3">
-          <p className="text-sm">“{job.request.name}” is ready.</p>
+        <div className="mt-4 flex items-center justify-between rounded-ui border border-border bg-surface p-3">
+          <p className="text-sm font-medium text-primary">“{job.request.name}” is ready.</p>
           <div className="flex gap-2">
-            <Link to="/" className="inline-flex h-9 items-center rounded-ui border border-line px-3 text-sm font-medium hover:bg-slate-50">Back to hub</Link>
-            <Link to={`/s/${job.request.slug}`} className="inline-flex h-9 items-center rounded-ui bg-accent px-3 text-sm font-medium text-white hover:brightness-110">Open site</Link>
+            <Link to="/" className="inline-flex h-9 items-center rounded-[2px] border border-border bg-[#111313] px-3 font-mono text-xs font-semibold uppercase tracking-wider text-primary hover:bg-[#1f2321]">Back to hub</Link>
+            <Link to={`/s/${job.request.slug}`} className="inline-flex h-9 items-center rounded-[2px] bg-[#FFE500] px-3 font-mono text-xs font-semibold uppercase tracking-wider text-black shadow-sm hover:bg-[#E8D000]">Open site</Link>
           </div>
         </div>
       )}
       {view.status === "failed" && (
-        <div role="alert" className="mt-4 rounded-ui border border-line bg-red-50 p-3 text-sm">
+        <div role="alert" className="mt-4 rounded-ui border border-danger/40 bg-danger/10 p-3 text-sm">
           <p className="font-medium text-danger">{view.error ?? "Provisioning failed."}</p>
           {retryError && <p className="mt-1 text-danger">{retryError}</p>}
           <div className="mt-3 flex gap-2">

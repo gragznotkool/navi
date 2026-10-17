@@ -160,25 +160,25 @@ export function ImportDialog({ siteId, report, onClose }: { siteId: string; repo
           )}
           {phase.kind === "importing" && <p className="text-sm text-muted">Importing {phase.result.rowCount} rows…</p>}
           {phase.kind === "done" && (
-            <div className="rounded-ui border border-green-300 bg-green-50 p-3 text-sm">
-              <p className="flex items-center gap-1.5 font-medium text-green-800"><CheckCircle2 className="h-4 w-4" aria-hidden /> Imported {phase.result.written} rows from {phase.result.fileName}</p>
+            <div className="rounded-ui border border-success/40 bg-success/10 p-3 text-sm">
+              <p className="flex items-center gap-1.5 font-medium text-success"><CheckCircle2 className="h-4 w-4" aria-hidden /> Imported {phase.result.written} rows from {phase.result.fileName}</p>
               <Button className="mt-3" onClick={() => window.location.reload()}>Refresh table</Button>
             </div>
           )}
           {phase.kind === "rejected" && (
-            <div role="alert" className="rounded-ui border border-red-300 bg-red-50 p-3 text-sm">
-              <p className="font-medium text-red-800">Import rejected — {phase.file.name}</p>
-              <p className="mt-0.5 text-red-900">{phase.message}</p>
+            <div role="alert" className="rounded-ui border border-danger/40 bg-danger/10 p-3 text-sm">
+              <p className="font-medium text-danger">Import rejected — {phase.file.name}</p>
+              <p className="mt-0.5 text-danger/80">{phase.message}</p>
               {phase.errors.length > 0 && (
-                <div className="mt-2 max-h-60 overflow-auto rounded-ui border border-red-200 bg-white">
+                <div className="mt-2 max-h-60 overflow-auto rounded-ui border border-border bg-surface">
                   <table className="w-full text-left text-xs">
                     <caption className="sr-only">Rows that failed validation</caption>
-                    <thead className="sticky top-0 bg-red-100 text-red-900">
-                      <tr><th className="px-2 py-1">Row</th><th className="px-2 py-1">Column</th><th className="px-2 py-1">Problem</th></tr>
+                    <thead className="sticky top-0 bg-secondary-bg text-secondary">
+                      <tr><th className="px-2 py-1 font-mono uppercase">Row</th><th className="px-2 py-1 font-mono uppercase">Column</th><th className="px-2 py-1 font-mono uppercase">Problem</th></tr>
                     </thead>
-                    <tbody>
+                    <tbody className="divide-y divide-border">
                       {phase.errors.map((er, i) => (
-                        <tr key={i} className="border-t border-red-100"><td className="px-2 py-1 font-medium">{er.row}</td><td className="px-2 py-1">{er.column}</td><td className="px-2 py-1">{er.message}</td></tr>
+                        <tr key={i}><td className="px-2 py-1 font-mono font-medium text-primary">{er.row}</td><td className="px-2 py-1 text-secondary">{er.column}</td><td className="px-2 py-1 text-danger">{er.message}</td></tr>
                       ))}
                     </tbody>
                   </table>

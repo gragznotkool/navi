@@ -94,3 +94,15 @@ export const proofListSchema = z.object({
 });
 export type ProofList = z.infer<typeof proofListSchema>;
 
+export const searchResultItemSchema = z.object({
+  id: z.string(),
+  siteId: z.string(),
+  siteSlug: z.string(),
+  siteName: z.string(),
+  module: z.enum(["inventory", "requests", "repairs", "returns"]),
+  title: z.string(),
+  subtitle: z.string(),
+  route: z.string(),
+});
+export type SearchResultItem = z.infer<typeof searchResultItemSchema>;
+
