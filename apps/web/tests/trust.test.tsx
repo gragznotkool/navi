@@ -6,7 +6,15 @@ import type { ProofList, ProofResult } from "@opshub/contracts";
 import { TrustConsolePage } from "../src/features/security-console/TrustConsolePage";
 
 vi.mock("../src/services", () => ({
-  trustApi: { proofs: vi.fn(), runProof: vi.fn(), checks: vi.fn() },
+  trustApi: {
+    proofs: vi.fn(),
+    runProof: vi.fn(),
+    checks: vi.fn(),
+    isolationCheck: vi.fn(),
+    inventoryCheck: vi.fn(),
+    auditEvents: vi.fn(),
+    summary: vi.fn(),
+  },
 }));
 import { trustApi } from "../src/services";
 
@@ -35,6 +43,9 @@ describe("TrustConsolePage", () => {
     vi.resetAllMocks();
     vi.mocked(trustApi.proofs).mockResolvedValue(list);
     vi.mocked(trustApi.checks).mockResolvedValue({ generatedAt: null, checks: [] });
+    vi.mocked(trustApi.isolationCheck).mockResolvedValue({ passed: true, detail: "Cross-site access correctly denied." });
+    vi.mocked(trustApi.inventoryCheck).mockResolvedValue({ passed: true, detail: "All inventory invariants hold." });
+    vi.mocked(trustApi.auditEvents).mockResolvedValue([]);
   });
 
   it("shows every proof as Not run until it is executed, and says where the proofs run", async () => {
