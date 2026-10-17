@@ -23,29 +23,29 @@ const LABEL: Record<string, string> = { inspected: "Mark inspected", restocked: 
 export function ReturnsModule({ page }: ModuleProps) {
   const { siteId, permissions } = useSiteRuntime();
   const canProcess = permissions.has("return:process");
-  const returns = useAsync(async () => {
+  const returns = useAsync<ReturnRecord[]>(async () => {
     try {
       if (typeof returnsApi?.list === "function") {
         const res = await returnsApi.list(siteId);
-        if (Array.isArray(res) && res.length > 0) return res;
+        if (Array.isArray(res) && res.length > 0) return res as ReturnRecord[];
       }
     } catch {
       // fallback to opsApi.returns below
     }
     if (typeof opsApi?.returns === "function") {
       const res = await opsApi.returns(siteId);
-      if (res?.items) return res.items;
-      if (Array.isArray(res)) return res;
+      if (res?.items) return res.items as ReturnRecord[];
+      if (Array.isArray(res)) return res as ReturnRecord[];
     }
     try {
       if (typeof returnsApi?.list === "function") {
         const res = await returnsApi.list(siteId);
-        if (Array.isArray(res)) return res;
+        if (Array.isArray(res)) return res as ReturnRecord[];
       }
     } catch {
       // ignore
     }
-    return [];
+    return [] as ReturnRecord[];
   }, [siteId]);
   const assignments = useAsync(async () => {
     if (!canProcess) return [];

@@ -12,5 +12,6 @@ apps/api/test-results
 
 # Database backups
 backup/
-# markdown docs
+# markdown docs (ignore all except README.md)
 *.md
+!README.md

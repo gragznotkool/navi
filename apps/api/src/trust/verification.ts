@@ -1,80 +1,87 @@
 // src/trust/verification.ts
+import { desc, eq, sql } from "drizzle-orm";
 import type { Database } from "../db/scoped.js";
 import { resolveSiteAccess } from "../security/access.js";
 import * as s from "../db/schema/index.js";
-import { sql, notInArray, desc } from "drizzle-orm";
+
+/**
+ * Tenant tables are under FORCE ROW LEVEL SECURITY: a query without tenant context sees ZERO rows,
+ * so a check written that way would pass vacuously. Every check below therefore lists the real
+ * sites first and then reads each one inside its own tenant transaction.
+ */
+async function realSites(db: Database, userId: string): Promise<{ id: string; slug: string }[]> {
+  return db.withUser(userId, (tx) => tx.select({ id: s.sites.id, slug: s.sites.slug }).from(s.sites).where(eq(s.sites.isSystem, false)));
+}
 
 /** Verify tenant isolation: ensure the authenticated user cannot access another site. */
 export async function tenantIsolationCheck(db: Database, userId: string) {
-  const memberships = await db.withUser(userId, async (tx) =>
-    tx.select({ siteId: s.userSiteRoles.siteId }).from(s.userSiteRoles).where(sql`user_id = ${userId}`)
-  );
+  const memberships = await db.withUser(userId, (tx) => tx.select({ siteId: s.userSiteRoles.siteId }).from(s.userSiteRoles).where(eq(s.userSiteRoles.userId, userId)));
   const memberSiteIds = memberships.map((m) => m.siteId);
-  const otherSite = await db.withoutTenant(async (tx) => {
-    const q = tx.select({ id: s.sites.id }).from(s.sites);
-    if (memberSiteIds.length > 0) {
-      return q.where(notInArray(s.sites.id, memberSiteIds)).limit(1);
-    }
-    return q.limit(1);
-  });
-  if (!otherSite[0]) return { passed: true, detail: "No other site exists to test isolation." };
-  const otherSiteId = otherSite[0]!.id;
-  const access = await resolveSiteAccess(db, { id: userId, isPlatformAdmin: false }, otherSiteId);
+  const sites = await realSites(db, userId);
+  const other = sites.find((x) => !memberSiteIds.includes(x.id));
+  if (!other) return { passed: false, detail: "Not run: there is no site outside this user's memberships to test against." };
+  const access = await resolveSiteAccess(db, { id: userId, isPlatformAdmin: false }, other.id);
   const passed = access === null;
-  const detail = passed ? "Cross-site access correctly denied." : "User could resolve access to another tenant!";
-  return { passed, detail };
+  return { passed, detail: passed ? "Cross-site access correctly denied." : "User could resolve access to another tenant!" };
 }
 
-/** Verify inventory integrity invariants. */
-export async function inventoryIntegrityCheck(db: Database) {
+/** Verify inventory integrity invariants, site by site, under each site's own tenant context. */
+export async function inventoryIntegrityCheck(db: Database, userId: string) {
+  const sites = await realSites(db, userId);
+  if (sites.length === 0) return { passed: false, detail: "Not run: no sites are visible to this user." };
+
   const issues: string[] = [];
-  const negItems = await db.withoutTenant(async (tx) =>
-    tx.select({ id: s.inventoryItems.id, sku: s.inventoryItems.sku, onHand: s.inventoryItems.onHand })
-      .from(s.inventoryItems)
-      .where(sql`on_hand < 0`)
-  );
-  if (negItems.length) issues.push(`${negItems.length} items with negative onHand.`);
+  let items = 0;
+  for (const site of sites) {
+    await db.withTenant({ siteId: site.id, userId }, async (tx) => {
+      const [counts] = (await tx.execute<{ items: number; negative: number }>(sql`
+        select count(*)::int as items, count(*) filter (where on_hand < 0)::int as negative
+        from inventory_items where site_id = ${site.id}`)).rows;
+      items += counts?.items ?? 0;
+      if (counts && counts.negative > 0) issues.push(`${site.slug}: ${counts.negative} items with negative stock.`);
 
-  const mismatchesRes = await db.withoutTenant(async (tx) =>
-    tx.execute<{ itemId: string; onHand: number; ledgerSum: number }>(sql`
-      SELECT i.id AS "itemId", i.on_hand AS "onHand", COALESCE(SUM(l.delta),0) AS "ledgerSum"
-      FROM ${s.inventoryItems} i
-      LEFT JOIN ${s.stockLedger} l ON l.item_id = i.id
-      GROUP BY i.id, i.on_hand
-      HAVING i.on_hand != COALESCE(SUM(l.delta),0)
-    `)
-  );
-  const mismatchCount = mismatchesRes.rows?.length ?? 0;
-  if (mismatchCount > 0) issues.push(`${mismatchCount} items have ledger sum mismatch.`);
+      const mismatched = (await tx.execute<{ n: number }>(sql`
+        select count(*)::int as n from (
+          select i.id from inventory_items i
+          left join stock_ledger l on l.item_id = i.id
+          where i.site_id = ${site.id}
+          group by i.id, i.on_hand
+          having i.on_hand <> coalesce(sum(l.delta), 0)
+        ) t`)).rows[0]?.n ?? 0;
+      if (mismatched > 0) issues.push(`${site.slug}: ${mismatched} items do not reconcile with the stock ledger.`);
 
-  const dupLedgerRes = await db.withoutTenant(async (tx) =>
-    tx.execute(sql`
-      SELECT COUNT(*) AS cnt FROM ${s.stockLedger}
-      WHERE ref_id IS NOT NULL
-      GROUP BY ref_type, ref_id, reason
-      HAVING COUNT(*) > 1
-    `)
-  );
-  const dupCount = dupLedgerRes.rows?.length ?? 0;
-  if (dupCount > 0) issues.push(`${dupCount} duplicate ledger entries detected.`);
-
+      const duplicated = (await tx.execute<{ n: number }>(sql`
+        select count(*)::int as n from (
+          select 1 from stock_ledger
+          where site_id = ${site.id} and ref_id is not null
+          group by item_id, ref_type, ref_id, reason
+          having count(*) > 1
+        ) t`)).rows[0]?.n ?? 0;
+      if (duplicated > 0) issues.push(`${site.slug}: ${duplicated} duplicate ledger entries.`);
+    });
+  }
   const passed = issues.length === 0;
-  return { passed, detail: passed ? "All inventory invariants hold." : issues.join(" ") };
+  return { passed, detail: passed ? `All inventory invariants hold across ${sites.length} site(s), ${items} item(s).` : issues.join(" ") };
 }
 
-/** Retrieve recent audit events (last 200). */
-export async function recentAuditEvents(db: Database) {
-  const rows = await db.withoutTenant(async (tx) =>
-    tx.select().from(s.auditEvents).orderBy(desc(s.auditEvents.createdAt)).limit(200)
+/** Retrieve recent audit events (last 200 across the sites visible to the caller). */
+export async function recentAuditEvents(db: Database, userId: string) {
+  const sites = await realSites(db, userId);
+  const perSite = await Promise.all(
+    sites.map((site) => db.withTenant({ siteId: site.id, userId }, (tx) => tx.select().from(s.auditEvents).where(eq(s.auditEvents.siteId, site.id)).orderBy(desc(s.auditEvents.createdAt)).limit(200))),
   );
-  return rows.map((r) => ({
-    id: r.id,
-    siteId: r.siteId,
-    actorId: r.actorId,
-    action: r.action,
-    entityType: r.entityType,
-    entityId: r.entityId,
-    createdAt: r.createdAt.toISOString(),
-    metadata: r.metadata,
-  }));
+  return perSite
+    .flat()
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 200)
+    .map((r) => ({
+      id: r.id,
+      siteId: r.siteId,
+      actorId: r.actorId,
+      action: r.action,
+      entityType: r.entityType,
+      entityId: r.entityId,
+      createdAt: r.createdAt.toISOString(),
+      metadata: r.metadata,
+    }));
 }

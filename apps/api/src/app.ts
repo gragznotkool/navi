@@ -13,6 +13,7 @@ import {
   loginRequestSchema,
   paginationRequestSchema,
   publishRequestSchema,
+  REPORT_MAX_BYTES,
   impactRequestSchema,
   aiPatchRequestSchema,
   publicRequestSchema,
@@ -36,6 +37,10 @@ import { buildOpenApi } from "./docs/openapi.js";
 import * as domain from "./services/domain.js";
 import * as excel from "./excel/service.js";
 import { XLSX_MIME } from "./excel/export.js";
+import * as reportSvc from "./reports/service.js";
+import { backupFileName, streamBackup } from "./db/pgdump.js";
+import { inventoryIntegrityCheck, recentAuditEvents, tenantIsolationCheck } from "./trust/verification.js";
+import { recordAudit } from "./audit/audit.js";
 import { MAX_FILE_BYTES } from "./excel/zipGuard.js";
 import * as syncSvc from "./services/sync.js";
 import { submitPublicRequest } from "./public/intake.js";
@@ -204,6 +209,34 @@ export function createApp({ db, env, loginRateLimit = 10, log = () => undefined,
       if (e instanceof ProofBusy) throw new AppError(409, "proof_running", "This proof is already running");
       throw e;
     }
+  });
+
+  // Evidence helpers for the Trust Console. Each reads every real site under its own tenant context (see trust/verification.ts).
+  trust.get("/summary", auth, adminOnly, async (req, res) => {
+    const [isolation, inventory] = await Promise.all([tenantIsolationCheck(db, req.user!.id), inventoryIntegrityCheck(db, req.user!.id)]);
+    res.json({ data: { generatedAt: new Date().toISOString(), isolation, inventory } });
+  });
+  trust.get("/isolation-check", auth, adminOnly, async (req, res) => {
+    res.json({ data: await tenantIsolationCheck(db, req.user!.id) });
+  });
+  trust.get("/inventory-check", auth, adminOnly, async (req, res) => {
+    res.json({ data: await inventoryIntegrityCheck(db, req.user!.id) });
+  });
+  trust.get("/audit-events", auth, adminOnly, async (req, res) => {
+    res.json({ data: await recentAuditEvents(db, req.user!.id) });
+  });
+
+  // ---------- hub administration
+  const hub = mount(api, "/hub");
+  hub.get("/overview", auth, async (req, res) => {
+    res.json({ data: await ops.getHubOverview(db, req.user!.id) });
+  });
+  hub.get("/backup", auth, adminOnly, async (req, res) => {
+    if (!env.DATABASE_ADMIN_URL) throw new AppError(503, "backup_unavailable", "Backups need DATABASE_ADMIN_URL on the API host");
+    const fileName = backupFileName();
+    const bytes = await streamBackup(res, { adminUrl: env.DATABASE_ADMIN_URL, pgDumpPath: env.PG_DUMP_PATH, fileName });
+    // Platform-level event (no site), written after the download completed.
+    await db.withoutTenant((tx) => recordAudit(tx, { siteId: null, actorId: req.user!.id, action: "backup.downloaded", entityType: "database", entityId: fileName, metadata: { bytes }, requestId: req.requestId }));
   });
 
   // ---------- one-save provisioning (platform admins)
@@ -385,6 +418,33 @@ data: ${JSON.stringify(snap.job)}
   });
   st.get("/:siteId/reports/requests.xlsx", auth, requireSite(db, "request:view"), async (req, res) => {
     sendXlsx(res, req.siteAccess!.siteSlug, "requests", await excel.exportRequests(db, opActor(req)));
+  });
+  // Role-masked report engine: the active release says who may export/import each report and which columns are hidden.
+  const reportActor = (req: express.Request): reportSvc.ReportActor => ({ siteId: req.siteAccess!.siteId, userId: req.user!.id, roles: req.siteAccess!.roles, requestId: req.requestId });
+  st.get("/:siteId/reports", auth, requireSite(db), async (req, res) => {
+    res.json({ data: await reportSvc.listReports(db, reportActor(req)) });
+  });
+  st.get("/:siteId/reports/:key/export", auth, requireSite(db), async (req, res) => {
+    const { workbook, fileName } = await reportSvc.exportReport(db, reportActor(req), String(req.params.key));
+    res.status(200);
+    res.setHeader("content-type", XLSX_MIME);
+    res.setHeader("content-disposition", `attachment; filename="${fileName}"`);
+    res.setHeader("cache-control", "no-store");
+    await workbook.xlsx.write(res);
+    res.end();
+  });
+  st.post("/:siteId/reports/:key/import", auth, requireSite(db), express.raw({ type: () => true, limit: REPORT_MAX_BYTES }), async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) throw badRequest("Upload an .xlsx file as the request body");
+    let fileName = "upload.xlsx";
+    try {
+      const raw = req.header("x-file-name");
+      if (raw) fileName = decodeURIComponent(raw).replace(/[^\w .()-]/g, "_").slice(0, 200);
+    } catch {
+      /* keep the default name */
+    }
+    const dryRun = req.query.dryRun === "true";
+    const out = await reportSvc.importReport(db, reportActor(req), String(req.params.key), req.body, fileName, dryRun);
+    res.status(dryRun ? 200 : 201).json({ data: out });
   });
   st.get("/:siteId/imports/inventory/template.xlsx", auth, requireSite(db, "inventory:manage"), async (req, res) => {
     sendXlsx(res, req.siteAccess!.siteSlug, "inventory-template", await excel.importTemplate(db, opActor(req)));
