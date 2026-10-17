@@ -125,33 +125,33 @@ export function PcbRepairModule({ page, layout }: ModuleProps) {
       />
 
       {/* Industrial Sustainability & Harvesting Metrics Banner */}
-      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded border border-[#303432] bg-[#111313] p-3 shadow">
-          <p className="font-mono text-[10px] uppercase tracking-wider text-[#A5A8A6]">ZED Green Compliance</p>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="font-['Barlow_Condensed',sans-serif] text-2xl font-black text-[#39D98A]">184 kg</span>
-            <span className="font-mono text-xs text-[#777C79]">E-Waste Diverted</span>
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="devfest-card border-t-8 border-t-[#34A853] p-4">
+          <p className="font-mono text-xs font-bold uppercase tracking-wider text-slate-500">ZED Green Compliance</p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="font-['Outfit',sans-serif] text-3xl font-black text-[#34A853]">184 kg</span>
+            <span className="font-mono text-xs font-bold text-slate-600">E-Waste Diverted</span>
           </div>
         </div>
-        <div className="rounded border border-[#303432] bg-[#111313] p-3 shadow">
-          <p className="font-mono text-[10px] uppercase tracking-wider text-[#A5A8A6]">Parts Cannibalization</p>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="font-['Barlow_Condensed',sans-serif] text-2xl font-black text-[#FFE500]">₹42,850</span>
-            <span className="font-mono text-xs text-[#777C79]">Component Savings</span>
+        <div className="devfest-card border-t-8 border-t-[#FBBC04] p-4">
+          <p className="font-mono text-xs font-bold uppercase tracking-wider text-slate-500">Parts Cannibalization</p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="font-['Outfit',sans-serif] text-3xl font-black text-[#0F172A]">₹42,850</span>
+            <span className="font-mono text-xs font-bold text-slate-600">Component Savings</span>
           </div>
         </div>
-        <div className="rounded border border-[#303432] bg-[#111313] p-3 shadow">
-          <p className="font-mono text-[10px] uppercase tracking-wider text-[#A5A8A6]">ESD Grounding Checks</p>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="font-['Barlow_Condensed',sans-serif] text-2xl font-black text-[#39D98A]">100% PASS</span>
-            <span className="font-mono text-xs text-[#777C79]">2,400 sq.ft ESD Zone</span>
+        <div className="devfest-card border-t-8 border-t-[#4285F4] p-4">
+          <p className="font-mono text-xs font-bold uppercase tracking-wider text-slate-500">ESD Grounding Checks</p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="font-['Outfit',sans-serif] text-3xl font-black text-[#2563EB]">100% PASS</span>
+            <span className="font-mono text-xs font-bold text-slate-600">2,400 sq.ft ESD Zone</span>
           </div>
         </div>
-        <div className="rounded border border-[#303432] bg-[#111313] p-3 shadow">
-          <p className="font-mono text-[10px] uppercase tracking-wider text-[#A5A8A6]">Top RCFA Failure</p>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="font-['Barlow_Condensed',sans-serif] text-2xl font-black text-[#FF5C5C]">Capacitor C14</span>
-            <span className="font-mono text-xs text-[#777C79]">38% Bajaj Induction</span>
+        <div className="devfest-card border-t-8 border-t-[#EA4335] p-4">
+          <p className="font-mono text-xs font-bold uppercase tracking-wider text-slate-500">Top RCFA Failure</p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="font-['Outfit',sans-serif] text-3xl font-black text-[#EA4335]">Capacitor C14</span>
+            <span className="font-mono text-xs font-bold text-slate-600">38% Bajaj Induction</span>
           </div>
         </div>
       </div>

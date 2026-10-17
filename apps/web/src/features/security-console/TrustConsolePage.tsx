@@ -122,22 +122,29 @@ export function TrustConsolePage() {
   const passing = rows.reduce((n, r) => n + r.result.cells.filter((c) => c.ok).length, 0);
 
   return (
-    <main className="mx-auto w-full max-w-5xl p-6">
-      <Link to="/" className="inline-flex items-center gap-1 font-mono text-xs uppercase tracking-wider text-muted hover:text-[#FFE500]">
-        ← RETURN TO HUB
-      </Link>
-      <div className="mt-2 flex items-center justify-between border-b border-border pb-4">
-        <div>
-          <h1 className="font-heading text-2xl font-bold uppercase tracking-wider text-primary">Security & Trust Verification Console</h1>
-          <p className="mt-1 text-xs text-muted font-mono">
-            Direct operational verification suite. Proofs execute live against Postgres isolation policies and active schemas.
-          </p>
+    <div className="min-h-full industrial-dot-grid p-6 text-[#0F172A]">
+      <main className="mx-auto w-full max-w-5xl">
+        <Link to="/" className="devfest-btn inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 font-mono text-xs font-bold text-[#0F172A] hover:bg-slate-100 transition shadow-[2px_2px_0px_#1E293B]">
+          ← RETURN TO HUB
+        </Link>
+        <div className="devfest-card mt-4 mb-6 p-6 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <div className="mb-1.5 inline-flex items-center gap-2 rounded-full bg-[#34A853]/15 px-3 py-1 font-mono text-xs font-bold text-[#34A853]">
+              <span className="h-2 w-2 rounded-full bg-[#34A853]" />
+              SECURITY VERIFICATION ENGINE
+            </div>
+            <h1 className="font-['Outfit',sans-serif] text-3xl font-black tracking-tight text-[#0F172A]">
+              Security & Trust Verification Console
+            </h1>
+            <p className="mt-1 text-sm font-medium text-slate-600">
+              Direct operational verification suite. Proofs execute live against Postgres isolation policies and active schemas.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border-2 border-[#1E293B] bg-[#34A853]/15 px-3.5 py-1.5 font-mono text-xs font-bold text-[#0F172A] shadow-[2px_2px_0px_#1E293B]">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#34A853] animate-pulse" />
+            STATUS: <span className="text-[#34A853] font-black">ACTIVE</span>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-success animate-pulse" />
-          <span className="font-mono text-xs uppercase text-success">REALTIME ENGINE ACTIVE</span>
-        </div>
-      </div>
       {proofs.loading && !proofs.data && <LoadingState />}
       {proofs.error ? <ErrorState error={proofs.error} onRetry={proofs.reload} /> : null}
       {proofs.data && (
@@ -268,6 +275,7 @@ export function TrustConsolePage() {
           </Panel>
         </div>
       )}
-    </main>
+      </main>
+    </div>
   );
 }
