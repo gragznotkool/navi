@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
-import { LoadingState, Toaster } from "../components/feedback";
+import { DeadZoneBanner, LoadingState, Toaster } from "../components/feedback";
 import { LoginPage } from "../features/auth/LoginPage";
 import { HubPage } from "../features/hub/HubPage";
 import { TrustConsolePage } from "../features/security-console/TrustConsolePage";
@@ -42,6 +42,7 @@ export function App() {
   }, [restore]);
   return (
     <BrowserRouter>
+      <DeadZoneBanner />
       <AppRoutes />
       <Toaster />
     </BrowserRouter>
