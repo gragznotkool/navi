@@ -143,11 +143,23 @@ export function CommandPalette({ isOpen, onClose, onOpenScanner, onOpenActivityF
         if (page.requiredPermission && !permissions.has(page.requiredPermission)) return;
 
         let icon = LayoutDashboard;
-        if (page.path.includes("inventory")) icon = Boxes;
-        else if (page.path.includes("request")) icon = ClipboardList;
-        else if (page.path.includes("repair")) icon = Wrench;
-        else if (page.path.includes("return")) icon = RotateCcw;
-        else if (page.path.includes("report")) icon = FileSpreadsheet;
+        let synonyms: string[] = [];
+        if (page.path.includes("inventory")) {
+          icon = Boxes;
+          synonyms = ["stock", "parts", "sku", "bin", "catalog", "warehouse"];
+        } else if (page.path.includes("request") || page.path.includes("approval")) {
+          icon = ClipboardList;
+          synonyms = ["approvals", "approval", "requisition", "queue", "order", "submitted"];
+        } else if (page.path.includes("repair")) {
+          icon = Wrench;
+          synonyms = ["pcb", "service", "maintenance", "fix", "depot"];
+        } else if (page.path.includes("return")) {
+          icon = RotateCcw;
+          synonyms = ["rma", "refund", "restock", "reverse logistics"];
+        } else if (page.path.includes("report")) {
+          icon = FileSpreadsheet;
+          synonyms = ["export", "excel", "summary", "analytics", "csv", "kpi"];
+        }
 
         list.push({
           id: `page-${page.path}`,
@@ -159,7 +171,7 @@ export function CommandPalette({ isOpen, onClose, onOpenScanner, onOpenActivityF
             navigate(`${basePath}/${page.path}`);
             onClose();
           },
-          keywords: [n.label, page.title, page.path],
+          keywords: [n.label, page.title, page.path, ...synonyms],
         });
       });
 
