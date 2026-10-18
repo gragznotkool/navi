@@ -1,12 +1,13 @@
-import { useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
 import { Navigate, Route, Routes, useParams, Link } from "react-router-dom";
 import { websitePath } from "@opshub/contracts";
-import { EmptyState, ErrorState, LoadingState } from "../components/feedback";
+import { EmptyState, ErrorState, LoadingState, SkeletonLoader } from "../components/feedback";
 import { useAsync } from "../hooks/useAsync";
-import { BuilderPage } from "../features/builder/BuilderPage";
-import { ReleasesPage } from "../features/releases/ReleasesPage";
-import { RewindPage } from "../features/releases/RewindPage";
 import { sitesApi } from "../services";
+
+const BuilderPage = lazy(() => import("../features/builder/BuilderPage").then((m) => ({ default: m.BuilderPage })));
+const ReleasesPage = lazy(() => import("../features/releases/ReleasesPage").then((m) => ({ default: m.ReleasesPage })));
+const RewindPage = lazy(() => import("../features/releases/RewindPage").then((m) => ({ default: m.RewindPage })));
 import { setLastSite } from "../stores/lastSite";
 import { useSession } from "../stores/session";
 import { SiteRuntimeProvider } from "./context";
@@ -69,9 +70,42 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
     >
       <Routes>
         <Route index element={<FirstPage />} />
-        {!preview && <Route path="admin/builder" element={<SiteShell title="Configuration builder"><BuilderPage activeVersion={active.data.version} activeConfig={active.data.configuration} /></SiteShell>} />}
-        {!preview && <Route path="admin/rewind" element={<SiteShell title="Rewind"><RewindPage /></SiteShell>} />}
-        {!preview && <Route path="admin/releases" element={<SiteShell title="Releases"><ReleasesPage /></SiteShell>} />}
+        {!preview && (
+          <Route
+            path="admin/builder"
+            element={
+              <SiteShell title="Configuration builder">
+                <Suspense fallback={<div className="p-8"><SkeletonLoader rows={8} /></div>}>
+                  <BuilderPage activeVersion={active.data.version} activeConfig={active.data.configuration} />
+                </Suspense>
+              </SiteShell>
+            }
+          />
+        )}
+        {!preview && (
+          <Route
+            path="admin/rewind"
+            element={
+              <SiteShell title="Rewind">
+                <Suspense fallback={<div className="p-8"><SkeletonLoader rows={6} /></div>}>
+                  <RewindPage />
+                </Suspense>
+              </SiteShell>
+            }
+          />
+        )}
+        {!preview && (
+          <Route
+            path="admin/releases"
+            element={
+              <SiteShell title="Releases">
+                <Suspense fallback={<div className="p-8"><SkeletonLoader rows={6} /></div>}>
+                  <ReleasesPage />
+                </Suspense>
+              </SiteShell>
+            }
+          />
+        )}
         <Route path=":pagePath" element={<PageRoute />} />
       </Routes>
     </SiteRuntimeProvider>

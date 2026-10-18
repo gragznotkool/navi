@@ -38,6 +38,19 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes("node_modules/@xyflow")) return "vendor-xyflow";
+          if (id.includes("node_modules/recharts")) return "vendor-charts";
+          if (id.includes("node_modules/lucide-react")) return "vendor-icons";
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom") || id.includes("node_modules/react-router-dom")) return "vendor-react";
+        },
+      },
+    },
+    chunkSizeWarningLimit: 800,
+  },
   server: { port: 5173, proxy: { "/api": { target: "http://localhost:4000", changeOrigin: false } } },
   test: { environment: "jsdom", globals: true, setupFiles: ["./tests/setup.ts"], include: ["tests/**/*.test.{ts,tsx}"] },
 });

@@ -1,9 +1,9 @@
-import type { ComponentType } from "react";
+import { lazy, Suspense, type ComponentType } from "react";
 import type { LayoutType, ModuleNode, ModuleType, PageDefinition } from "@opshub/contracts";
+import { SkeletonLoader } from "../../components/feedback";
 import { ApprovalsModule } from "../../features/approvals/ApprovalsModule";
 import { AssignmentsModule } from "../../features/assignments/AssignmentsModule";
 import { ConsumptionModule } from "../../features/assignments/ConsumptionModule";
-import { AnalyticsModule } from "../../features/analytics/AnalyticsModule";
 import { InventoryModule } from "../../features/inventory/InventoryModule";
 import { RequestsModule } from "../../features/requests/RequestsModule";
 import { PcbRepairModule } from "../../features/pcb-repair/PcbRepairModule";
@@ -11,6 +11,13 @@ import { ReturnsModule } from "../../features/returns/ReturnsModule";
 import { ReportsModule } from "../../features/reports/ReportsModule";
 import { DashboardModule } from "../pages/DashboardModule";
 import { UnavailableModule } from "../pages/UnavailableModule";
+
+const LazyAnalyticsModule = lazy(() => import("../../features/analytics/AnalyticsModule").then((m) => ({ default: m.AnalyticsModule })));
+const AnalyticsRenderer: ComponentType<ModuleProps> = (props) => (
+  <Suspense fallback={<SkeletonLoader rows={6} />}>
+    <LazyAnalyticsModule {...props} />
+  </Suspense>
+);
 
 export interface ModuleProps {
   node: ModuleNode;
@@ -40,7 +47,7 @@ export const rendererRegistry: Record<ModuleType, ComponentType<ModuleProps>> = 
   "consumption-tracking": ConsumptionModule,
   "return-management": ReturnsModule,
   "pcb-repair": PcbRepairModule,
-  "analytics-dashboard": AnalyticsModule,
+  "analytics-dashboard": AnalyticsRenderer,
   "reports-excel": ReportsModule,
 };
 

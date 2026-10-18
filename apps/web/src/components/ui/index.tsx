@@ -159,3 +159,5 @@ export function Panel({ title, children, actions }: { title?: string; children?:
   );
 }
 
+export { ThemeToggle } from "./ThemeToggle";
+

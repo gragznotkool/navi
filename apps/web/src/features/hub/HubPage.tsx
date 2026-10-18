@@ -2,17 +2,24 @@ import {
   Boxes,
   ClipboardCheck,
   ClipboardList,
+  Command,
   DatabaseBackup,
   Layers,
   LogOut,
   PackageCheck,
   Plus,
+  Radio,
+  Search,
   ShieldCheck,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { EmptyState, ErrorState, LoadingState, OfflineBanner } from "../../components/feedback";
-import { Badge, Button, Panel } from "../../components/ui";
+import { Badge, Button, Panel, ThemeToggle } from "../../components/ui";
+import { CommandPalette } from "../../components/palette/CommandPalette";
+import { OperationsFeedDrawer } from "../../components/feed/OperationsFeedDrawer";
+import { BarcodeScannerModal } from "../../components/barcode/BarcodeScannerModal";
+import { NotificationBell } from "../../components/notifications/NotificationBell";
 import { saveBlob, toRequestError } from "../../lib/api";
 import { useAsync } from "../../hooks/useAsync";
 import { hubApi, opsApi, sitesApi } from "../../services";
@@ -57,11 +64,26 @@ export function HubPage() {
   const lastSlug = getLastSite();
   const last = sites.data?.find((s) => s.slug === lastSlug);
 
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isFeedOpen, setIsFeedOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   return (
-    <div className="flex min-h-full flex-col industrial-dot-grid text-[#0F172A]">
+    <div className="flex min-h-full flex-col industrial-dot-grid text-[#0F172A] dark:text-[#F8FAFC]">
       <OfflineBanner />
       {/* DevFest Playful Top Command Header */}
-      <header className="flex h-16 items-center justify-between border-b-2 border-[#1E293B] bg-white px-6 shadow-[0_2px_0px_#1E293B]">
+      <header className="flex h-16 items-center justify-between border-b-2 border-[#1E293B] bg-white px-6 shadow-[0_2px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E]">
         <div className="flex items-center gap-3">
           <img
             src="/navi-logo.png"
@@ -69,7 +91,7 @@ export function HubPage() {
             className="h-9 w-auto object-contain rounded-md border border-[#1E293B] shadow-[2px_2px_0px_#1E293B]"
           />
           <div className="flex items-center gap-2.5">
-            <span className="font-['Outfit',sans-serif] text-lg font-black tracking-wide uppercase text-[#0F172A]">
+            <span className="font-['Outfit',sans-serif] text-lg font-black tracking-wide uppercase text-[#0F172A] dark:text-white">
               NAVI Command
             </span>
             <span className="rounded-full border-2 border-[#1E293B] bg-[#FBBC04] px-2.5 py-0.5 font-mono text-[10px] font-bold tracking-wider text-[#0F172A] uppercase shadow-[1px_1px_0px_#1E293B]">
@@ -78,6 +100,21 @@ export function HubPage() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsPaletteOpen(true)}
+            className="flex items-center gap-2 h-8 rounded-full border-2 border-[#1E293B] bg-slate-100 px-3 font-mono text-xs font-bold text-slate-700 shadow-[2px_2px_0px_#1E293B] hover:bg-[#FBBC04] hover:text-[#0F172A] transition dark:border-[#334155] dark:bg-[#1E293B] dark:text-slate-300"
+          >
+            <Search className="h-3.5 w-3.5" />
+            <span className="hidden md:inline">Command</span>
+            <kbd className="rounded border border-slate-300 bg-white px-1 text-[10px] font-black dark:border-slate-700 dark:bg-slate-900">
+              ⌘K
+            </kbd>
+          </button>
+
+          <NotificationBell onOpenFeed={() => setIsFeedOpen(true)} />
+          <ThemeToggle />
+
           {session?.user.isPlatformAdmin && (
             <Link
               to="/sites/new"
@@ -89,12 +126,12 @@ export function HubPage() {
           {session?.user.isPlatformAdmin && (
             <Link
               to="/trust"
-              className="devfest-btn inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 font-mono text-xs font-bold text-[#0F172A] hover:bg-slate-50"
+              className="devfest-btn inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 font-mono text-xs font-bold text-[#0F172A] hover:bg-slate-50 dark:border-[#334155] dark:bg-[#1E293B] dark:text-white"
             >
               <ShieldCheck className="h-3.5 w-3.5 text-[#34A853]" aria-hidden /> TRUST CONSOLE
             </Link>
           )}
-          <span className="hidden font-mono text-xs font-bold text-slate-600 sm:inline">{session?.user.displayName}</span>
+          <span className="hidden font-mono text-xs font-bold text-slate-600 sm:inline dark:text-slate-300">{session?.user.displayName}</span>
           <button
             onClick={async () => {
               await logout();
@@ -294,6 +331,22 @@ export function HubPage() {
         {/* Platform Admin Backup (Feature 10) */}
         {session?.user.isPlatformAdmin && <BackupPanel />}
       </main>
+
+      {/* Global Command Center Modals */}
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        onOpenScanner={() => setIsScannerOpen(true)}
+        onOpenActivityFeed={() => setIsFeedOpen(true)}
+      />
+      <OperationsFeedDrawer
+        isOpen={isFeedOpen}
+        onClose={() => setIsFeedOpen(false)}
+      />
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+      />
     </div>
   );
 }

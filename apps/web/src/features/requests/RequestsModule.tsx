@@ -1,11 +1,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
+import { ScanLine } from "lucide-react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { standardCreateRequestPayloadSchema, type StandardCreateRequestPayload, type RequestRecord } from "@opshub/contracts";
 import { ErrorState, LoadingState } from "../../components/feedback";
 import { parseFieldValue, visibleFields } from "../../components/FieldInputs";
 import { RecordView } from "../../components/tables/RecordView";
 import { Button, PageHeader, Panel, SelectField, StatusBadge, TextField } from "../../components/ui";
+import { BarcodeScannerModal } from "../../components/barcode/BarcodeScannerModal";
 import { useAsync } from "../../hooks/useAsync";
 import { formatDateTime, shortId, totalQuantity } from "../../lib/format";
 import { toRequestError } from "../../lib/api";
@@ -95,6 +97,7 @@ function RequestForm({ siteId, onDone }: { siteId: string; onDone: () => void })
   const { config } = useSiteRuntime();
   const lineFields = visibleFields(config.fields, "request_line");
   const items = useAsync(() => opsApi.items(siteId), [siteId]);
+  const [isScanning, setIsScanning] = useState(false);
   const form = useForm<StandardCreateRequestPayload>({
     resolver: zodResolver(standardCreateRequestPayloadSchema),
     defaultValues: { lines: [{ itemId: "", quantity: 1 }] },
@@ -102,6 +105,22 @@ function RequestForm({ siteId, onDone }: { siteId: string; onDone: () => void })
   const { fields, append, remove } = useFieldArray({ control: form.control, name: "lines" });
   const { errors, isSubmitting } = form.formState;
   const itemOptions = items.data?.items ?? [];
+
+  const handleBarcodeScanned = (sku: string) => {
+    const matched = itemOptions.find((i) => i.sku.toLowerCase() === sku.toLowerCase());
+    if (matched) {
+      const currentValues = form.getValues().lines;
+      const emptyIdx = currentValues.findIndex((l) => !l.itemId);
+      if (emptyIdx !== -1) {
+        form.setValue(`lines.${emptyIdx}.itemId`, matched.id);
+      } else {
+        append({ itemId: matched.id, quantity: 1 });
+      }
+      notify.success(`Scanned & added: ${matched.name}`);
+    } else {
+      notify.error(`SKU "${sku}" not found in stock ledger`);
+    }
+  };
 
   const submit = form.handleSubmit(async (values) => {
     try {
@@ -148,12 +167,21 @@ function RequestForm({ siteId, onDone }: { siteId: string; onDone: () => void })
             </div>
           ))}
           {errors.lines?.root?.message || errors.lines?.message ? <p className="text-sm text-danger" role="alert">{errors.lines?.root?.message ?? errors.lines?.message}</p> : null}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 pt-2">
             <Button type="button" onClick={() => append({ itemId: "", quantity: 1 })}>Add another item</Button>
+            <Button type="button" variant="secondary" onClick={() => setIsScanning(true)} className="gap-1.5">
+              <ScanLine className="h-4 w-4 text-[#FBBC04]" /> Scan Barcode
+            </Button>
             <Button type="submit" variant="primary" loading={isSubmitting}>Submit</Button>
           </div>
         </form>
       )}
+
+      <BarcodeScannerModal
+        isOpen={isScanning}
+        onClose={() => setIsScanning(false)}
+        onScan={handleBarcodeScanned}
+      />
     </Panel>
   );
 }

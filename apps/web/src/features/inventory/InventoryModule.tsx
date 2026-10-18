@@ -1,9 +1,12 @@
 import { useState } from "react";
+import { QrCode, ScanLine } from "lucide-react";
 import type { StockItem } from "@opshub/contracts";
 import { FieldInput, visibleFields } from "../../components/FieldInputs";
 import { DataTable, type Column } from "../../components/tables/DataTable";
 import { ErrorState, LoadingState } from "../../components/feedback";
 import { Badge, Button, PageHeader, Panel } from "../../components/ui";
+import { BarcodeScannerModal } from "../../components/barcode/BarcodeScannerModal";
+import { QrCodeGeneratorModal } from "../../components/barcode/QrCodeGeneratorModal";
 import { useAsync } from "../../hooks/useAsync";
 import { formatDateTime } from "../../lib/format";
 import { toRequestError } from "../../lib/api";
@@ -22,6 +25,19 @@ export function InventoryModule({ node, page }: ModuleProps) {
   const threshold = typeof node.config.lowStockThreshold === "number" ? node.config.lowStockThreshold : 0;
   const items = useAsync(() => opsApi.items(siteId), [siteId]);
   const [selected, setSelected] = useState<string | null>(null);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [qrItem, setQrItem] = useState<StockItem | null>(null);
+
+  const handleScanFound = (sku: string) => {
+    if (!items.data) return;
+    const match = items.data.items.find((i) => i.sku.toLowerCase() === sku.toLowerCase());
+    if (match) {
+      setSelected(match.id);
+      notify.success(`Selected matched inventory item: ${match.name}`);
+    } else {
+      notify.error(`SKU "${sku}" not found in current site stock ledger`);
+    }
+  };
 
   const columns: Column<StockItem>[] = [
     { key: "sku", header: "SKU", render: (i) => <span className="font-medium">{i.sku}</span> },
@@ -31,24 +47,96 @@ export function InventoryModule({ node, page }: ModuleProps) {
     { key: "level", header: "Stock level", render: (i) => levelBadge(i, threshold) },
     ...fields.map((f): Column<StockItem> => ({ key: `field-${f.id}`, header: f.label, render: (i) => (i.extras[f.key] === undefined ? "—" : String(i.extras[f.key])) })),
     { key: "updated", header: "Updated", render: (i) => formatDateTime(i.updatedAt) },
+    {
+      key: "qr",
+      header: "Tag",
+      render: (i) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setQrItem(i);
+          }}
+          title="Generate QR / Barcode Tag"
+          className="rounded-lg border-2 border-[#1E293B] bg-slate-50 p-1 text-[#0F172A] shadow-[1px_1px_0px_#1E293B] hover:bg-[#FBBC04] transition dark:border-[#334155] dark:bg-slate-800 dark:text-white"
+        >
+          <QrCode className="h-4 w-4" />
+        </button>
+      ),
+    },
   ];
 
   return (
     <>
-      <PageHeader title={page.title} subtitle="Stock levels from the site database. Select an item to see its ledger." actions={<ReportActions reportKey="inventory" />} />
+      <PageHeader
+        title={page.title}
+        subtitle="Stock levels from the site database. Select an item to see its ledger."
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setIsScannerOpen(true)} className="gap-1.5">
+              <ScanLine className="h-4 w-4 text-[#FBBC04]" /> Scan Barcode
+            </Button>
+            <ReportActions reportKey="inventory" />
+          </div>
+        }
+      />
       {items.loading && <LoadingState />}
       {items.error ? <ErrorState error={items.error} onRetry={items.reload} /> : null}
       {items.data && (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-          <DataTable caption="Inventory items" rows={items.data.items} rowKey={(i) => i.id} columns={columns} onRowClick={(i) => setSelected(i.id)} selectedKey={selected} emptyTitle="No inventory items" emptyHint="Items appear here once stock is created for this site." />
-          {selected && <ItemDetail siteId={siteId} itemId={selected} onSaved={items.reload} />}
+          <DataTable
+            caption="Inventory items"
+            rows={items.data.items}
+            rowKey={(i) => i.id}
+            columns={columns}
+            onRowClick={(i) => setSelected(i.id)}
+            selectedKey={selected}
+            emptyTitle="No inventory items"
+            emptyHint="Items appear here once stock is created for this site."
+          />
+          {selected && (
+            <ItemDetail
+              siteId={siteId}
+              itemId={selected}
+              onSaved={items.reload}
+              onGenerateQr={(item) => setQrItem(item)}
+            />
+          )}
         </div>
+      )}
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleScanFound}
+      />
+
+      {/* QR Code Tag Modal */}
+      {qrItem && (
+        <QrCodeGeneratorModal
+          isOpen={Boolean(qrItem)}
+          onClose={() => setQrItem(null)}
+          sku={qrItem.sku}
+          name={qrItem.name}
+          location={`BIN-${qrItem.sku.slice(0, 3)}-01`}
+        />
       )}
     </>
   );
 }
 
-function ItemDetail({ siteId, itemId, onSaved }: { siteId: string; itemId: string; onSaved: () => void }) {
+function ItemDetail({
+  siteId,
+  itemId,
+  onSaved,
+  onGenerateQr,
+}: {
+  siteId: string;
+  itemId: string;
+  onSaved: () => void;
+  onGenerateQr?: (item: StockItem) => void;
+}) {
   const { config, permissions } = useSiteRuntime();
   const detail = useAsync(() => opsApi.item(siteId, itemId), [siteId, itemId]);
   const fields = visibleFields(config.fields, "inventory_item");
@@ -78,10 +166,23 @@ function ItemDetail({ siteId, itemId, onSaved }: { siteId: string; itemId: strin
       {detail.error ? <ErrorState error={detail.error} onRetry={detail.reload} /> : null}
       {detail.data && (
         <>
-          <p className="text-sm font-semibold">{detail.data.item.name}</p>
-          <p className="text-xs text-muted">
-            {detail.data.item.sku} · {detail.data.item.onHand} {detail.data.item.unit} on hand
-          </p>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">{detail.data.item.name}</p>
+              <p className="text-xs text-muted">
+                {detail.data.item.sku} · {detail.data.item.onHand} {detail.data.item.unit} on hand
+              </p>
+            </div>
+            {onGenerateQr && (
+              <Button
+                variant="secondary"
+                onClick={() => onGenerateQr(detail.data!.item)}
+                className="gap-1.5 h-8 text-xs font-mono"
+              >
+                <QrCode className="h-3.5 w-3.5 text-[#FBBC04]" /> Label
+              </Button>
+            )}
+          </div>
           {fields.length > 0 && (
             <div className="mt-4 flex flex-col gap-2">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Fields</h3>

@@ -6,8 +6,39 @@ import { Button } from "../ui";
 
 export function LoadingState({ label = "Loading operational data…" }: { label?: string }) {
   return (
-    <div role="status" className="flex items-center gap-2.5 py-10 font-mono text-xs uppercase tracking-wider text-[#A5A8A6]">
-      <Loader2 className="h-4 w-4 animate-spin text-[#FFE500]" aria-hidden /> {label}
+    <div role="status" className="flex items-center gap-2.5 py-10 font-mono text-xs uppercase tracking-wider text-slate-500">
+      <Loader2 className="h-4 w-4 animate-spin text-[#FBBC04]" aria-hidden /> {label}
+    </div>
+  );
+}
+
+export function SkeletonLoader({ rows = 4, className = "" }: { rows?: number; className?: string }) {
+  return (
+    <div className={`devfest-card p-6 animate-pulse space-y-4 ${className}`} role="status" aria-label="Loading content">
+      <div className="flex items-center justify-between pb-3 border-b-2 border-[#1E293B]/20">
+        <div className="h-5 w-40 rounded bg-slate-200 dark:bg-slate-700" />
+        <div className="h-7 w-24 rounded-full bg-slate-200 dark:bg-slate-700" />
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4">
+            <div className="h-4 w-12 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-4 flex-1 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-4 w-20 rounded bg-slate-200 dark:bg-slate-700" />
+            <div className="h-6 w-16 rounded-full bg-slate-200 dark:bg-slate-700" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function CardSkeleton() {
+  return (
+    <div className="devfest-card p-5 animate-pulse" role="status">
+      <div className="h-3 w-28 rounded bg-slate-200 dark:bg-slate-700 mb-2" />
+      <div className="h-8 w-20 rounded bg-slate-200 dark:bg-slate-700 mb-2" />
+      <div className="h-3 w-36 rounded bg-slate-200 dark:bg-slate-700" />
     </div>
   );
 }

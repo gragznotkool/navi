@@ -2,23 +2,32 @@ import {
   Boxes,
   ClipboardCheck,
   ClipboardList,
+  Command,
   FileSpreadsheet,
   GitBranch,
   History,
   LayoutDashboard,
   LogOut,
   PackageCheck,
+  Radio,
   RotateCcw,
+  ScanLine,
+  Search,
   Users,
   Wrench,
   BarChart3,
   ChevronRight,
   type LucideIcon,
 } from "lucide-react";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useState, useEffect, type CSSProperties, type ReactNode } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import type { ModuleType } from "@opshub/contracts";
 import { OfflineBanner } from "../components/feedback";
+import { ThemeToggle } from "../components/ui";
+import { CommandPalette } from "../components/palette/CommandPalette";
+import { OperationsFeedDrawer } from "../components/feed/OperationsFeedDrawer";
+import { BarcodeScannerModal } from "../components/barcode/BarcodeScannerModal";
+import { NotificationBell } from "../components/notifications/NotificationBell";
 import { useSession } from "../stores/session";
 import { useSiteRuntime } from "./context";
 
@@ -179,6 +188,20 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
   const membership = session?.memberships.find((m) => m.siteSlug === slug);
   const roleName = membership?.roles.join(", ") || "Member";
   const [compact, setCompact] = useState(false);
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isFeedOpen, setIsFeedOpen] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsPaletteOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const { main, platform } = useNav();
   const style = { "--accent": config.theme.primary, "--accent-2": config.theme.secondary } as CSSProperties;
@@ -191,7 +214,7 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
       />
       {!compact && (
         <div className="flex flex-col">
-          <span className="font-['Outfit',sans-serif] text-base font-extrabold tracking-wide uppercase text-[#0F172A]">
+          <span className="font-['Outfit',sans-serif] text-base font-extrabold tracking-wide uppercase text-[#0F172A] dark:text-white">
             NAVI
           </span>
         </div>
@@ -200,10 +223,102 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
   );
   const all = [...main, ...platform];
 
+  const QuickBar = (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => setIsPaletteOpen(true)}
+        className="flex items-center gap-1.5 h-8 rounded-full border-2 border-[#1E293B] bg-slate-100 px-2.5 font-mono text-xs font-bold text-slate-700 shadow-[2px_2px_0px_#1E293B] hover:bg-[#FBBC04] hover:text-[#0F172A] transition dark:border-[#334155] dark:bg-slate-800 dark:text-slate-300"
+        title="Open Global Command Palette (⌘K)"
+      >
+        <Search className="h-3.5 w-3.5" />
+        <span className="hidden xl:inline">Dispatch</span>
+        <kbd className="rounded border border-slate-300 bg-white px-1 text-[10px] font-black dark:border-slate-700 dark:bg-slate-900">
+          ⌘K
+        </kbd>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setIsFeedOpen(true)}
+        className="flex items-center gap-1.5 h-8 rounded-full border-2 border-[#1E293B] bg-emerald-50 px-2.5 font-mono text-xs font-bold text-emerald-800 shadow-[2px_2px_0px_#1E293B] hover:bg-emerald-100 transition dark:border-[#334155] dark:bg-emerald-950/40 dark:text-emerald-300"
+        title="Live Operations Telemetry Stream"
+      >
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+        </span>
+        <span className="hidden sm:inline">LIVE OPS</span>
+      </button>
+
+      <button
+        type="button"
+        onClick={() => setIsScannerOpen(true)}
+        className="h-8 w-8 inline-flex items-center justify-center rounded-full border-2 border-[#1E293B] bg-white text-[#0F172A] shadow-[2px_2px_0px_#1E293B] hover:-translate-y-0.5 active:translate-y-0.5 transition dark:border-[#334155] dark:bg-[#1E293B] dark:text-white"
+        title="Scan Barcode / QR Tag"
+      >
+        <ScanLine className="h-4 w-4 text-[#FBBC04]" />
+      </button>
+
+      <NotificationBell onOpenFeed={() => setIsFeedOpen(true)} />
+      <ThemeToggle />
+    </div>
+  );
+
+  const MobileBottomNav = (
+    <nav className="fixed bottom-0 left-0 right-0 z-40 flex h-14 items-center justify-around border-t-2 border-[#1E293B] bg-white px-2 shadow-[0_-2px_0px_#1E293B] md:hidden dark:border-[#334155] dark:bg-[#131B2E]">
+      {main.slice(0, 4).map((entry) => {
+        const Icon = entry.icon;
+        return (
+          <NavLink
+            key={entry.to}
+            to={entry.to}
+            end
+            className={({ isActive }) =>
+              `flex flex-col items-center justify-center py-1 px-2 font-mono text-[10px] font-bold ${
+                isActive ? "text-[#2563EB] dark:text-[#FBBC04]" : "text-slate-500 hover:text-[#0F172A]"
+              }`
+            }
+          >
+            <Icon className="h-5 w-5 mb-0.5" />
+            <span className="truncate max-w-[64px]">{entry.label}</span>
+          </NavLink>
+        );
+      })}
+      <button
+        type="button"
+        onClick={() => setIsPaletteOpen(true)}
+        className="flex flex-col items-center justify-center py-1 px-2 font-mono text-[10px] font-bold text-slate-500"
+      >
+        <Search className="h-5 w-5 mb-0.5 text-[#FBBC04]" />
+        <span>Menu</span>
+      </button>
+    </nav>
+  );
+
+  const Modals = (
+    <>
+      <CommandPalette
+        isOpen={isPaletteOpen}
+        onClose={() => setIsPaletteOpen(false)}
+        onOpenScanner={() => setIsScannerOpen(true)}
+        onOpenActivityFeed={() => setIsFeedOpen(true)}
+      />
+      <OperationsFeedDrawer
+        isOpen={isFeedOpen}
+        onClose={() => setIsFeedOpen(false)}
+      />
+      <BarcodeScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+      />
+    </>
+  );
+
   // Shell 1: Sidebar shell (Central Stores)
   if (config.shell === "sidebar") {
     return (
-      <div style={style} className="flex h-full flex-col industrial-dot-grid" data-shell="sidebar">
+      <div style={style} className="flex h-full flex-col industrial-dot-grid pb-14 md:pb-0" data-shell="sidebar">
         <OfflineBanner />
         <PreviewBanner />
         <div className="flex min-h-0 flex-1 p-4 gap-4">
@@ -212,14 +327,14 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
               compact ? "w-20 items-center" : "w-64"
             }`}
           >
-            <div className="flex w-full items-center justify-between border-b-2 border-slate-100 pb-3">
+            <div className="flex w-full items-center justify-between border-b-2 border-slate-100 pb-3 dark:border-slate-800">
               {Brand}
               <button
                 type="button"
                 onClick={() => setCompact(!compact)}
                 aria-pressed={compact}
                 aria-label="Collapse navigation"
-                className="devfest-btn rounded-full bg-slate-100 p-1.5 font-mono text-xs text-slate-700 hover:bg-slate-200 transition"
+                className="devfest-btn rounded-full bg-slate-100 p-1.5 font-mono text-xs text-slate-700 hover:bg-slate-200 transition dark:bg-slate-800 dark:text-slate-300"
                 title={compact ? "Expand sidebar" : "Collapse sidebar"}
               >
                 {compact ? "»" : "«"}
@@ -227,9 +342,9 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
             </div>
             {!compact && <SiteSwitcher />}
             {!compact && (
-              <div className="flex items-center justify-between rounded-full border-2 border-[#1E293B] bg-slate-50 px-3 py-1 font-mono text-xs shadow-[2px_2px_0px_#1E293B]">
+              <div className="flex items-center justify-between rounded-full border-2 border-[#1E293B] bg-slate-50 px-3 py-1 font-mono text-xs shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-slate-800">
                 <span className="uppercase font-bold text-slate-500">Role:</span>
-                <span className="font-extrabold text-[#2563EB]">{roleName}</span>
+                <span className="font-extrabold text-[#2563EB] dark:text-[#FBBC04]">{roleName}</span>
               </div>
             )}
             <nav aria-label="Main" className={`flex w-full flex-col gap-1.5 ${compact ? "items-center" : ""}`}>
@@ -238,7 +353,7 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
               ))}
             </nav>
             {platform.length > 0 && (
-              <nav aria-label="Platform administration" className={`flex w-full flex-col gap-1.5 border-t-2 border-slate-100 pt-3 ${compact ? "items-center" : ""}`}>
+              <nav aria-label="Platform administration" className={`flex w-full flex-col gap-1.5 border-t-2 border-slate-100 pt-3 dark:border-slate-800 ${compact ? "items-center" : ""}`}>
                 {!compact && (
                   <p className="px-3 font-mono text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     // PLATFORM ADMIN
@@ -249,17 +364,20 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
                 ))}
               </nav>
             )}
-            <div className="mt-auto w-full border-t-2 border-slate-100 pt-3">
+            <div className="mt-auto w-full border-t-2 border-slate-100 pt-3 dark:border-slate-800">
               <UserMenu iconOnly={compact} />
             </div>
           </aside>
-          <main className="devfest-card min-w-0 flex-1 overflow-auto p-6 text-[#0F172A]">
-            <div className="mb-6">
+          <main className="devfest-card min-w-0 flex-1 overflow-auto p-6 text-[#0F172A] dark:text-[#F8FAFC]">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b-2 border-slate-100 pb-3 dark:border-slate-800">
               <Breadcrumbs current={title} />
+              {QuickBar}
             </div>
             {children}
           </main>
         </div>
+        {MobileBottomNav}
+        {Modals}
       </div>
     );
   }
@@ -267,21 +385,22 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
   // Shell 2: Workbench shell (Distribution)
   if (config.shell === "workbench") {
     return (
-      <div style={style} className="flex h-full flex-col industrial-dot-grid" data-shell="workbench">
+      <div style={style} className="flex h-full flex-col industrial-dot-grid pb-14 md:pb-0" data-shell="workbench">
         <OfflineBanner />
         <PreviewBanner />
-        <header className="border-b-2 border-[#1E293B] bg-white bg-slate-900 text-[#0F172A] shadow-[0_2px_0px_#1E293B]">
+        <header className="border-b-2 border-[#1E293B] bg-white bg-slate-900 text-[#0F172A] shadow-[0_2px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E] dark:text-white">
           <div className="flex h-14 items-center gap-4 px-6">
             {Brand}
             <SiteSwitcher />
-            <span className="hidden rounded-full border-2 border-[#1E293B] bg-slate-50 px-3 py-1 font-mono text-xs font-bold sm:inline shadow-[2px_2px_0px_#1E293B]">
-              ROLE: <strong className="text-[#2563EB]">{roleName}</strong>
+            <span className="hidden rounded-full border-2 border-[#1E293B] bg-slate-50 px-3 py-1 font-mono text-xs font-bold sm:inline shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-slate-800">
+              ROLE: <strong className="text-[#2563EB] dark:text-[#FBBC04]">{roleName}</strong>
             </span>
             <div className="ml-auto flex items-center gap-3">
+              {QuickBar}
               <UserMenu />
             </div>
           </div>
-          <nav aria-label="Main" className="toolrail flex h-10 items-stretch gap-1 overflow-x-auto border-t-2 border-slate-100 bg-slate-50 px-4">
+          <nav aria-label="Main" className="toolrail flex h-10 items-stretch gap-1 overflow-x-auto border-t-2 border-slate-100 bg-slate-50 px-4 dark:border-slate-800 dark:bg-[#1A243B]">
             {all.map((e) => (
               <NavItem key={e.to} entry={e} variant="bench" />
             ))}
@@ -290,8 +409,8 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
 
         <div className="flex min-h-0 flex-1 p-4 gap-4">
           {/* Central work area */}
-          <main className="work-area devfest-card min-w-0 flex-1 overflow-auto p-6 text-[#0F172A]" aria-label={title}>
-            <div className="mb-6 flex items-center justify-between border-b-2 border-slate-100 pb-4">
+          <main className="work-area devfest-card min-w-0 flex-1 overflow-auto p-6 text-[#0F172A] dark:text-[#F8FAFC]" aria-label={title}>
+            <div className="mb-6 flex items-center justify-between border-b-2 border-slate-100 pb-4 dark:border-slate-800">
               <Breadcrumbs current={title} />
               <span className="font-mono text-xs font-bold text-[#0F172A] border-2 border-[#1E293B] bg-[#FBBC04] px-3 py-1 rounded-full shadow-[2px_2px_0px_#1E293B]">
                 {config.name}
@@ -303,67 +422,70 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
           {/* Right Inspector panel */}
           <aside
             aria-label="Inspector"
-            className="devfest-card hidden w-72 shrink-0 flex-col gap-4 p-5 lg:flex text-xs"
+            className="devfest-card hidden w-72 shrink-0 flex-col gap-4 p-5 lg:flex text-xs dark:text-[#F8FAFC]"
           >
             <div>
-              <div className="flex items-center gap-2 border-b-2 border-slate-100 pb-2.5 font-mono text-xs font-black uppercase tracking-wider text-[#0F172A]">
+              <div className="flex items-center gap-2 border-b-2 border-slate-100 pb-2.5 font-mono text-xs font-black uppercase tracking-wider text-[#0F172A] dark:border-slate-800 dark:text-white">
                 <span className="h-2.5 w-2.5 rounded-full bg-[#FBBC04] border border-[#1E293B]" />
                 TELEMETRY & STATUS
               </div>
               <dl className="mt-4 grid gap-3 font-mono text-xs">
-                <div className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2.5 shadow-[2px_2px_0px_#1E293B]">
-                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Active Site</dt>
-                  <dd className="font-black text-[#0F172A] mt-0.5">{config.name}</dd>
+                <div className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2.5 shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-slate-800">
+                  <dt className="text-slate-500 font-bold uppercase text-[10px] dark:text-slate-400">Active Site</dt>
+                  <dd className="font-black text-[#0F172A] mt-0.5 dark:text-white">{config.name}</dd>
                 </div>
-                <div className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2.5 shadow-[2px_2px_0px_#1E293B]">
-                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Node Identifier</dt>
-                  <dd className="text-[#2563EB] font-bold mt-0.5">/{slug}</dd>
+                <div className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2.5 shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-slate-800">
+                  <dt className="text-slate-500 font-bold uppercase text-[10px] dark:text-slate-400">Node Identifier</dt>
+                  <dd className="text-[#2563EB] font-bold mt-0.5 dark:text-[#FBBC04]">/{slug}</dd>
                 </div>
-                <div className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2.5 shadow-[2px_2px_0px_#1E293B]">
-                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Access Role</dt>
-                  <dd className="text-[#0F172A] font-bold mt-0.5">{roleName}</dd>
+                <div className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2.5 shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-slate-800">
+                  <dt className="text-slate-500 font-bold uppercase text-[10px] dark:text-slate-400">Access Role</dt>
+                  <dd className="text-[#0F172A] font-bold mt-0.5 dark:text-white">{roleName}</dd>
                 </div>
-                <div className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2.5 shadow-[2px_2px_0px_#1E293B]">
-                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Release Target</dt>
+                <div className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2.5 shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-slate-800">
+                  <dt className="text-slate-500 font-bold uppercase text-[10px] dark:text-slate-400">Release Target</dt>
                   <dd className="text-[#34A853] font-black mt-0.5">v{version ?? "draft"}</dd>
                 </div>
-                <div className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2.5 shadow-[2px_2px_0px_#1E293B]">
-                  <dt className="text-slate-500 font-bold uppercase text-[10px]">Architecture</dt>
-                  <dd className="capitalize text-slate-700 font-bold mt-0.5">{config.shell}</dd>
+                <div className="rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2.5 shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-slate-800">
+                  <dt className="text-slate-500 font-bold uppercase text-[10px] dark:text-slate-400">Architecture</dt>
+                  <dd className="capitalize text-slate-700 font-bold mt-0.5 dark:text-slate-300">{config.shell}</dd>
                 </div>
               </dl>
             </div>
           </aside>
         </div>
+        {MobileBottomNav}
+        {Modals}
       </div>
     );
   }
 
   // Shell 3: Topbar cards shell (Service Centre)
   return (
-    <div style={style} className="flex h-full flex-col industrial-dot-grid" data-shell="topbar-cards">
+    <div style={style} className="flex h-full flex-col industrial-dot-grid pb-14 md:pb-0" data-shell="topbar-cards">
       <OfflineBanner />
       <PreviewBanner />
-      <header className="topbar border-b-2 border-[#1E293B] bg-white shadow-[0_2px_0px_#1E293B]">
+      <header className="topbar border-b-2 border-[#1E293B] bg-white shadow-[0_2px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E]">
         <div className="flex h-16 items-center gap-4 px-6">
           {Brand}
-          <div className="h-5 w-[2px] bg-slate-200" />
-          <strong className="font-['Outfit',sans-serif] text-sm font-bold uppercase tracking-wider text-[#0F172A]">{config.name}</strong>
-          <span className="hidden rounded-full border-2 border-[#1E293B] bg-slate-50 px-3 py-1 font-mono text-xs font-bold sm:inline shadow-[2px_2px_0px_#1E293B]">
-            ROLE: <span className="text-[#2563EB]">{roleName}</span>
+          <div className="h-5 w-[2px] bg-slate-200 dark:bg-slate-700" />
+          <strong className="font-['Outfit',sans-serif] text-sm font-bold uppercase tracking-wider text-[#0F172A] dark:text-white">{config.name}</strong>
+          <span className="hidden rounded-full border-2 border-[#1E293B] bg-slate-50 px-3 py-1 font-mono text-xs font-bold sm:inline shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-slate-800">
+            ROLE: <span className="text-[#2563EB] dark:text-[#FBBC04]">{roleName}</span>
           </span>
           <div className="ml-auto flex items-center gap-3">
             <SiteSwitcher />
+            {QuickBar}
             <UserMenu />
           </div>
         </div>
-        <nav aria-label="Main" className="flex h-11 items-stretch gap-1 overflow-x-auto border-t-2 border-slate-100 bg-slate-50 px-6">
+        <nav aria-label="Main" className="flex h-11 items-stretch gap-1 overflow-x-auto border-t-2 border-slate-100 bg-slate-50 px-6 dark:border-slate-800 dark:bg-[#1A243B]">
           {all.map((e) => (
             <NavItem key={e.to} entry={e} variant="top" />
           ))}
         </nav>
       </header>
-      <main className="min-h-0 flex-1 overflow-auto p-6 text-[#0F172A]">
+      <main className="min-h-0 flex-1 overflow-auto p-6 text-[#0F172A] dark:text-[#F8FAFC]">
         <div className="devfest-card p-6 min-h-full">
           <div className="mb-6">
             <Breadcrumbs current={title} />
@@ -371,6 +493,8 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
           {children}
         </div>
       </main>
+      {MobileBottomNav}
+      {Modals}
     </div>
   );
 }
