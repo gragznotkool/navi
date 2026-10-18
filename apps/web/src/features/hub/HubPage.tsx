@@ -146,20 +146,20 @@ export function HubPage() {
 
       <main className="mx-auto w-full max-w-6xl p-6 sm:p-8">
         {/* Banner Section */}
-        <div className="devfest-card mb-8 p-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="devfest-card mb-8 p-6 flex flex-wrap items-center justify-between gap-4 dark:bg-[#131B2E] dark:border-[#334155]">
           <div>
-            <div className="mb-1.5 inline-flex items-center gap-2 rounded-full bg-[#3B82F6]/15 px-3 py-1 font-mono text-xs font-bold text-[#2563EB]">
-              <span className="h-2 w-2 rounded-full bg-[#2563EB]" />
+            <div className="mb-1.5 inline-flex items-center gap-2 rounded-full bg-[#3B82F6]/15 px-3 py-1 font-mono text-xs font-bold text-[#2563EB] dark:bg-[#3B82F6]/25 dark:text-[#93C5FD]">
+              <span className="h-2 w-2 rounded-full bg-[#2563EB] dark:bg-[#60A5FA]" />
               COMMAND CENTER · MULTI-BUSINESS TELEMETRY
             </div>
-            <h1 className="font-['Outfit',sans-serif] text-3xl font-black tracking-tight text-[#0F172A]">
+            <h1 className="font-['Outfit',sans-serif] text-3xl font-black tracking-tight text-[#0F172A] dark:text-white">
               Industrial Operations Fleet
             </h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
               Real-time synchronization across Central Stores, Service Centre, and Distribution sites.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-full border-2 border-[#1E293B] bg-[#34A853]/15 px-3 py-1.5 font-mono text-xs font-bold text-[#0F172A] shadow-[2px_2px_0px_#1E293B]">
+          <div className="flex items-center gap-2 rounded-full border-2 border-[#1E293B] bg-[#34A853]/15 px-3 py-1.5 font-mono text-xs font-bold text-[#0F172A] shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-[#34A853]/20 dark:text-white">
             <span className="h-2.5 w-2.5 rounded-full bg-[#34A853] animate-pulse" />
             SYSTEM STATUS: <span className="font-extrabold text-[#34A853]">ONLINE</span>
           </div>
@@ -370,14 +370,14 @@ function KpiTile({
   }[tone];
 
   return (
-    <div className="devfest-card p-4 transition">
-      <div className="flex items-center justify-between text-slate-600">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</span>
+    <div className="devfest-card p-4 transition dark:bg-[#131B2E] dark:border-[#334155]">
+      <div className="flex items-center justify-between text-slate-600 dark:text-slate-300">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
         <div className={`flex h-6 w-6 items-center justify-center rounded-full border ${iconColor}`}>
           <Icon className="h-3.5 w-3.5" />
         </div>
       </div>
-      <p className="mt-2 font-mono text-2xl font-black tracking-tight text-[#0F172A] tabular-nums">
+      <p className="mt-2 font-mono text-2xl font-black tracking-tight text-[#0F172A] tabular-nums dark:text-white">
         {Number(value).toLocaleString()}
       </p>
     </div>

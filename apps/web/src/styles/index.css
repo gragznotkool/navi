@@ -75,33 +75,37 @@ html.dark .devfest-btn {
 
 html.dark .bg-white {
   background-color: #131B2E !important;
-  color: #F8FAFC;
+  color: #F8FAFC !important;
 }
 
 html.dark .bg-slate-50 {
   background-color: #0F172A !important;
+  color: #F8FAFC !important;
 }
 
 html.dark .bg-slate-100 {
   background-color: #1E293B !important;
-}
-
-html.dark .text-[#0F172A] {
   color: #F8FAFC !important;
 }
 
-html.dark .text-slate-600,
-html.dark .text-slate-700,
-html.dark .text-slate-800 {
+html.dark [class*="text-[#0F172A]"],
+html.dark [class*="text-slate-900"],
+html.dark [class*="text-slate-800"] {
+  color: #F8FAFC !important;
+}
+
+html.dark [class*="text-slate-700"],
+html.dark [class*="text-slate-600"],
+html.dark [class*="text-[#64748B]"] {
   color: #CBD5E1 !important;
 }
 
-html.dark .text-slate-500,
-html.dark .text-slate-400 {
+html.dark [class*="text-slate-500"],
+html.dark [class*="text-slate-400"] {
   color: #94A3B8 !important;
 }
 
-html.dark .border-[#1E293B] {
+html.dark [class*="border-[#1E293B]"] {
   border-color: #334155 !important;
 }
 

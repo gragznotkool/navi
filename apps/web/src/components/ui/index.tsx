@@ -135,10 +135,10 @@ export function StatusBadge({ status }: { status: string }) {
 
 export function PageHeader({ title, subtitle, actions }: { title: string; subtitle?: string; actions?: ReactNode }) {
   return (
-    <div className="mb-6 flex flex-wrap items-start justify-between gap-3 rounded-2xl border-2 border-[#1E293B] bg-white p-4 shadow-[4px_4px_0px_#1E293B]">
+    <div className="mb-6 flex flex-wrap items-start justify-between gap-3 rounded-2xl border-2 border-[#1E293B] bg-white p-4 shadow-[4px_4px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E]">
       <div>
-        <h1 className="font-['Outfit',sans-serif] text-2xl font-extrabold tracking-tight text-[#0F172A]">{title}</h1>
-        {subtitle && <p className="mt-1 text-xs font-medium text-[#64748B]">{subtitle}</p>}
+        <h1 className="font-['Outfit',sans-serif] text-2xl font-extrabold tracking-tight text-[#0F172A] dark:text-white">{title}</h1>
+        {subtitle && <p className="mt-1 text-xs font-medium text-[#64748B] dark:text-slate-400">{subtitle}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}
     </div>
@@ -147,14 +147,14 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
 
 export function Panel({ title, children, actions }: { title?: string; children?: ReactNode; actions?: ReactNode }) {
   return (
-    <section className="rounded-2xl border-2 border-[#1E293B] bg-white shadow-[4px_4px_0px_#1E293B] overflow-hidden">
+    <section className="rounded-2xl border-2 border-[#1E293B] bg-white shadow-[4px_4px_0px_#1E293B] overflow-hidden dark:border-[#334155] dark:bg-[#131B2E]">
       {(title || actions) && (
-        <header className="flex items-center justify-between border-b-2 border-[#1E293B] bg-slate-50 px-4 py-3">
-          <h2 className="font-['Outfit',sans-serif] text-sm font-bold tracking-tight text-[#0F172A]">{title}</h2>
+        <header className="flex items-center justify-between border-b-2 border-[#1E293B] bg-slate-50 px-4 py-3 dark:border-[#334155] dark:bg-[#1E293B]">
+          <h2 className="font-['Outfit',sans-serif] text-sm font-bold tracking-tight text-[#0F172A] dark:text-white">{title}</h2>
           {actions}
         </header>
       )}
-      <div className="p-4 text-[#0F172A]">{children}</div>
+      <div className="p-4 text-[#0F172A] dark:text-slate-100">{children}</div>
     </section>
   );
 }
