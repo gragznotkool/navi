@@ -7,9 +7,9 @@ const variants: Record<Variant, string> = {
   primary:
     "border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A] font-bold hover:bg-[#F59E0B] shadow-[3px_3px_0px_#1E293B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#1E293B] disabled:opacity-40",
   secondary:
-    "border-2 border-[#1E293B] bg-[#FFFFFF] text-[#0F172A] font-semibold hover:bg-[#F8FAFC] shadow-[3px_3px_0px_#1E293B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#1E293B] disabled:opacity-40",
+    "border-2 border-[#1E293B] bg-[#FFFFFF] text-[#0F172A] font-semibold hover:bg-[#F8FAFC] shadow-[3px_3px_0px_#1E293B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#1E293B] disabled:opacity-40 dark:border-[#334155] dark:bg-[#1E293B] dark:text-white dark:hover:bg-slate-800 dark:shadow-[3px_3px_0px_#05070B]",
   outline:
-    "border-2 border-[#1E293B] bg-transparent text-[#1E293B] font-bold hover:bg-white/20 shadow-[2px_2px_0px_#1E293B] disabled:opacity-40",
+    "border-2 border-[#1E293B] bg-transparent text-[#1E293B] font-bold hover:bg-white/20 shadow-[2px_2px_0px_#1E293B] disabled:opacity-40 dark:border-[#334155] dark:text-slate-200 dark:hover:bg-white/10 dark:shadow-[2px_2px_0px_#05070B]",
   danger:
     "border-2 border-[#1E293B] bg-[#EA4335] text-white font-bold hover:bg-[#D93025] shadow-[3px_3px_0px_#1E293B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#1E293B] disabled:opacity-40",
   blue:
@@ -17,7 +17,7 @@ const variants: Record<Variant, string> = {
   green:
     "border-2 border-[#1E293B] bg-[#34A853] text-white font-bold hover:bg-[#2D9247] shadow-[3px_3px_0px_#1E293B] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#1E293B] disabled:opacity-40",
   ghost:
-    "text-[#475569] hover:bg-black/5 hover:text-[#0F172A] font-semibold disabled:opacity-40",
+    "text-[#475569] hover:bg-black/5 hover:text-[#0F172A] font-semibold disabled:opacity-40 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white",
 };
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -47,7 +47,7 @@ interface FieldProps {
 }
 
 const inputClass =
-  "h-10 w-full rounded-xl border-2 border-[#1E293B] bg-white px-3 text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] shadow-[2px_2px_0px_#1E293B] transition-all focus:border-[#4285F4] focus:ring-2 focus:ring-[#4285F4]/30 focus:shadow-[3px_3px_0px_#1E293B] disabled:bg-slate-100 disabled:opacity-60 aria-[invalid=true]:border-[#EA4335]";
+  "h-10 w-full rounded-xl border-2 border-[#1E293B] bg-white px-3 text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] shadow-[2px_2px_0px_#1E293B] transition-all focus:border-[#4285F4] focus:ring-2 focus:ring-[#4285F4]/30 focus:shadow-[3px_3px_0px_#1E293B] disabled:bg-slate-100 disabled:opacity-60 aria-[invalid=true]:border-[#EA4335] dark:border-[#334155] dark:bg-[#0F172A] dark:text-white dark:placeholder:text-slate-500 dark:shadow-[2px_2px_0px_#05070B]";
 
 export const TextField = forwardRef<HTMLInputElement, FieldProps & InputHTMLAttributes<HTMLInputElement>>(function TextField(
   { label, error, hint, rightAction, className = "", ...rest },
@@ -56,7 +56,7 @@ export const TextField = forwardRef<HTMLInputElement, FieldProps & InputHTMLAttr
   const id = useId();
   return (
     <div className={className}>
-      <label htmlFor={id} className="mb-1.5 block font-['Outfit',sans-serif] text-xs font-bold text-[#0F172A]">
+      <label htmlFor={id} className="mb-1.5 block font-['Outfit',sans-serif] text-xs font-bold text-[#0F172A] dark:text-slate-200">
         {label}
       </label>
       <div className="relative">
@@ -67,7 +67,7 @@ export const TextField = forwardRef<HTMLInputElement, FieldProps & InputHTMLAttr
           </div>
         )}
       </div>
-      {hint && !error && <p className="mt-1 text-[11px] text-[#64748B]">{hint}</p>}
+      {hint && !error && <p className="mt-1 text-[11px] text-[#64748B] dark:text-slate-400">{hint}</p>}
       {error && (
         <p id={`${id}-err`} role="alert" className="mt-1 font-bold text-[11px] text-[#EA4335]">
           {error}
@@ -84,7 +84,7 @@ export const SelectField = forwardRef<HTMLSelectElement, FieldProps & SelectHTML
   const id = useId();
   return (
     <div className={className}>
-      <label htmlFor={id} className="mb-1 block font-['Outfit',sans-serif] text-xs font-bold text-[#0F172A]">
+      <label htmlFor={id} className="mb-1 block font-['Outfit',sans-serif] text-xs font-bold text-[#0F172A] dark:text-slate-200">
         {label}
       </label>
       <select ref={ref} id={id} aria-invalid={error ? true : undefined} className={inputClass} {...rest}>
@@ -101,10 +101,10 @@ export const SelectField = forwardRef<HTMLSelectElement, FieldProps & SelectHTML
 
 type Tone = "neutral" | "success" | "warning" | "danger" | "info" | "yellow";
 const tones: Record<Tone, string> = {
-  neutral: "border-2 border-[#1E293B] bg-slate-100 text-[#0F172A]",
-  yellow: "border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A]",
+  neutral: "border-2 border-[#1E293B] bg-slate-100 text-[#0F172A] dark:border-[#334155] dark:bg-[#1E293B] dark:text-slate-200",
+  yellow: "border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A] dark:border-[#FBBC04] dark:bg-[#FBBC04] dark:text-[#0F172A]",
   success: "border-2 border-[#1E293B] bg-[#34A853] text-white",
-  warning: "border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A]",
+  warning: "border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A] dark:border-[#FBBC04] dark:bg-[#FBBC04] dark:text-[#0F172A]",
   danger: "border-2 border-[#1E293B] bg-[#EA4335] text-white",
   info: "border-2 border-[#1E293B] bg-[#4285F4] text-white",
 };

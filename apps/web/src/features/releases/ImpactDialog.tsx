@@ -58,18 +58,18 @@ export function ImpactDialog({
       )}
       {data?.valid && (
         <>
-          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">What will change</h3>
-          <ul className="list-disc space-y-1 pl-5 text-sm" aria-label="Changes in plain English">
+          <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted dark:text-slate-400">What will change</h3>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-[#0F172A] dark:text-slate-200" aria-label="Changes in plain English">
             {data.sentences.map((s) => <li key={s}>{s}</li>)}
           </ul>
           {destructive && data.impact && (
-            <div className="mt-4 rounded-ui border border-warning/40 bg-warning/10 p-3 text-sm">
-              <p className="mb-2 flex items-center gap-2 font-medium text-warning"><Badge tone="warning">Needs confirmation</Badge> This change affects things that are in use</p>
-              <ul className="list-disc pl-5 space-y-1 text-xs text-secondary">
+            <div className="mt-4 rounded-ui border border-warning/40 bg-warning/10 p-3 text-sm dark:bg-yellow-950/30 dark:border-yellow-600/50">
+              <p className="mb-2 flex items-center gap-2 font-medium text-warning dark:text-yellow-400"><Badge tone="warning">Needs confirmation</Badge> This change affects things that are in use</p>
+              <ul className="list-disc pl-5 space-y-1 text-xs text-secondary dark:text-slate-300">
                 {data.impact.destructiveReasons.map((r) => <li key={r}>{r}</li>)}
               </ul>
-              <label className="mt-3 flex items-start gap-2 text-xs text-primary font-medium cursor-pointer">
-                <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} className="mt-0.5 accent-[#FFE500]" />
+              <label className="mt-3 flex items-start gap-2 text-xs text-primary font-medium cursor-pointer dark:text-white">
+                <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} className="mt-0.5 accent-[#FBBC04]" />
                 <span>I understand and want to continue. Hidden values stay in the database and can be restored.</span>
               </label>
             </div>

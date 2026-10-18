@@ -45,12 +45,12 @@ export function CardSkeleton() {
 
 export function EmptyState({ title, hint, action }: { title: string; hint?: string; action?: ReactNode }) {
   return (
-    <div className="devfest-card flex flex-col items-center gap-2.5 bg-white/90 p-8 text-center">
+    <div className="devfest-card flex flex-col items-center gap-2.5 p-8 text-center bg-white dark:bg-[#131B2E]">
       <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A] shadow-[2px_2px_0px_#1E293B]">
         <Inbox className="h-6 w-6" aria-hidden />
       </div>
-      <p className="font-['Outfit',sans-serif] text-base font-black uppercase tracking-wider text-[#0F172A]">{title}</p>
-      {hint && <p className="max-w-md text-xs font-medium text-slate-600">{hint}</p>}
+      <p className="font-['Outfit',sans-serif] text-base font-black uppercase tracking-wider text-[#0F172A] dark:text-white">{title}</p>
+      {hint && <p className="max-w-md text-xs font-medium text-slate-600 dark:text-slate-300">{hint}</p>}
       {action && <div className="mt-3">{action}</div>}
     </div>
   );
@@ -60,12 +60,12 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
   const e = error instanceof ApiRequestError ? error : null;
   const unavailable = e?.unavailable;
   return (
-    <div role="alert" className="devfest-card border-l-8 border-l-[#EA4335] p-5">
+    <div role="alert" className="devfest-card border-l-8 border-l-[#EA4335] p-5 bg-white dark:bg-[#131B2E]">
       <div className="flex items-start gap-3.5">
         {unavailable ? <Info className="mt-0.5 h-5 w-5 shrink-0 text-[#2563EB]" aria-hidden /> : <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#EA4335]" aria-hidden />}
         <div className="flex-1">
-          <p className="font-mono text-xs font-black uppercase tracking-wider text-[#0F172A]">{unavailable ? "Not available yet" : "SYSTEM ALERT · FAULT DETECTED"}</p>
-          <p className="mt-1 text-xs font-medium text-slate-600">{e?.message ?? "Unexpected system error"}</p>
+          <p className="font-mono text-xs font-black uppercase tracking-wider text-[#0F172A] dark:text-white">{unavailable ? "Not available yet" : "SYSTEM ALERT · FAULT DETECTED"}</p>
+          <p className="mt-1 text-xs font-medium text-slate-600 dark:text-slate-300">{e?.message ?? "Unexpected system error"}</p>
           {onRetry && !unavailable && (
             <Button className="mt-3 font-mono font-bold" onClick={onRetry}>
               Try again
@@ -86,10 +86,10 @@ export function Toaster() {
       {toasts.map((t) => {
         const Icon = icon[t.kind];
         return (
-          <div key={t.id} role={t.kind === "error" ? "alert" : "status"} className="devfest-card flex items-start gap-3 p-3.5 bg-white">
+          <div key={t.id} role={t.kind === "error" ? "alert" : "status"} className="devfest-card flex items-start gap-3 p-3.5 bg-white dark:bg-[#131B2E]">
             <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${color[t.kind]}`} aria-hidden />
-            <p className="flex-1 text-xs font-bold text-[#0F172A]">{t.message}</p>
-            <button aria-label="Dismiss notification" onClick={() => dismiss(t.id)} className="text-slate-400 hover:text-[#0F172A]">
+            <p className="flex-1 text-xs font-bold text-[#0F172A] dark:text-white">{t.message}</p>
+            <button aria-label="Dismiss notification" onClick={() => dismiss(t.id)} className="text-slate-400 hover:text-[#0F172A] dark:hover:text-white">
               <X className="h-4 w-4" />
             </button>
           </div>

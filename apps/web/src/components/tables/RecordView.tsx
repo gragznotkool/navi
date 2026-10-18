@@ -35,7 +35,7 @@ export function RecordView<T>({ layout, caption, rows, rowKey, columns, groupBy,
             <section
               key={g}
               aria-label={`${g} (${items.length})`}
-              className="devfest-card w-72 shrink-0 overflow-hidden bg-slate-50 transition-colors"
+              className="devfest-card w-72 shrink-0 overflow-hidden bg-slate-50 transition-colors dark:bg-[#0B1120]"
               onDragOver={(e) => {
                 if (onMove) e.preventDefault();
               }}
@@ -46,7 +46,7 @@ export function RecordView<T>({ layout, caption, rows, rowKey, columns, groupBy,
                 if (row && groupBy(row) !== g) onMove(row, g);
               }}
             >
-              <h3 className="flex items-center justify-between border-b-2 border-[#1E293B] bg-white px-4 py-3 font-['Outfit',sans-serif] text-sm font-black uppercase tracking-wider text-[#0F172A]">
+              <h3 className="flex items-center justify-between border-b-2 border-[#1E293B] bg-white px-4 py-3 font-['Outfit',sans-serif] text-sm font-black uppercase tracking-wider text-[#0F172A] dark:border-[#334155] dark:bg-[#1E293B] dark:text-white">
                 <span>{g}</span>
                 <span className="rounded-full border-2 border-[#1E293B] bg-[#FBBC04] px-2.5 py-0.5 font-mono text-[11px] font-black text-[#0F172A] tabular-nums shadow-[1px_1px_0px_#1E293B]">
                   {items.length}
@@ -54,27 +54,27 @@ export function RecordView<T>({ layout, caption, rows, rowKey, columns, groupBy,
               </h3>
               <ul className="flex min-h-[140px] flex-col gap-2.5 p-3">
                 {items.length === 0 && (
-                  <li className="grid place-items-center py-6 text-xs font-bold text-slate-400">Nothing in {g}</li>
+                  <li className="grid place-items-center py-6 text-xs font-bold text-slate-400 dark:text-slate-500">Nothing in {g}</li>
                 )}
                 {items.map((r) => (
                   <li
                     key={rowKey(r)}
                     draggable={Boolean(onMove)}
                     onDragStart={(e) => e.dataTransfer.setData("text/plain", rowKey(r))}
-                    className={`rounded-xl border-2 border-[#1E293B] bg-white p-3.5 shadow-[2px_2px_0px_#1E293B] transition-all hover:translate-y-[-1px] ${
+                    className={`rounded-xl border-2 border-[#1E293B] bg-white p-3.5 shadow-[2px_2px_0px_#1E293B] transition-all hover:translate-y-[-1px] dark:border-[#334155] dark:bg-[#131B2E] dark:text-slate-100 dark:shadow-[2px_2px_0px_#05070B] ${
                       onMove ? "cursor-grab active:cursor-grabbing" : ""
                     }`}
                   >
                     {card(r)}
                     {onMove && (
-                      <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-2.5">
-                        <label className="font-mono text-[10px] uppercase font-bold text-slate-500">Move to:</label>
+                      <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-2.5 dark:border-slate-700">
+                        <label className="font-mono text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Move to:</label>
                         <select
                           value=""
                           onChange={(e) => {
                             if (e.target.value) onMove(r, e.target.value);
                           }}
-                          className="h-7 rounded-full border-2 border-[#1E293B] bg-slate-50 px-2 text-xs font-bold text-[#0F172A] focus:border-[#FBBC04]"
+                          className="h-7 rounded-full border-2 border-[#1E293B] bg-slate-50 px-2 text-xs font-bold text-[#0F172A] focus:border-[#FBBC04] dark:border-[#334155] dark:bg-slate-800 dark:text-white"
                         >
                           <option value="">Choose…</option>
                           {groups

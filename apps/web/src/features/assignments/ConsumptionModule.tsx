@@ -55,7 +55,14 @@ export function ConsumptionModule({ page }: ModuleProps) {
               render: (a) =>
                 canRecord ? (
                   <div className="flex items-center gap-2">
-                    <input aria-label={`Quantity consumed for assignment ${shortId(a.id)}`} type="number" min={1} value={qty[a.id] ?? ""} onChange={(e) => setQty((q) => ({ ...q, [a.id]: e.target.value }))} className="h-9 w-24 rounded-ui border border-line px-2 text-sm" />
+                    <input
+                      aria-label={`Quantity consumed for assignment ${shortId(a.id)}`}
+                      type="number"
+                      min={1}
+                      value={qty[a.id] ?? ""}
+                      onChange={(e) => setQty((q) => ({ ...q, [a.id]: e.target.value }))}
+                      className="h-9 w-24 rounded-ui border-2 border-[#1E293B] bg-white px-2 font-mono text-sm text-[#0F172A] focus:border-[#FBBC04] focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
+                    />
                     <Button variant="primary" loading={busy === a.id} onClick={() => record(a)}>Record</Button>
                   </div>
                 ) : (

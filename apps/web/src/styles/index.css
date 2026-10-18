@@ -1,6 +1,8 @@
 @import "@fontsource-variable/inter";
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   /* Google DevFest Vibrant Theme Design System */
   --bg: #3B82F6; /* Vibrant Royal DevFest Blue */
@@ -38,7 +40,7 @@
 
 html.dark,
 body.dark {
-  --bg: #090D16;
+  --bg: #0B1120;
   --bg-secondary: #0F172A;
   --surface: #131B2E;
   --surface-elevated: #1E293B;
@@ -48,86 +50,43 @@ body.dark {
   --border: #334155;
   --border-subtle: #1E293B;
   --yellow-glow: rgba(251, 188, 4, 0.25);
-  background: #090D16 !important;
-  color: #F8FAFC !important;
 }
 
+html.dark,
 html.dark body {
-  background: #090D16 !important;
-  color: #F8FAFC !important;
+  background-color: #0B1120;
+  color: #F8FAFC;
+}
+
+html.dark .industrial-dot-grid {
+  background-color: #0B1120;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.12) 1.5px, transparent 1.5px);
 }
 
 html.dark .devfest-card {
-  background: #131B2E !important;
-  border-color: #334155 !important;
-  box-shadow: 4px 4px 0px #05070B !important;
-  color: #F8FAFC !important;
+  background-color: #131B2E;
+  border-color: #334155;
+  box-shadow: 4px 4px 0px #020617;
+  color: #F8FAFC;
 }
 
 html.dark .devfest-card:hover {
-  box-shadow: 6px 6px 0px #05070B !important;
+  box-shadow: 6px 6px 0px #020617;
 }
 
 html.dark .devfest-btn {
-  border-color: #334155 !important;
-  box-shadow: 3px 3px 0px #05070B !important;
+  border-color: #334155;
+  box-shadow: 3px 3px 0px #020617;
 }
 
-html.dark .bg-white {
-  background-color: #131B2E !important;
-  color: #F8FAFC !important;
+html.dark ::-webkit-scrollbar-track {
+  background: #0F172A;
+  border-color: #334155;
 }
 
-html.dark .bg-slate-50 {
-  background-color: #0F172A !important;
-  color: #F8FAFC !important;
-}
-
-html.dark .bg-slate-100 {
-  background-color: #1E293B !important;
-  color: #F8FAFC !important;
-}
-
-html.dark [class*="text-[#0F172A]"],
-html.dark [class*="text-slate-900"],
-html.dark [class*="text-slate-800"] {
-  color: #F8FAFC !important;
-}
-
-html.dark [class*="text-slate-700"],
-html.dark [class*="text-slate-600"],
-html.dark [class*="text-[#64748B]"] {
-  color: #CBD5E1 !important;
-}
-
-html.dark [class*="text-slate-500"],
-html.dark [class*="text-slate-400"] {
-  color: #94A3B8 !important;
-}
-
-html.dark [class*="border-[#1E293B]"] {
-  border-color: #334155 !important;
-}
-
-html.dark .border-slate-200,
-html.dark .border-slate-300 {
-  border-color: #1E293B !important;
-}
-
-html.dark input,
-html.dark select,
-html.dark textarea {
-  background-color: #0F172A !important;
-  color: #F8FAFC !important;
-  border-color: #334155 !important;
-}
-
-html.dark tr.border-b-2 {
-  border-color: #334155 !important;
-}
-
-html.dark tbody tr:hover {
-  background-color: rgba(66, 133, 244, 0.1) !important;
+html.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-color: #1E293B;
 }
 
 @theme inline {
