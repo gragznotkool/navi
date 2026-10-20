@@ -14,7 +14,7 @@ import { WebsitePreview } from "./WebsitePreview";
 /** Steps the provisioning log reports for a website deploy; drives the progress bar. */
 const EXPECTED_EVENTS = 15;
 
-const field = "h-10 w-full rounded-xl border-2 border-[#1E293B] bg-white px-3 text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] shadow-[2px_2px_0px_#1E293B] focus:border-[#4285F4] focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30 aria-[invalid=true]:border-[#EA4335]";
+const field = "h-10 w-full rounded-xl border-2 border-[#1E293B] bg-white px-3 text-sm font-medium text-[#0F172A] placeholder:text-[#94A3B8] shadow-[2px_2px_0px_#1E293B] focus:border-[#4285F4] focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30 aria-[invalid=true]:border-[#EA4335] dark:border-[#334155] dark:bg-[#1E293B] dark:text-white dark:placeholder:text-slate-500 dark:shadow-[2px_2px_0px_#020617]";
 
 /** Identity is assigned by the server; strip the builder's placeholders before sending. */
 function deployable(config: SiteConfiguration): Record<string, unknown> {
@@ -95,11 +95,11 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
   const pages = config.navigation.map((n) => n.label);
 
   return (
-    <section aria-label="Deploy website" className="overflow-hidden rounded-2xl border-2 border-[#1E293B] bg-white text-[#0F172A] shadow-[4px_4px_0px_#1E293B]">
-      <header className="flex items-center justify-between gap-2 border-b-2 border-[#1E293B] bg-slate-50 px-4 py-3">
+    <section aria-label="Deploy website" className="overflow-hidden rounded-2xl border-2 border-[#1E293B] bg-white text-[#0F172A] shadow-[4px_4px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E] dark:text-white dark:shadow-[4px_4px_0px_#020617]">
+      <header className="flex items-center justify-between gap-2 border-b-2 border-[#1E293B] bg-slate-50 px-4 py-3 dark:border-b-[#334155] dark:bg-[#1E293B]">
         <div className="min-w-0">
-          <h2 className="font-['Outfit',sans-serif] uppercase tracking-wider text-base font-extrabold text-[#0F172A]">Deploy website</h2>
-          <p className="truncate text-[11px] font-medium text-slate-500">From {templateName}</p>
+          <h2 className="font-['Outfit',sans-serif] uppercase tracking-wider text-base font-extrabold text-[#0F172A] dark:text-white">Deploy website</h2>
+          <p className="truncate text-[11px] font-medium text-slate-500 dark:text-slate-400">From {templateName}</p>
         </div>
         <span className="rounded-full border border-[#1E293B] bg-[#FBBC04] px-2.5 py-0.5 text-[10px] font-bold text-[#0F172A] shadow-[1px_1px_0px_#1E293B]">{config.modules.nodes.length} modules</span>
       </header>
@@ -107,7 +107,7 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
       <div className="flex flex-col gap-4 p-4">
         <div className="flex flex-col gap-3">
           <label className="flex flex-col gap-1">
-            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">Website name</span>
+            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A] dark:text-white">Website name</span>
             <input
               value={name}
               onChange={(e) => {
@@ -122,9 +122,9 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
             {nameError && <span role="alert" className="text-[11px] font-bold text-[#EA4335]">{nameError}</span>}
           </label>
           <label className="flex flex-col gap-1">
-            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">URL slug</span>
-            <span className="flex items-center overflow-hidden rounded-xl border-2 border-[#1E293B] bg-white shadow-[2px_2px_0px_#1E293B] focus-within:border-[#4285F4] focus-within:ring-2 focus-within:ring-[#4285F4]/30">
-              <span className="shrink-0 pl-3 font-mono text-xs font-bold text-slate-500">/w/</span>
+            <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A] dark:text-white">URL slug</span>
+            <span className="flex items-center overflow-hidden rounded-xl border-2 border-[#1E293B] bg-white shadow-[2px_2px_0px_#1E293B] focus-within:border-[#4285F4] focus-within:ring-2 focus-within:ring-[#4285F4]/30 dark:border-[#334155] dark:bg-[#1E293B] dark:shadow-[2px_2px_0px_#020617]">
+              <span className="shrink-0 pl-3 font-mono text-xs font-bold text-slate-500 dark:text-slate-400">/w/</span>
               <input
                 value={slug}
                 onChange={(e) => {
@@ -134,7 +134,7 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
                 placeholder="my-site"
                 aria-label="URL slug"
                 aria-invalid={slugError ? true : undefined}
-                className="h-10 min-w-0 flex-1 bg-transparent px-2 font-mono text-sm font-bold text-[#0F172A] placeholder:text-slate-400 focus:outline-none"
+                className="h-10 min-w-0 flex-1 bg-transparent px-2 font-mono text-sm font-bold text-[#0F172A] placeholder:text-slate-400 focus:outline-none dark:text-white dark:placeholder:text-slate-500"
               />
             </span>
             {slugError && <span role="alert" className="text-[11px] font-bold text-[#EA4335]">{slugError}</span>}
@@ -142,7 +142,7 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
         </div>
 
         <div>
-          <p className="mb-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">Theme</p>
+          <p className="mb-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A] dark:text-white">Theme</p>
           <div role="radiogroup" aria-label="Website theme" className="grid grid-cols-3 gap-1.5">
             {WEBSITE_THEMES.map((t) => (
               <button
@@ -153,25 +153,25 @@ function DeployPanel({ templateId, templateName, theme, onTheme, config, onDeplo
                 onClick={() => onTheme(t)}
                 className={`flex items-center gap-1.5 rounded-xl border-2 px-2 py-1.5 text-left text-[11px] font-bold transition-all ${
                   t.id === theme.id
-                    ? "border-[#1E293B] bg-[#FBBC04] text-[#0F172A] shadow-[2px_2px_0px_#1E293B]"
-                    : "border-slate-200 bg-slate-50 text-slate-700 hover:border-[#1E293B] hover:bg-white"
+                    ? "border-[#1E293B] bg-[#FBBC04] text-[#0F172A] shadow-[2px_2px_0px_#1E293B] dark:border-[#FBBC04]"
+                    : "border-slate-200 bg-slate-50 text-slate-700 hover:border-[#1E293B] hover:bg-white dark:border-[#334155] dark:bg-[#0B1120] dark:text-slate-300 dark:hover:bg-[#1E293B]"
                 }`}
               >
-                <span aria-hidden className="h-3.5 w-3.5 shrink-0 rounded-full border border-[#1E293B]" style={{ background: t.palette.primary }} />
+                <span aria-hidden className="h-3.5 w-3.5 shrink-0 rounded-full border border-[#1E293B] dark:border-white" style={{ background: t.palette.primary }} />
                 <span className="truncate">{t.name}</span>
               </button>
             ))}
           </div>
-          <div className="mt-2.5 rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2 shadow-[2px_2px_0px_#1E293B]">
+          <div className="mt-2.5 rounded-xl border-2 border-[#1E293B] bg-slate-50 p-2 shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-[#1E293B] dark:shadow-[2px_2px_0px_#020617]">
             <WebsitePreview theme={theme} siteName={name || templateName} pages={pages.length ? pages : undefined} />
-            <p className="mt-1.5 px-0.5 text-[10px] font-medium text-slate-600">
+            <p className="mt-1.5 px-0.5 text-[10px] font-medium text-slate-600 dark:text-slate-300">
               {THEME_EMOJI[theme.id]} {theme.name} · {theme.shell} · {theme.fontFamily} · {theme.cardStyle} cards · {theme.navPosition} nav
             </p>
           </div>
         </div>
 
         <div>
-          <p className="mb-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">Access control</p>
+          <p className="mb-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A] dark:text-white">Access control</p>
           {users.loading ? (
             <p className="flex items-center gap-2 text-xs text-slate-500 font-bold"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Loading people…</p>
           ) : users.error ? (

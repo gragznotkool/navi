@@ -13,22 +13,22 @@ export function TemplateCard({ template, selected, onSelect }: { template: Websi
       onClick={onSelect}
       aria-pressed={selected}
       data-testid={`template-${template.id}`}
-      className={`group relative flex w-full flex-col overflow-hidden rounded-xl border-2 bg-white text-left transition-all duration-150 hover:-translate-y-0.5 shadow-[2px_2px_0px_#1E293B] hover:shadow-[4px_4px_0px_#1E293B] focus-visible:outline-none ${
-        selected ? "border-[#1E293B] ring-2 ring-[#FBBC04]" : "border-[#1E293B]"
+      className={`group relative flex w-full flex-col overflow-hidden rounded-xl border-2 bg-white text-left transition-all duration-150 hover:-translate-y-0.5 shadow-[2px_2px_0px_#1E293B] hover:shadow-[4px_4px_0px_#1E293B] focus-visible:outline-none dark:border-[#334155] dark:bg-[#131B2E] dark:shadow-[2px_2px_0px_#020617] ${
+        selected ? "border-[#1E293B] ring-2 ring-[#FBBC04] dark:border-[#FBBC04]" : "border-[#1E293B] dark:border-[#334155]"
       }`}
     >
       <div className="p-2 pb-0">
-        <WebsitePreview theme={t} siteName={template.name} pages={template.modules.length ? ["Dashboard", ...template.modules] : undefined} className="ring-1 ring-slate-200 rounded-lg overflow-hidden" />
+        <WebsitePreview theme={t} siteName={template.name} pages={template.modules.length ? ["Dashboard", ...template.modules] : undefined} className="ring-1 ring-slate-200 dark:ring-slate-700 rounded-lg overflow-hidden" />
       </div>
       <div className="flex flex-1 flex-col gap-1 px-2.5 pb-3 pt-2">
-        <span className="flex items-center gap-1.5 font-['Outfit',sans-serif] uppercase tracking-wider text-[13px] font-extrabold leading-tight text-[#0F172A]">
+        <span className="flex items-center gap-1.5 font-['Outfit',sans-serif] uppercase tracking-wider text-[13px] font-extrabold leading-tight text-[#0F172A] dark:text-white">
           <span aria-hidden>{THEME_EMOJI[t.id] ?? "✨"}</span>
           {template.name}
         </span>
-        <span className="line-clamp-2 text-[11px] leading-snug text-slate-500 font-medium">{template.tagline} · {template.description}</span>
+        <span className="line-clamp-2 text-[11px] leading-snug text-slate-500 dark:text-slate-400 font-medium">{template.tagline} · {template.description}</span>
         <span className="mt-1 flex flex-wrap gap-1">
-          <span className="rounded-md border border-[#1E293B] bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-[#0F172A]">{template.moduleCount} modules</span>
-          <span className="rounded-md border border-[#1E293B] bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">{SHELL_LABEL[t.shell]}</span>
+          <span className="rounded-md border border-[#1E293B] bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-[#0F172A] dark:border-[#334155] dark:bg-[#0B1120] dark:text-slate-200">{template.moduleCount} modules</span>
+          <span className="rounded-md border border-[#1E293B] bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 dark:border-[#334155] dark:bg-[#0B1120] dark:text-slate-300">{SHELL_LABEL[t.shell]}</span>
         </span>
       </div>
       <span aria-hidden className="h-1.5 w-full" style={{ background: t.palette.primary }} />

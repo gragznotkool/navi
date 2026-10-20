@@ -39,20 +39,20 @@ function ModuleNodeView({ data, selected }: NodeProps<Node<ModuleNodeData>>) {
 
   return (
     <div
-      className={`w-64 overflow-visible rounded-2xl text-left transition-all ${data.shake ? "ops-shake" : ""}`}
+      className={`w-64 overflow-visible rounded-2xl text-left transition-all dark:!bg-[#131B2E] dark:!border-[#334155] dark:shadow-[4px_4px_0px_#020617] ${data.shake ? "ops-shake" : ""}`}
       style={{ background: c.bg, border: `2px ${data.problem ? "dashed #EA4335" : "solid #1E293B"}`, boxShadow: ring }}
       data-testid={`node-${data.moduleType}`}
     >
-      <div className="flex items-center justify-between gap-2 rounded-t-[14px] px-3.5 py-2.5" style={{ background: c.head, borderBottom: "2px solid #1E293B" }}>
+      <div className="flex items-center justify-between gap-2 rounded-t-[14px] px-3.5 py-2.5 dark:!bg-[#1E293B] dark:border-b-[#334155]" style={{ background: c.head, borderBottom: "2px solid #1E293B" }}>
         <span className="flex min-w-0 items-center gap-2">
-          <span aria-hidden className="h-3 w-3 shrink-0 rounded-full border border-[#1E293B]" style={{ background: c.accent }} />
-          <span className="truncate font-['Outfit',sans-serif] text-[15px] font-bold leading-tight text-[#0F172A]">{def?.displayName ?? data.moduleType}</span>
+          <span aria-hidden className="h-3 w-3 shrink-0 rounded-full border border-[#1E293B] dark:border-white" style={{ background: c.accent }} />
+          <span className="truncate font-['Outfit',sans-serif] text-[15px] font-bold leading-tight text-[#0F172A] dark:text-white">{def?.displayName ?? data.moduleType}</span>
         </span>
-        <span className="shrink-0 rounded-full border border-[#1E293B] px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide bg-white text-[#0F172A] shadow-[1px_1px_0px_#1E293B]">
+        <span className="shrink-0 rounded-full border border-[#1E293B] dark:border-[#334155] px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wide bg-white dark:bg-[#0B1120] text-[#0F172A] dark:text-slate-200 shadow-[1px_1px_0px_#1E293B] dark:shadow-[1px_1px_0px_#020617]">
           {def?.platformModule ? "Core" : "Module"}
         </span>
       </div>
-      <div className="flex justify-between gap-3 px-3.5 py-3 text-[13px] font-medium" style={{ color: "#0F172A" }}>
+      <div className="flex justify-between gap-3 px-3.5 py-3 text-[13px] font-medium text-[#0F172A] dark:text-slate-200">
         <ul className="space-y-1.5">
           {inputs.map((p) => (
             <li key={p.id} className="relative text-left">
@@ -70,7 +70,7 @@ function ModuleNodeView({ data, selected }: NodeProps<Node<ModuleNodeData>>) {
           ))}
         </ul>
       </div>
-      {data.problem && <p role="status" className="rounded-b-[14px] border-t-2 border-dashed border-[#EA4335] bg-[#FFF1F2] px-3.5 py-2 text-[12px] font-medium text-[#EA4335]">{data.problem}</p>}
+      {data.problem && <p role="status" className="rounded-b-[14px] border-t-2 border-dashed border-[#EA4335] bg-[#FFF1F2] dark:bg-[#450a0a] px-3.5 py-2 text-[12px] font-medium text-[#EA4335] dark:text-rose-300">{data.problem}</p>}
     </div>
   );
 }
@@ -420,10 +420,10 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
         </div>
       )}
       {web ? (
-        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border-2 border-[#1E293B] bg-white p-3 shadow-[4px_4px_0px_#1E293B]" role="toolbar" aria-label="Website workspace">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border-2 border-[#1E293B] bg-white p-3 shadow-[4px_4px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E] dark:shadow-[4px_4px_0px_#020617]" role="toolbar" aria-label="Website workspace">
           <Button variant="ghost" onClick={exitWebsite}><ArrowLeft className="h-4 w-4" aria-hidden /> Back to site configuration</Button>
-          <span className="inline-flex items-center gap-2 border-l-2 border-[#1E293B] px-3 text-xs font-bold text-[#0F172A]">
-            <span aria-hidden className="h-3 w-3 rounded-full border border-[#1E293B]" style={{ background: web.theme.palette.primary }} />
+          <span className="inline-flex items-center gap-2 border-l-2 border-[#1E293B] dark:border-l-[#334155] px-3 text-xs font-bold text-[#0F172A] dark:text-white">
+            <span aria-hidden className="h-3 w-3 rounded-full border border-[#1E293B] dark:border-white" style={{ background: web.theme.palette.primary }} />
             {web.templateName}
           </span>
           {locked ? (
@@ -431,10 +431,10 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           ) : (
             <Badge tone="yellow"><LockOpen className="mr-1 h-3 w-3" aria-hidden /> Free editing</Badge>
           )}
-          <div className="ml-auto flex items-center gap-1 border-l-2 border-[#1E293B] pl-2">
+          <div className="ml-auto flex items-center gap-1 border-l-2 border-[#1E293B] dark:border-l-[#334155] pl-2">
             <Button onClick={validate} loading={busy === "validate"} className="uppercase font-mono">Validate</Button>
-            <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4 text-[#0F172A]" /></Button>
-            <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#0F172A]" /></Button>
+            <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4 text-[#0F172A] dark:text-white" /></Button>
+            <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#0F172A] dark:text-white" /></Button>
           </div>
         </div>
       ) : (
@@ -446,24 +446,24 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           edit(nextConfig);
         }}
       />
-      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border-2 border-[#1E293B] bg-white p-3 shadow-[4px_4px_0px_#1E293B]" role="toolbar" aria-label="Starter layouts">
-        <span className="inline-flex items-center gap-1.5 px-2 font-mono text-xs font-black uppercase tracking-wider text-[#0F172A]"><Sparkles className="h-4 w-4 text-[#FBBC04]" aria-hidden /> TEMPLATES</span>
+      <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border-2 border-[#1E293B] bg-white p-3 shadow-[4px_4px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E] dark:shadow-[4px_4px_0px_#020617]" role="toolbar" aria-label="Starter layouts">
+        <span className="inline-flex items-center gap-1.5 px-2 font-mono text-xs font-black uppercase tracking-wider text-[#0F172A] dark:text-white"><Sparkles className="h-4 w-4 text-[#FBBC04]" aria-hidden /> TEMPLATES</span>
         {PRESETS.map((p) => (
           <Button key={p.id} title={p.description} onClick={() => runPreset(p)}>{p.name}</Button>
         ))}
-        <div className="ml-auto flex items-center gap-1 border-l-2 border-[#1E293B] pl-2">
-          <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4 text-[#0F172A]" /></Button>
-          <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#0F172A]" /></Button>
+        <div className="ml-auto flex items-center gap-1 border-l-2 border-[#1E293B] dark:border-l-[#334155] pl-2">
+          <Button variant="ghost" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={hist.past.length === 0} onClick={doUndo}><Undo2 className="h-4 w-4 text-[#0F172A] dark:text-white" /></Button>
+          <Button variant="ghost" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={hist.future.length === 0} onClick={doRedo}><Redo2 className="h-4 w-4 text-[#0F172A] dark:text-white" /></Button>
         </div>
       </div>
-      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-[#1E293B] bg-white p-4 shadow-[4px_4px_0px_#1E293B]">
+      <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border-2 border-[#1E293B] bg-white p-4 shadow-[4px_4px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E] dark:shadow-[4px_4px_0px_#020617]">
         <SelectField label="Add module" value={toAdd} onChange={(e) => setToAdd(e.target.value)} className="w-56">
           <option value="">Select a module…</option>
           {available.map((d) => <option key={d.type} value={d.type}>{d.displayName}</option>)}
         </SelectField>
         <Button disabled={!toAdd} onClick={addSelected} variant="primary">Add</Button>
-        <div className="hidden lg:flex items-center gap-2 border-l-2 border-[#1E293B] pl-3">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#64748B] mr-1">Drag & Drop:</span>
+        <div className="hidden lg:flex items-center gap-2 border-l-2 border-[#1E293B] dark:border-l-[#334155] pl-3">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-wider text-[#64748B] dark:text-slate-400 mr-1">Drag & Drop:</span>
           {available.slice(0, 5).map((d) => (
             <button
               key={d.type}
@@ -476,7 +476,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
               }}
               onClick={() => placeModule(d.type)}
               title={`Drag onto canvas or click to add ${d.displayName}`}
-              className="cursor-grab active:cursor-grabbing rounded-xl border-2 border-[#1E293B] bg-slate-50 px-3 py-1.5 font-['Outfit',sans-serif] text-xs font-bold text-[#0F172A] shadow-[2px_2px_0px_#1E293B] transition hover:bg-[#FBBC04] hover:shadow-[3px_3px_0px_#1E293B]"
+              className="cursor-grab active:cursor-grabbing rounded-xl border-2 border-[#1E293B] bg-slate-50 px-3 py-1.5 font-['Outfit',sans-serif] text-xs font-bold text-[#0F172A] shadow-[2px_2px_0px_#1E293B] transition hover:bg-[#FBBC04] hover:shadow-[3px_3px_0px_#1E293B] dark:border-[#334155] dark:bg-[#1E293B] dark:text-white dark:shadow-[2px_2px_0px_#020617]"
             >
               + {d.displayName}
             </button>
@@ -527,7 +527,7 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
           </WebsiteBuilderSidebar>
         )}
         <div
-          className={`relative h-[580px] min-w-0 flex-1 rounded-2xl xl:h-full border-2 border-[#1E293B] bg-[#F8FAFC] shadow-[4px_4px_0px_#1E293B] overflow-hidden`}
+          className={`relative h-[580px] min-w-0 flex-1 rounded-2xl xl:h-full border-2 border-[#1E293B] bg-[#F8FAFC] shadow-[4px_4px_0px_#1E293B] overflow-hidden dark:border-[#334155] dark:bg-[#0B1120] dark:shadow-[4px_4px_0px_#020617]`}
           aria-label="Module graph"
           onDragOver={onCanvasDragOver}
           onDrop={onCanvasDrop}
@@ -556,8 +556,8 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
             edgesFocusable={!locked}
             deleteKeyCode={locked ? null : ["Backspace", "Delete"]}
           >
-            <Background color="#CBD5E1" gap={24} size={1.5} />
-            <Controls className="bg-white border-2 border-[#1E293B] text-[#0F172A] rounded-xl shadow-[2px_2px_0px_#1E293B] overflow-hidden [&>button]:border-b-2 [&>button]:border-[#1E293B] [&>button]:bg-white hover:[&>button]:bg-[#FBBC04]" />
+            <Background color="#94A3B8" gap={24} size={1.5} />
+            <Controls className="bg-white border-2 border-[#1E293B] text-[#0F172A] rounded-xl shadow-[2px_2px_0px_#1E293B] overflow-hidden [&>button]:border-b-2 [&>button]:border-[#1E293B] [&>button]:bg-white hover:[&>button]:bg-[#FBBC04] dark:border-[#334155] dark:bg-[#131B2E] dark:text-white dark:shadow-[2px_2px_0px_#020617] dark:[&>button]:border-[#334155] dark:[&>button]:bg-[#131B2E] dark:[&>button]:text-white dark:hover:[&>button]:bg-[#FBBC04] dark:hover:[&>button]:text-[#0F172A]" />
           </ReactFlow>
         </div>
         <div className="flex w-full shrink-0 flex-col gap-4 xl:h-full xl:w-[360px] xl:overflow-y-auto xl:pr-1 [&>*]:shrink-0">

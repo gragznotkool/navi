@@ -229,9 +229,9 @@ export function HubPage() {
             </div>
 
             {overview.data.sites.length > 0 && (
-              <div className="devfest-card mt-6 overflow-hidden">
+              <div className="devfest-card mt-6 overflow-hidden dark:bg-[#131B2E] dark:border-[#334155]">
                 <table className="w-full text-left text-xs">
-                  <thead className="border-b-2 border-[#1E293B] bg-slate-100 font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A]">
+                  <thead className="border-b-2 border-[#1E293B] bg-slate-100 font-mono text-[11px] font-bold uppercase tracking-wider text-[#0F172A] dark:border-[#334155] dark:bg-[#1E293B] dark:text-white">
                     <tr>
                       <th className="px-4 py-3">Site / Unit</th>
                       <th className="px-4 py-3 text-right">Requests</th>
@@ -241,19 +241,19 @@ export function HubPage() {
                       <th className="px-4 py-3 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y border-[#E2E8F0]">
+                  <tbody className="divide-y border-[#E2E8F0] dark:border-[#334155] dark:divide-slate-800">
                     {overview.data.sites.map((s) => (
-                      <tr key={s.siteId} className="hover:bg-blue-50/60 transition-colors">
-                        <td className="px-4 py-3 font-medium text-[#0F172A]">
-                          <Link to={`/s/${s.slug}`} className="font-['Outfit',sans-serif] text-sm font-bold text-[#0F172A] hover:text-[#2563EB]">
+                      <tr key={s.siteId} className="hover:bg-blue-50/60 dark:hover:bg-blue-950/40 transition-colors">
+                        <td className="px-4 py-3 font-medium text-[#0F172A] dark:text-white">
+                          <Link to={`/s/${s.slug}`} className="font-['Outfit',sans-serif] text-sm font-bold text-[#0F172A] dark:text-white hover:text-[#2563EB] dark:hover:text-[#60A5FA]">
                             {s.name}
                           </Link>
-                          <span className="block font-mono text-[11px] text-slate-500">NODE: /{s.slug}</span>
+                          <span className="block font-mono text-[11px] text-slate-500 dark:text-slate-400">NODE: /{s.slug}</span>
                         </td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-slate-700">{s.pendingRequests}</td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-slate-700 dark:text-slate-300">{s.pendingRequests}</td>
                         <td className="px-4 py-3 text-right font-mono tabular-nums text-[#EA4335] font-black">{s.pendingApprovals}</td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-slate-700">{s.inventoryItems}</td>
-                        <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-slate-700">{s.outstandingAssignments}</td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-slate-700 dark:text-slate-300">{s.inventoryItems}</td>
+                        <td className="px-4 py-3 text-right font-mono tabular-nums font-bold text-slate-700 dark:text-slate-300">{s.outstandingAssignments}</td>
                         <td className="px-4 py-3 text-right">
                           <Link
                             to={`/s/${s.slug}`}
@@ -272,12 +272,12 @@ export function HubPage() {
         )}
 
         {last && (
-          <Link to={`/s/${last.slug}`} className="devfest-card mb-6 flex items-center justify-between p-4 font-mono text-xs font-bold text-[#0F172A] transition hover:bg-yellow-50">
+          <Link to={`/s/${last.slug}`} className="devfest-card mb-6 flex items-center justify-between p-4 font-mono text-xs font-bold text-[#0F172A] transition hover:bg-yellow-50 dark:border-[#334155] dark:bg-[#131B2E] dark:text-white dark:hover:bg-yellow-950/20">
             <span className="flex items-center gap-2">
-              <span className="h-3 w-3 rounded-full bg-[#FBBC04] border border-[#1E293B]" />
-              RESUME WORKSPACE: <strong className="font-extrabold text-[#2563EB]">{last.name}</strong>
+              <span className="h-3 w-3 rounded-full bg-[#FBBC04] border border-[#1E293B] dark:border-[#334155]" />
+              RESUME WORKSPACE: <strong className="font-extrabold text-[#2563EB] dark:text-[#60A5FA]">{last.name}</strong>
             </span>
-            <span aria-hidden className="text-[#0F172A] font-extrabold">ENTER NODE WORKSPACE →</span>
+            <span aria-hidden className="text-[#0F172A] font-extrabold dark:text-white">ENTER NODE WORKSPACE →</span>
           </Link>
         )}
 
@@ -306,23 +306,23 @@ export function HubPage() {
                 return (
                   <li
                     key={s.id}
-                    className={`devfest-card group flex flex-col justify-between p-5 ${accentBorder}`}
+                    className={`devfest-card group flex flex-col justify-between p-5 ${accentBorder} dark:bg-[#131B2E] dark:border-[#334155]`}
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 border-b-2 border-slate-100 pb-3">
-                        <h3 className="font-['Outfit',sans-serif] text-lg font-black tracking-wide text-[#0F172A] group-hover:text-[#2563EB] transition-colors">{s.name}</h3>
+                      <div className="flex items-center justify-between gap-2 border-b-2 border-slate-100 dark:border-slate-800 pb-3">
+                        <h3 className="font-['Outfit',sans-serif] text-lg font-black tracking-wide text-[#0F172A] dark:text-white group-hover:text-[#2563EB] dark:group-hover:text-[#60A5FA] transition-colors">{s.name}</h3>
                         <Badge tone="yellow">v{s.activeReleaseVersion ?? "1"}</Badge>
                       </div>
                       <div className="mt-3 grid gap-1.5 font-mono text-xs">
-                        <p className="text-slate-500">
-                          NODE: <span className="font-bold text-[#0F172A]">/{s.slug}</span>
+                        <p className="text-slate-500 dark:text-slate-400">
+                          NODE: <span className="font-bold text-[#0F172A] dark:text-white">/{s.slug}</span>
                         </p>
-                        <p className="text-slate-500">
-                          SHELL: <span className="font-bold text-[#2563EB] uppercase">{s.shell}</span>
+                        <p className="text-slate-500 dark:text-slate-400">
+                          SHELL: <span className="font-bold text-[#2563EB] dark:text-[#60A5FA] uppercase">{s.shell}</span>
                         </p>
                       </div>
                     </div>
-                    <div className="mt-5 pt-3 border-t-2 border-slate-100">
+                    <div className="mt-5 pt-3 border-t-2 border-slate-100 dark:border-slate-800">
                       <Link
                         to={`/s/${s.slug}`}
                         className="devfest-btn block w-full rounded-full bg-[#3B82F6] py-2 text-center font-mono text-xs font-bold uppercase tracking-wider text-white hover:bg-[#2563EB] active:scale-[0.99]"

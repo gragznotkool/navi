@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { ProofList, ProofResult } from "@opshub/contracts";
 import { ErrorState, LoadingState } from "../../components/feedback";
-import { Badge, Button, Panel } from "../../components/ui";
+import { Badge, Button, Panel, ThemeToggle } from "../../components/ui";
 import { useAsync } from "../../hooks/useAsync";
 import { toRequestError } from "../../lib/api";
 import { formatDateTime } from "../../lib/format";
@@ -122,25 +122,28 @@ export function TrustConsolePage() {
   const passing = rows.reduce((n, r) => n + r.result.cells.filter((c) => c.ok).length, 0);
 
   return (
-    <div className="min-h-full industrial-dot-grid p-6 text-[#0F172A]">
+    <div className="min-h-full industrial-dot-grid p-6 text-[#0F172A] dark:text-white">
       <main className="mx-auto w-full max-w-5xl">
-        <Link to="/" className="devfest-btn inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 font-mono text-xs font-bold text-[#0F172A] hover:bg-slate-100 transition shadow-[2px_2px_0px_#1E293B]">
-          ← RETURN TO HUB
-        </Link>
-        <div className="devfest-card mt-4 mb-6 p-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center justify-between">
+          <Link to="/" className="devfest-btn inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 font-mono text-xs font-bold text-[#0F172A] hover:bg-slate-100 transition shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-[#1E293B] dark:text-white dark:hover:bg-slate-800 dark:shadow-[2px_2px_0px_#05070B]">
+            ← RETURN TO HUB
+          </Link>
+          <ThemeToggle />
+        </div>
+        <div className="devfest-card mt-4 mb-6 p-6 flex flex-wrap items-center justify-between gap-4 dark:border-[#334155] dark:bg-[#131B2E]">
           <div>
             <div className="mb-1.5 inline-flex items-center gap-2 rounded-full bg-[#34A853]/15 px-3 py-1 font-mono text-xs font-bold text-[#34A853]">
               <span className="h-2 w-2 rounded-full bg-[#34A853]" />
               SECURITY VERIFICATION ENGINE
             </div>
-            <h1 className="font-['Outfit',sans-serif] text-3xl font-black tracking-tight text-[#0F172A]">
-              Security & Trust Verification Console
+            <h1 className="font-['Outfit',sans-serif] text-3xl font-black tracking-tight text-[#0F172A] dark:text-white">
+              Security &amp; Trust Verification Console
             </h1>
-            <p className="mt-1 text-sm font-medium text-slate-600">
+            <p className="mt-1 text-sm font-medium text-slate-600 dark:text-slate-300">
               Direct operational verification suite. Proofs execute live against Postgres isolation policies and active schemas.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-full border-2 border-[#1E293B] bg-[#34A853]/15 px-3.5 py-1.5 font-mono text-xs font-bold text-[#0F172A] shadow-[2px_2px_0px_#1E293B]">
+          <div className="flex items-center gap-2 rounded-full border-2 border-[#1E293B] bg-[#34A853]/15 px-3.5 py-1.5 font-mono text-xs font-bold text-[#0F172A] shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:text-white dark:shadow-[2px_2px_0px_#05070B]">
             <span className="h-2.5 w-2.5 rounded-full bg-[#34A853] animate-pulse" />
             STATUS: <span className="text-[#34A853] font-black">ACTIVE</span>
           </div>

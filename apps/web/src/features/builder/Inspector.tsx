@@ -82,7 +82,7 @@ export function Inspector({ config, node, def, defs, onEdit, onRemoved, settings
           <Panel title="Custom fields">
             <div className="flex flex-col gap-3">
               {config.customFields.filter((f) => f.nodeId === node.id).map((f) => (
-                <div key={f.id} className="grid grid-cols-[1fr_auto] items-end gap-2 rounded-xl border-2 border-[#1E293B] bg-slate-50 p-3 shadow-[2px_2px_0px_#1E293B]">
+                <div key={f.id} className="grid grid-cols-[1fr_auto] items-end gap-2 rounded-xl border-2 border-[#1E293B] bg-slate-50 p-3 shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-[#1E293B] dark:shadow-[2px_2px_0px_#05070B]">
                   <TextField label="Field name" value={f.name} onChange={(e) => onEdit(updateCustomField(config, f.id, { name: e.target.value }))} />
                   <Button variant="ghost" aria-label={`Remove field ${f.name}`} onClick={() => onEdit(removeCustomField(config, f.id))}><Trash2 className="h-4 w-4" /></Button>
                   <SelectField label="Type" value={f.type} onChange={(e) => onEdit(updateCustomField(config, f.id, { type: e.target.value as (typeof fieldTypes)[number] }))}>
@@ -138,7 +138,7 @@ export function Inspector({ config, node, def, defs, onEdit, onRemoved, settings
       <Panel title="Formula builder" actions={<Badge tone="info">site-wide</Badge>}>
         <div className="flex flex-col gap-3">
           {config.calculatedFieldDefinitions.map((f) => (
-            <div key={f.id} className="flex flex-col gap-2 rounded-xl border-2 border-[#1E293B] bg-slate-50 p-3 shadow-[2px_2px_0px_#1E293B]">
+            <div key={f.id} className="flex flex-col gap-2 rounded-xl border-2 border-[#1E293B] bg-slate-50 p-3 shadow-[2px_2px_0px_#1E293B] dark:border-[#334155] dark:bg-[#1E293B] dark:shadow-[2px_2px_0px_#05070B]">
               <div className="flex items-end gap-2">
                 <TextField className="flex-1" label="Label" value={f.label} onChange={(e) => onEdit(updateCalculatedField(config, f.id, { label: e.target.value }))} />
                 <Button variant="ghost" aria-label={`Remove ${f.label}`} onClick={() => onEdit(removeCalculatedField(config, f.id))}><Trash2 className="h-4 w-4" /></Button>

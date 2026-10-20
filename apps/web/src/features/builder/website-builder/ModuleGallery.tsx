@@ -49,8 +49,8 @@ export function ModuleGallery({ defs, config, query, locked, onAdd, onUnlock }: 
                     data-testid={`gallery-${d.type}`}
                     className={`group flex w-full gap-2.5 rounded-xl border-2 p-2.5 text-left transition-all ${
                       on
-                        ? "cursor-default border-slate-200 bg-slate-100 opacity-60"
-                        : "cursor-grab border-[#1E293B] bg-white shadow-[2px_2px_0px_#1E293B] hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_#1E293B] active:cursor-grabbing"
+                        ? "cursor-default border-slate-200 bg-slate-100 opacity-60 dark:border-[#334155] dark:bg-[#0B1120]"
+                        : "cursor-grab border-[#1E293B] bg-white shadow-[2px_2px_0px_#1E293B] hover:-translate-y-0.5 hover:shadow-[3px_3px_0px_#1E293B] active:cursor-grabbing dark:border-[#334155] dark:bg-[#131B2E] dark:shadow-[2px_2px_0px_#020617]"
                     }`}
                   >
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-[#1E293B] bg-[#FBBC04] text-[#0F172A] shadow-[1px_1px_0px_#1E293B]">
@@ -58,18 +58,18 @@ export function ModuleGallery({ defs, config, query, locked, onAdd, onUnlock }: 
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
-                        <span className="truncate text-[13px] font-bold text-[#0F172A]">{d.displayName}</span>
+                        <span className="truncate text-[13px] font-bold text-[#0F172A] dark:text-white">{d.displayName}</span>
                         {on ? (
                           <span className="ml-auto shrink-0 rounded-full border border-[#1E293B] bg-[#34A853] px-2 py-0.5 text-[9px] font-black uppercase text-white shadow-[1px_1px_0px_#1E293B]">On canvas</span>
                         ) : (
-                          <Plus className="ml-auto h-3.5 w-3.5 shrink-0 text-slate-500 group-hover:text-[#0F172A]" aria-hidden />
+                          <Plus className="ml-auto h-3.5 w-3.5 shrink-0 text-slate-500 group-hover:text-[#0F172A] dark:text-slate-400 dark:group-hover:text-white" aria-hidden />
                         )}
                       </span>
-                      <span className="mt-0.5 line-clamp-2 block text-[11px] leading-snug text-slate-500 font-medium">{d.description}</span>
+                      <span className="mt-0.5 line-clamp-2 block text-[11px] leading-snug text-slate-500 dark:text-slate-400 font-medium">{d.description}</span>
                       {(ins.length > 0 || outs.length > 0) && (
                         <span className="mt-1.5 flex flex-wrap gap-1">
-                          {ins.map((p) => <span key={p.id} className="rounded-md border border-[#1E293B] bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-[#0F172A]">« {p.label}</span>)}
-                          {outs.map((p) => <span key={p.id} className="rounded-md border border-[#1E293B] bg-[#FEF3C7] px-1.5 py-0.5 font-mono text-[9px] font-bold text-[#0F172A]">{p.label} »</span>)}
+                          {ins.map((p) => <span key={p.id} className="rounded-md border border-[#1E293B] bg-slate-100 px-1.5 py-0.5 font-mono text-[9px] font-bold text-[#0F172A] dark:border-[#334155] dark:bg-[#0B1120] dark:text-slate-200">« {p.label}</span>)}
+                          {outs.map((p) => <span key={p.id} className="rounded-md border border-[#1E293B] bg-[#FEF3C7] px-1.5 py-0.5 font-mono text-[9px] font-bold text-[#0F172A] dark:border-[#FBBC04]/50 dark:bg-[#451a03] dark:text-[#FEF08A]">{p.label} »</span>)}
                         </span>
                       )}
                     </span>

@@ -392,7 +392,7 @@ export function SiteShell({ title, children }: { title: string; children: ReactN
       <div style={style} className="flex h-full flex-col industrial-dot-grid pb-14 md:pb-0" data-shell="workbench">
         <OfflineBanner />
         <PreviewBanner />
-        <header className="border-b-2 border-[#1E293B] bg-white bg-slate-900 text-[#0F172A] shadow-[0_2px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E] dark:text-white">
+        <header className="border-b-2 border-[#1E293B] bg-slate-900 text-white shadow-[0_2px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E]">
           <div className="flex h-14 items-center gap-4 px-6">
             {Brand}
             <SiteSwitcher />

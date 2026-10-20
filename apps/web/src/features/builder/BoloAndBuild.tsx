@@ -321,21 +321,21 @@ export function BoloAndBuild({ config, defs, onApplyConfig }: BoloAndBuildProps)
   return (
     <div className="relative mb-3">
       {/* Pill Trigger */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-[#1E293B] bg-[#FFFFFF] p-2.5 shadow-[3px_3px_0px_#1E293B]">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-2 border-[#1E293B] bg-[#FFFFFF] p-2.5 shadow-[3px_3px_0px_#1E293B] dark:border-[#334155] dark:bg-[#131B2E] dark:shadow-[3px_3px_0px_#020617]">
         <div className="flex items-center gap-2">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[#1E293B] bg-[#FBBC04] shadow-[1px_1px_0px_#1E293B]">
             <Sparkles className="h-4 w-4 text-[#1E293B]" />
           </span>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-['Outfit',sans-serif] text-xs font-black uppercase tracking-wider text-[#1E293B]">
+              <span className="font-['Outfit',sans-serif] text-xs font-black uppercase tracking-wider text-[#1E293B] dark:text-white">
                 Bolo & Build
               </span>
-              <span className="rounded-full border border-[#1E293B] bg-[#4285F4]/10 px-2 py-0.2 font-mono text-[10px] font-bold text-[#1E293B]">
+              <span className="rounded-full border border-[#1E293B] bg-[#4285F4]/10 px-2 py-0.2 font-mono text-[10px] font-bold text-[#1E293B] dark:border-[#334155] dark:bg-[#4285F4]/20 dark:text-[#93C5FD]">
                 AI Architect (hi-IN · mr-IN · en-IN)
               </span>
             </div>
-            <p className="text-[11px] font-medium text-[#64748B]">
+            <p className="text-[11px] font-medium text-[#64748B] dark:text-slate-400">
               Speak or type natural language to synthesize React Flow configurations on the fly
             </p>
           </div>
@@ -354,13 +354,13 @@ export function BoloAndBuild({ config, defs, onApplyConfig }: BoloAndBuildProps)
 
       {/* Expanded Assistant Tray */}
       {isOpen && (
-        <div className="mt-2 rounded-xl border-2 border-[#1E293B] bg-[#F8FAFC] p-4 shadow-[4px_4px_0px_#1E293B] transition-all animate-in fade-in slide-in-from-top-2">
+        <div className="mt-2 rounded-xl border-2 border-[#1E293B] bg-[#F8FAFC] p-4 shadow-[4px_4px_0px_#1E293B] transition-all animate-in fade-in slide-in-from-top-2 dark:border-[#334155] dark:bg-[#0F172A] dark:shadow-[4px_4px_0px_#020617]">
           <div className="flex flex-col gap-3">
             {/* Input + Mic Controls */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Language Switcher */}
-              <div className="flex items-center rounded-lg border-2 border-[#1E293B] bg-white p-0.5 shadow-[1px_1px_0px_#1E293B]">
-                <Languages className="ml-1.5 h-3.5 w-3.5 text-[#64748B]" />
+              <div className="flex items-center rounded-lg border-2 border-[#1E293B] bg-white p-0.5 shadow-[1px_1px_0px_#1E293B] dark:border-[#334155] dark:bg-[#1E293B] dark:shadow-[1px_1px_0px_#020617]">
+                <Languages className="ml-1.5 h-3.5 w-3.5 text-[#64748B] dark:text-slate-400" />
                 {SUPPORTED_LANGS.map((l) => (
                   <button
                     key={l.code}
@@ -369,8 +369,8 @@ export function BoloAndBuild({ config, defs, onApplyConfig }: BoloAndBuildProps)
                     title={l.name}
                     className={`rounded-md px-2 py-1 font-mono text-xs font-bold transition-colors ${
                       lang === l.code
-                        ? "bg-[#1E293B] text-white"
-                        : "text-[#64748B] hover:text-[#1E293B]"
+                        ? "bg-[#1E293B] text-white dark:bg-[#4285F4]"
+                        : "text-[#64748B] hover:text-[#1E293B] dark:text-slate-400 dark:hover:text-white"
                     }`}
                   >
                     {l.label}
@@ -390,7 +390,7 @@ export function BoloAndBuild({ config, defs, onApplyConfig }: BoloAndBuildProps)
                       ? "Listening to speech..."
                       : `e.g. "Add Returns, damaged items don't go to stock" (${SUPPORTED_LANGS.find((l) => l.code === lang)?.name})`
                   }
-                  className="h-10 w-full rounded-xl border-2 border-[#1E293B] bg-white pl-3 pr-10 text-xs font-medium text-[#0F172A] shadow-[2px_2px_0px_#1E293B] placeholder:text-[#94A3B8] focus:border-[#4285F4] focus:outline-none"
+                  className="h-10 w-full rounded-xl border-2 border-[#1E293B] bg-white pl-3 pr-10 text-xs font-medium text-[#0F172A] shadow-[2px_2px_0px_#1E293B] placeholder:text-[#94A3B8] focus:border-[#4285F4] focus:outline-none dark:border-[#334155] dark:bg-[#1E293B] dark:text-white dark:placeholder:text-slate-500 dark:shadow-[2px_2px_0px_#020617]"
                 />
                 <button
                   type="button"
@@ -419,7 +419,7 @@ export function BoloAndBuild({ config, defs, onApplyConfig }: BoloAndBuildProps)
 
             {/* Quick Demo Chips */}
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#64748B]">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#64748B] dark:text-slate-400">
                 Try saying:
               </span>
               {samplePrompts.map((p, idx) => (
@@ -430,7 +430,7 @@ export function BoloAndBuild({ config, defs, onApplyConfig }: BoloAndBuildProps)
                     setQuery(p);
                     handleExecute(p);
                   }}
-                  className="rounded-lg border-2 border-[#1E293B] bg-white px-2 py-0.5 text-[11px] font-semibold text-[#1E293B] shadow-[1px_1px_0px_#1E293B] transition hover:bg-[#FBBC04]/20 hover:border-[#1E293B]"
+                  className="rounded-lg border-2 border-[#1E293B] bg-white px-2 py-0.5 text-[11px] font-semibold text-[#1E293B] shadow-[1px_1px_0px_#1E293B] transition hover:bg-[#FBBC04]/20 hover:border-[#1E293B] dark:border-[#334155] dark:bg-[#1E293B] dark:text-slate-200 dark:shadow-[1px_1px_0px_#020617] dark:hover:border-[#FBBC04]"
                 >
                   &ldquo;{p}&rdquo;
                 </button>
@@ -442,8 +442,8 @@ export function BoloAndBuild({ config, defs, onApplyConfig }: BoloAndBuildProps)
               <div
                 className={`flex items-start gap-2 rounded-lg border-2 border-[#1E293B] p-2.5 text-xs font-semibold shadow-[2px_2px_0px_#1E293B] ${
                   aiStatus === "error"
-                    ? "bg-[#FEE2E2] text-[#991B1B]"
-                    : "bg-[#DCFCE7] text-[#166534]"
+                    ? "bg-[#FEE2E2] text-[#991B1B] dark:bg-[#450a0a] dark:text-rose-300 dark:border-rose-900"
+                    : "bg-[#DCFCE7] text-[#166534] dark:bg-[#052e16] dark:text-emerald-300 dark:border-emerald-900"
                 }`}
               >
                 {aiStatus === "error" ? (

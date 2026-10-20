@@ -79,15 +79,6 @@ html.dark .devfest-btn {
   box-shadow: 3px 3px 0px #020617;
 }
 
-html.dark ::-webkit-scrollbar-track {
-  background: #0F172A;
-  border-color: #334155;
-}
-
-html.dark ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-color: #1E293B;
-}
 
 @theme inline {
   --font-sans: "Plus Jakarta Sans", "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -125,10 +116,30 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
 /* Custom DevFest Neo-Brutalist Scrollbar */
 *, *::before, *::after {
   scrollbar-width: thin;
   scrollbar-color: #94A3B8 #F1F5F9;
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 180ms;
+}
+
+/* Exclude ReactFlow drag items and canvas from transitions to prevent lag */
+.react-flow, .react-flow * {
+  transition-property: none !important;
+}
+
+html.dark, html.dark *, html.dark *::before, html.dark *::after {
+  scrollbar-color: #475569 #0B1120;
 }
 
 ::-webkit-scrollbar {
@@ -142,11 +153,24 @@ body {
   border-top: 2px solid #1E293B;
 }
 
+html.dark ::-webkit-scrollbar-track {
+  background: #0B1120;
+  border-left: 2px solid #334155;
+  border-top: 2px solid #334155;
+}
+
 ::-webkit-scrollbar-thumb {
   background: #CBD5E1;
   border-radius: 9999px;
   border: 2px solid #1E293B;
   box-shadow: 1px 1px 0px #1E293B;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 9999px;
+  border: 2px solid #0B1120;
+  box-shadow: 1px 1px 0px #020617;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -155,8 +179,17 @@ body {
   box-shadow: 2px 2px 0px #1E293B;
 }
 
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #FBBC04;
+  border-color: #334155;
+}
+
 ::-webkit-scrollbar-corner {
   background: #F1F5F9;
+}
+
+html.dark ::-webkit-scrollbar-corner {
+  background: #0B1120;
 }
 
 /* Subtle clean scroll for horizontal navigation rails */

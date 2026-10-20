@@ -172,27 +172,27 @@ export function DashboardModule({ page }: ModuleProps) {
       />
 
       {/* Industrial Operational Ticker Tape */}
-      <div className="mb-6 overflow-hidden rounded-xl border-2 border-[#1E293B] bg-[#1E293B] px-4 py-2 font-mono text-xs text-white shadow-[3px_3px_0px_#1E293B] dark:border-[#334155] dark:bg-[#0D1424]">
+      <div className="mb-6 overflow-hidden rounded-xl border-2 border-[#1E293B] bg-white px-4 py-2 font-mono text-xs text-[#0F172A] shadow-[3px_3px_0px_#1E293B] dark:border-[#334155] dark:bg-[#0D1424] dark:text-white dark:shadow-[3px_3px_0px_#020617]">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2 shrink-0">
             <span className="flex h-2 w-2 rounded-full bg-[#FBBC04] animate-ping" />
-            <span className="font-bold uppercase tracking-wider text-[#FBBC04]">OPERATIONAL TICKER:</span>
+            <span className="font-bold uppercase tracking-wider text-[#D97706] dark:text-[#FBBC04]">OPERATIONAL TICKER:</span>
           </div>
-          <div className="flex items-center gap-6 overflow-x-auto text-[11px] text-slate-300">
+          <div className="flex items-center gap-6 overflow-x-auto text-[11px] text-slate-600 dark:text-slate-300">
             <span>
-              STATUS: <strong className="text-emerald-400">OPTIMAL (100% RLS ISOLATION)</strong>
+              STATUS: <strong className="text-emerald-600 dark:text-emerald-400">OPTIMAL (100% RLS ISOLATION)</strong>
             </span>
             <span>
-              SITE: <strong className="text-white">{config.name}</strong>
+              SITE: <strong className="text-[#0F172A] dark:text-white">{config.name}</strong>
             </span>
             <span>
-              PENDING DECISIONS: <strong className="text-[#FBBC04]">{pendingApprovals}</strong>
+              PENDING DECISIONS: <strong className="text-[#D97706] dark:text-[#FBBC04]">{pendingApprovals}</strong>
             </span>
             <span>
-              STOCK REORDER ALERTS: <strong className="text-rose-400">{belowReorder}</strong>
+              STOCK REORDER ALERTS: <strong className="text-rose-600 dark:text-rose-400">{belowReorder}</strong>
             </span>
             <span>
-              SLA INDEX: <strong className="text-emerald-400">{slaCompliancePercent}%</strong>
+              SLA INDEX: <strong className="text-emerald-600 dark:text-emerald-400">{slaCompliancePercent}%</strong>
             </span>
           </div>
         </div>
