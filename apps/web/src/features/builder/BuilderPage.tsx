@@ -25,6 +25,7 @@ import { DeployedWebsites, TemplateGallery } from "./website-builder/TemplateGal
 import { WEBSITE_THEMES } from "./website-builder/themes";
 import { WebsiteBuilderSidebar, type SidebarTab } from "./website-builder/WebsiteBuilderSidebar";
 import { WebsiteDeployPanel } from "./website-builder/WebsiteDeployPanel";
+import { BoloAndBuild } from "./BoloAndBuild";
 
 type ModuleNodeData = { def: ModuleDefinition | undefined; moduleType: string; shake: boolean; problem: string | null };
 
@@ -438,6 +439,13 @@ export function BuilderPage({ activeVersion, activeConfig }: { activeVersion: nu
         </div>
       ) : (
       <>
+      <BoloAndBuild
+        config={config}
+        defs={defs}
+        onApplyConfig={(nextConfig) => {
+          edit(nextConfig);
+        }}
+      />
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-2xl border-2 border-[#1E293B] bg-white p-3 shadow-[4px_4px_0px_#1E293B]" role="toolbar" aria-label="Starter layouts">
         <span className="inline-flex items-center gap-1.5 px-2 font-mono text-xs font-black uppercase tracking-wider text-[#0F172A]"><Sparkles className="h-4 w-4 text-[#FBBC04]" aria-hidden /> TEMPLATES</span>
         {PRESETS.map((p) => (

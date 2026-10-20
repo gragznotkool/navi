@@ -124,3 +124,6 @@ export function OfflineBanner() {
     </div>
   );
 }
+
+export { DeadZoneBanner } from "./DeadZoneBanner";
+

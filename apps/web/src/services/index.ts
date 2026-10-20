@@ -46,6 +46,11 @@ import type {
   WebsiteDeployRequest,
   WebsiteDeployResponse,
   WebsiteTemplate,
+  ConfigurationProposal,
+  GenerateProposalRequest,
+  UpdateProposalRequest,
+  ApproveProposalRequest,
+  PublishProposalRequest,
 } from "@opshub/contracts";
 import { call, http, toRequestErrorFromBlob } from "../lib/api";
 
@@ -135,6 +140,23 @@ export const releasesApi = {
   audit: (siteId: string) => call<AuditEvent[]>(http.get(`/sites/${siteId}/audit-events`)),
   preview: (siteId: string, releaseId: string) => call<{ version: number; configuration: unknown }>(http.get(`/sites/${siteId}/releases/${releaseId}/preview`)),
   rollbackEligibility: (siteId: string, releaseId: string, baseVersion: number) => call<{ eligible: boolean; warnings?: string[]; blockingReasons?: string[] }>(http.get(`/sites/${siteId}/releases/${releaseId}/rollback-eligibility`, { params: { baseVersion } })),
+};
+
+export const proposalsApi = {
+  create: (siteId: string, body: GenerateProposalRequest) =>
+    call<ConfigurationProposal>(http.post(`/sites/${siteId}/proposals`, body)),
+  list: (siteId: string) =>
+    call<ConfigurationProposal[]>(http.get(`/sites/${siteId}/proposals`)),
+  get: (siteId: string, id: string) =>
+    call<ConfigurationProposal>(http.get(`/sites/${siteId}/proposals/${id}`)),
+  update: (siteId: string, id: string, body: UpdateProposalRequest) =>
+    call<ConfigurationProposal>(http.patch(`/sites/${siteId}/proposals/${id}`, body)),
+  submit: (siteId: string, id: string) =>
+    call<ConfigurationProposal>(http.post(`/sites/${siteId}/proposals/${id}/submit`)),
+  decide: (siteId: string, id: string, body: ApproveProposalRequest) =>
+    call<ConfigurationProposal>(http.post(`/sites/${siteId}/proposals/${id}/decision`, body)),
+  publish: (siteId: string, id: string, body: PublishProposalRequest) =>
+    call<{ releaseVersion: number; proposal: ConfigurationProposal }>(http.post(`/sites/${siteId}/proposals/${id}/publish`, body)),
 };
 
 export const trustApi = {

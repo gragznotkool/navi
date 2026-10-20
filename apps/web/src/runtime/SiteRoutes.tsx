@@ -15,6 +15,7 @@ import { SiteShell } from "./SiteShell";
 import { UniversalRenderer } from "./UniversalRenderer";
 import { WebsiteShell } from "./WebsiteShell";
 import { useSiteRuntime } from "./context";
+import { prewarmDeadZoneCache } from "../stores/deadZoneStore";
 import { usePreviewStore } from "../features/builder/previewStore";
 
 /** Loads the ACTIVE release for the site named in the URL and provides it to the runtime. */
@@ -41,6 +42,12 @@ export function SiteRoute({ preview = false }: { preview?: boolean }) {
     const [cfg, access] = await Promise.all([sitesApi.config(siteId), sitesApi.access(siteId)]);
     return { ...cfg, permissions: access.permissions, resolvedSiteId: siteId };
   }, [slug, membership?.siteId]);
+
+  useEffect(() => {
+    if (slug && active.data?.configuration) {
+      void prewarmDeadZoneCache(slug, active.data.configuration);
+    }
+  }, [slug, active.data?.configuration]);
 
   if (!membership && !active.data && !active.loading) {
     return (

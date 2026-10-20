@@ -481,3 +481,48 @@ export const provisioningEvents = pgTable(
   },
   (t) => [primaryKey({ columns: [t.jobId, t.seq] })],
 );
+
+export const proposalStatus = pgEnum("proposal_status", [
+  "draft",
+  "generated",
+  "validated",
+  "pending_approval",
+  "approved",
+  "rejected",
+  "published",
+]);
+
+export const configurationProposals = pgTable(
+  "configuration_proposals",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    siteId: uuid("site_id")
+      .notNull()
+      .references(() => sites.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    summary: text("summary").notNull(),
+    prompt: text("prompt").notNull(),
+    status: proposalStatus("status").notNull().default("generated"),
+    baseVersion: integer("base_version"),
+    proposedConfiguration: jsonb("proposed_configuration").notNull(),
+    configurationHash: text("configuration_hash").notNull(),
+    affectedModules: jsonb("affected_modules").notNull().default(sql`'[]'::jsonb`),
+    changes: jsonb("changes").notNull().default(sql`'[]'::jsonb`),
+    diffSummary: jsonb("diff_summary").notNull().default(sql`'{}'::jsonb`),
+    validationResult: jsonb("validation_result").notNull().default(sql`'{}'::jsonb`),
+    aiExplanation: jsonb("ai_explanation").notNull().default(sql`'{}'::jsonb`),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    approvedBy: uuid("approved_by").references(() => users.id, { onDelete: "set null" }),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    publishedReleaseVersion: integer("published_release_version"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("config_proposals_site_idx").on(t.siteId, t.createdAt),
+    index("config_proposals_status_idx").on(t.status),
+  ],
+);
+
